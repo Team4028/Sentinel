@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+    <head></head>
+    <body>
+        <label for="din">Scouting Data:</label>
+        <input type="file" accept=".csv" id="din">
+        <button onclick="uploadFile()">Upload</button>
+        <script>
+            function uploadFile() {
+                const dataInput = document.getElementById("din");
+                const file = dataInput.files[0];
+                const fData = new FormData();
+                fData.append('data', file);
+                fetch("/upload", {
+                    method: "POST",
+                    body: fData
+                });
+            }
+        </script>
+    </body>
+</html>

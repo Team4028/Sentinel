@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 0,
+  "id": 2,
   "links": [],
   "panels": [
     {
@@ -313,8 +313,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 9,
+        "w": 15,
         "x": 0,
         "y": 17
       },
@@ -661,10 +661,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 9,
+        "w": 14,
         "x": 0,
-        "y": 25
+        "y": 26
       },
       "id": 3,
       "options": {
@@ -810,7 +810,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 35
       },
       "id": 2,
       "options": {
@@ -866,7 +866,7 @@
           "id": "extractFields",
           "options": {
             "delimiter": ",",
-            "source": "{\"Average Algae\":4,\"Average Coral\":13.67,\"Average Cycles\":17.67,\"Average Deep\":0.33,\"Average Score\":80,\"Average Shallow\":0.33}"
+            "source": "{\"Average Algae\":0,\"Average Coral\":8.57,\"Average Cycles\":8.57,\"Average Deep\":0,\"Average Score\":40,\"Average Shallow\":0}"
           }
         },
         {
@@ -934,11 +934,13 @@
         "current": {
           "text": [
             "111",
-            "2056"
+            "422",
+            "2826"
           ],
           "value": [
             "111",
-            "2056"
+            "422",
+            "2826"
           ]
         },
         "definition": "",
@@ -977,8 +979,8 @@
       },
       {
         "current": {
-          "text": "1",
-          "value": "1"
+          "text": "3",
+          "value": "3"
         },
         "datasource": {
           "type": "marcusolsson-csv-datasource",
@@ -1003,8 +1005,8 @@
       },
       {
         "current": {
-          "text": "2024arc_qm56",
-          "value": "2024arc_qm56"
+          "text": "2025iri_f1m1",
+          "value": "2025iri_f1m1"
         },
         "definition": "",
         "name": "PredictionSelector",
@@ -1035,12 +1037,12 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Scouting Dashboard",
   "uid": "adfs6pg",
-  "version": 16
+  "version": 18
 }

@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.config["UPL_DIR"] = "datain"
 app.config["OUT_DIR"] = "dataout"
 app.config["CHUNK"] = 10000
-app.config["EVENT_KEY"] = "2024arc"
+app.config["EVENT_KEY"] = "2025iri"
 
 auth_key = input("Enter TBA Auth key: ")
 

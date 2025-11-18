@@ -56,16 +56,16 @@ class MatchStruct:
 
 class Processor:
     CORAL_COLUMNS = [
-        "Coral AL1",
-        "Coral AL2",
-        "Coral AL3",
-        "Coral AL4",
-        "Coral TL1",
-        "Coral TL2",
-        "Coral TL3",
-        "Coral TL4",
+        "AL1",
+        "AL2",
+        "AL3",
+        "AL4",
+        "TL1",
+        "TL2",
+        "TL3",
+        "TL4",
     ]
-    ALGAE_COLUMNS = ["Algae P", "Algae B"]
+    ALGAE_COLUMNS = ["AP", "AB"]
     CORAL_VALS = [3, 4, 6, 7, 2, 3, 4, 5]
     ALGAE_VALS = [2, 4]
 
@@ -134,24 +134,6 @@ class Processor:
             json.dump(data, f, indent=4)
 
     def output_matches(self, outfile):
-        # with open(outfile, "w") as f:
-        #     json.dump(
-        #         [
-        #             {k: {
-        #                 t: {
-        #                     "Total Coral": str(v.teams[t]["coral"]),
-        #                     "Total Algae": str(v.teams[t]["algae"]),
-        #                     "Total Cycles": str(v.teams[t]["total"]),
-        #                     "Shallow Climb": str(v.teams[t]["climbS"]),
-        #                     "Deep Climb": str(v.teams[t]["climbD"]),
-        #                 }
-        #                 for t in v.teams.keys()
-        #             }}
-        #             for k, v in self._matches.items()
-        #         ],
-        #         f,
-        #         indent=4,
-        #     )
         pd.DataFrame({
             "Match": [k for k, v in self._matches.items() for _ in range(len(v.teams))],
             "Team": [t for v in self._matches.values() for t in v.teams.keys()],
@@ -168,6 +150,7 @@ class Processor:
         ) as reader:
             first = True
             for chunk in reader:
+                print(chunk)
                 chunk["Total Coral"] = chunk[Processor.CORAL_COLUMNS].sum(axis=1)
                 chunk["Total Algae"] = chunk[Processor.ALGAE_COLUMNS].sum(axis=1)
                 chunk["Total Cycles"] = chunk["Total Coral"] + chunk["Total Algae"]
@@ -176,33 +159,33 @@ class Processor:
                     + (chunk[Processor.ALGAE_COLUMNS] * Processor.ALGAE_VALS).sum(
                         axis=1
                     )
-                    + chunk["Mobility"] * 3
-                    + chunk["Barge S"] * 6
-                    + chunk["Barge D"] * 12
+                    + chunk["M"] * 3
+                    + chunk["CS"] * 6
+                    + chunk["CD"] * 12
                 )
-                for team in chunk["Team Number"]:
+                for team in chunk["TN"]:
                     self._teams.setdefault(team, TeamStruct()).extend_data(
-                        chunk.loc[chunk["Team Number"] == team, "Total Coral"],
-                        chunk.loc[chunk["Team Number"] == team, "Total Algae"],
-                        chunk.loc[chunk["Team Number"] == team, "Barge S"],
-                        chunk.loc[chunk["Team Number"] == team, "Barge D"],
-                        chunk.loc[chunk["Team Number"] == team, "Total Score"],
+                        chunk.loc[chunk["TN"] == team, "Total Coral"],
+                        chunk.loc[chunk["TN"] == team, "Total Algae"],
+                        chunk.loc[chunk["TN"] == team, "CS"],
+                        chunk.loc[chunk["TN"] == team, "CD"],
+                        chunk.loc[chunk["TN"] == team, "Total Score"],
                     )
-                for match in chunk["Match Number"]:
+                for match in chunk["MN"]:
                     for team in chunk.loc[
-                        chunk["Match Number"] == match, "Team Number"
+                        chunk["MN"] == match, "TN"
                     ]:
                         row = chunk.loc[
-                            (chunk["Team Number"] == team)
-                            & (chunk["Match Number"] == match)
+                            (chunk["TN"] == team)
+                            & (chunk["MN"] == match)
                         ]
                         self._matches.setdefault(match, MatchStruct()).add_team_cycles(
                             team,
                             row.at[row.index[0], "Total Coral"],
                             row.at[row.index[0], "Total Algae"],
                             row.at[row.index[0], "Total Cycles"],
-                            row.at[row.index[0], "Barge S"],
-                            row.at[row.index[0], "Barge D"],
+                            row.at[row.index[0], "CS"],
+                            row.at[row.index[0], "CD"],
                         )
                 chunk.to_csv(
                     os.path.join(self.outpath, outname),

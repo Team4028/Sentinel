@@ -24,9 +24,9 @@ jobs:
               uses: docker/build-push-action@v6
               with:
                 context: .
-                file: ./subfolder/Dockerfile
+                file: ./dockerimage/dockerfile
                 tags: myapp:latest
-                outputs: type=docker,dest=myapp.tar
+                outputs: type=docker,dest=scoutingtar
 
             - name: upload artifact
               uses: actions/upload-artifact@v4

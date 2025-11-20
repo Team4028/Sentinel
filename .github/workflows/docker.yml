@@ -16,11 +16,6 @@ jobs:
 
             - name: Generate Key 
               run: echo "${{ secrets.TBA_KEY }}" > ${{ github.workspace }}/key.txt
-            # - name: Build docker image
-            #   run: docker build -t scouting:latest dockerimage/
-
-            # - name: save dock to tar
-            #   run: docker save scouting:latest -o scouting.tar
 
             - name: Build image
               uses: docker/build-push-action@v6

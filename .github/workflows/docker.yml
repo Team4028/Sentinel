@@ -14,11 +14,19 @@ jobs:
             - name: Set up docker build
               uses: docker/setup-buildx-action@v3
               
-            - name: Build docker image
-              run: docker build -f dockerimage/dockerfile -t scouting:latest
+            # - name: Build docker image
+            #   run: docker build -t scouting:latest dockerimage/
 
-            - name: save dock to tar
-              run: docker save scouting:latest -o scouting.tar
+            # - name: save dock to tar
+            #   run: docker save scouting:latest -o scouting.tar
+
+            - name: Build image
+              uses: docker/build-push-action@v6
+              with:
+                context: .
+                file: ./subfolder/Dockerfile
+                tags: myapp:latest
+                outputs: type=docker,dest=myapp.tar
 
             - name: upload artifact
               uses: actions/upload-artifact@v4

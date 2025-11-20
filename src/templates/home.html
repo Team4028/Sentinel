@@ -1,21 +1,423 @@
 <!DOCTYPE html>
-<html>
-    <head></head>
-    <body>
-        <label for="din">Scouting Data:</label>
-        <input type="file" accept=".csv" id="din">
-        <button onclick="uploadFile()">Upload</button>
-        <script>
-            function uploadFile() {
-                const dataInput = document.getElementById("din");
-                const file = dataInput.files[0];
-                const fData = new FormData();
-                fData.append('data', file);
-                fetch("/upload", {
-                    method: "POST",
-                    body: fData
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Scouting App Backend Frontend</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #181a1b;
+            color: #e8e6e3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .upload-box {
+            position: absolute;
+            width: 430px;
+            padding: 25px;
+            backdrop-filter: blur(5px);
+            border-radius: 12px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .drop-zone {
+            border: 2px dashed #555;
+            background: #1e1e2f;
+            padding: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            color: #aaa;
+        }
+
+        .drop-zone.dragover {
+            border-color: #4da3ff;
+            background: #24292b;
+        }
+
+        #text-input {
+            width: 90%;
+            height: 120px;
+            margin-top: 10px;
+            padding: 20px;
+            background-color: rgba(170, 170, 170, 0.5);
+            color: #000;
+            border: 1px solid #555;
+            border-radius: 6px;
+            resize: vertical;
+        }
+
+        #text-input::placeholder {
+            color: #333;
+        }
+
+        #progress-container {
+            width: 100%;
+            background: #333;
+            margin-top: 15px;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+
+        #progress-bar {
+            width: 0;
+            height: 100%;
+            background: #4da3ff;
+            transition: width 0.2s;
+        }
+
+        #status {
+            margin-top: 12px;
+            font-size: 14px;
+            min-height: 18px;
+        }
+
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            margin-top: 18px;
+            display: inline-block;
+            padding: 10px 18px;
+            background: #0e63be;
+            color: #000;
+            font-weight: bold;
+            border-radius: 6px;
+            opacity: 1;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.4s;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .btn:enabled:hover {
+            /* .btn:enabled so that the bg no change when hvr :| */
+            background: #3e98f9;
+        }
+
+        select {
+            margin-top: 15px;
+            padding: 8px;
+            width: 100%;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background: #333;
+            color: #fff;
+        }
+
+        dialog {
+            border: none;
+            border-radius: 12px;
+            padding: 20px 30px;
+            width: 400px;
+            max-width: 90%;
+            background-color: #1e1e2f;
+            color: #f0f0f0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        dialog h1 {
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+
+        dialog select,
+        dialog button {
+            margin-top: 15px;
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            font-size: 1rem;
+        }
+
+        dialog button {
+            background-color: #4a90e2;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        dialog button:hover {
+            background-color: #357ab8;
+        }
+
+        dialog::backdrop {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+    </style>
+</head>
+
+<body
+    style="background-size: 100% 100%; background-repeat: no-repeat; background-image: url({{ url_for('static', filename='4028.jpeg') }});">
+
+    <div class="upload-box" id="the-box">
+
+        <h2 class="make-text-sad">Backend Frontend (not to be confused with frontend)</h2>
+
+        <div id="drop-zone" class="drop-zone">
+            Drag & Drop or Click to Select a File
+        </div>
+        <input id="file-input" type="file" />
+
+        <textarea id="text-input" placeholder="CSV Data..."></textarea>
+
+        <select id="endpoint-select">
+            <option value="/append">Append</option>
+            <option value="/upload">Overwrite</option>
+        </select>
+
+
+        <dialog id="surprise">
+            <h1>Pick a file</h1>
+            <select id="cake-select">
+                <option title="data_in.csv" value="data_in.csv">Data Input</option>
+                <option title="output.csv" value="output.csv">Data Output</option>
+                <option title="output.csv-teams.csv" value="output.csv-teams.csv">Team Stats</option>
+                <option title="output.csv-matches.csv" value="output.csv-matches.csv">Past Match Performance</option>
+                <option title="output.csv-morepredict.csv" value="output.csv-morepredict.csv">Future Match Stats
+                </option>
+                <option title="output.csv-predict.csv" value="output.csv-predict.csv">Match Predictions</option>
+            </select>
+            <button id="send-it" class="btn">Download</button>
+            <button id="cancel" class="btn">Cancel</button>
+        </dialog>
+
+        <button id="upload-btn" class="btn" disabled>Upload</button>
+        <button id="reload-btn" class="btn">Reload</button>
+        <button id="download-btn" class="btn">Download</button>
+
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+
+        <div id="status" style="color: black;"></div>
+
+    </div>
+
+    <script>
+        const dropZone = document.getElementById("drop-zone");
+        const fileInput = document.getElementById("file-input");
+        const textInput = document.getElementById("text-input");
+        const uploadBtn = document.getElementById("upload-btn");
+        const progressContainer = document.getElementById("progress-container");
+        const progressBar = document.getElementById("progress-bar");
+        const endpointSelect = document.getElementById("endpoint-select");
+        const statusText = document.getElementById("status");
+        const reloadButton = document.getElementById("reload-btn");
+        const downloadButton = document.getElementById("download-btn");
+        const dialog = document.getElementById("surprise");
+
+        let selectedFile = null;
+
+        function fakeWaitingForGodot() {
+            return new Promise(resolve => {
+                dialog.showModal();
+                dialog.addEventListener("close", function handler() {
+                    dialog.removeEventListener("close", handler);
+                    resolve({
+                        cancelled: dialog.returnValue === "cancel",
+                        file: document.getElementById("cake-select").value
+                    });
                 });
+
+                document.getElementById("send-it").onclick = () => {
+                    dialog.returnValue = "";
+                    dialog.close();
+                };
+                document.getElementById("cancel").onclick = () => dialog.close("cancel");
+                dialog.addEventListener("cancel", () => dialog.close("cancel"), { once: true });
+            })
+        }
+
+        function updateUploadEnabled() {
+            uploadBtn.disabled = !(selectedFile || textInput.value.trim().length > 0);
+        }
+
+        dropZone.addEventListener("click", () => fileInput.click());
+
+        fileInput.addEventListener("change", () => {
+            selectedFile = fileInput.files[0];
+            dropZone.textContent = selectedFile ? selectedFile.name : "Drag & Drop or Click to Select a File";
+            updateUploadEnabled();
+        });
+
+        textInput.addEventListener("input", updateUploadEnabled);
+
+        dropZone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropZone.classList.add("dragover");
+        });
+
+        dropZone.addEventListener("dragleave", () => {
+            dropZone.classList.remove("dragover");
+        });
+
+        dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropZone.classList.remove("dragover");
+
+            selectedFile = e.dataTransfer.files[0];
+            dropZone.textContent = selectedFile ? selectedFile.name : "Drag & Drop or Click to Select a File";
+            updateUploadEnabled();
+        });
+
+        uploadBtn.addEventListener("click", () => {
+            if (selectedFile) {
+                uploadFile(selectedFile);
+            } else if (textInput.value.trim().length > 0) {
+                uploadText(textInput.value.trim());
             }
-        </script>
-    </body>
+        });
+
+        reloadButton.addEventListener("click", () => {
+            progressContainer.style.display = "block";
+            progressBar.style.width = "0";
+            statusText.innerText = `[${new Date().toLocaleString()}] ` + "Reloading data..."
+            fetch("/reproc").then(async res => {
+                progressBar.style.width = "100%";
+                statusText.innerText = `[${new Date().toLocaleString()}] ` + await res.text();
+            });
+        });
+
+        downloadButton.addEventListener("click", async () => {
+            const res = await fakeWaitingForGodot();
+            if (!res.cancelled)
+                downloadFile(res.file);
+        });
+
+        function downloadFile(file) {
+            statusText.textContent = `[${new Date().toLocaleString()}] Downloading file ${file}`;
+            progressBar.style.width = 0;
+            progressContainer.style.display = "block";
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `/download/${file}`, true);
+            xhr.responseType = "blob";
+
+            xhr.onloadstart = () => {
+                statusText.textContent = `[${new Date().toLocaleString()}] Downloading...`;
+            }
+
+            xhr.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percent = (event.loaded / event.total) * 100;
+                    progressBar.style.width = percent + "%";
+                } else {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Downloaded ${event.loaded} bytes`;
+                }
+            }
+
+            xhr.onerror = (err) =>
+                statusText.textContent = `[${new Date().toLocaleString()}] Error downloading file: ${err}`;
+
+            xhr.onload = () => {
+                progressBar.style.width = "100%";
+                if (xhr.status === 200) {
+                    const blob = xhr.response;
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = file;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    statusText.textContent = `[${new Date().toLocaleString()}] File downloaded: ${file}`;
+                }
+            }
+
+            xhr.send();
+        }
+
+        function uploadFile(file) {
+            const url = endpointSelect.value;
+
+            statusText.textContent = `[${new Date().toLocaleString()}] Uploading: ${file.name}`;
+            progressContainer.style.display = "block";
+            progressBar.style.width = "0";
+
+            const formData = new FormData();
+            formData.append("data", file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", url, true);
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percent + "%";
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Upload complete!`;
+                } else {
+                    statusText.textContent = `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.status;
+                }
+                fileInput.value = "";
+                dropZone.textContent = "Drag & Drop or Click to Select a File";
+                selectedFile = null;
+            };
+
+            xhr.onerror = (err) => {
+                statusText.textContent = `[${new Date().toLocaleString()}] Error ocurred: ${err}`;
+            };
+
+            xhr.send(formData);
+
+        }
+
+        function uploadText(text) {
+            const url = endpointSelect.value;
+
+            statusText.textContent = `[${new Date().toLocaleString()}] Uploading text...`;
+            progressContainer.style.display = "block";
+            progressBar.style.width = "0";
+
+            const blob = new Blob([text], { type: "text/plain" });
+
+            const formData = new FormData();
+            formData.append("data", blob, "data.csv"); // fake csv upload
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", url, true);
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percent + "%";
+                }
+            };
+
+            xhr.onload = () => {
+                statusText.textContent =
+                    xhr.status === 200 ? `[${new Date().toLocaleString()}] Upload complete!` : `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.status;
+            };
+
+            xhr.onerror = (err) => {
+                statusText.textContent = `[${new Date().toLocaleString()}] Error occured: ${err}`;
+            };
+
+            xhr.send(formData);
+        }
+    </script>
+
+</body>
+
 </html>

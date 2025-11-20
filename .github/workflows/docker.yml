@@ -1,0 +1,29 @@
+name: Build Docker Image
+
+on:
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Check out repo
+              uses: actions/checkout@v4
+            
+            - name: Set up docker build
+              uses: docker/setup-buildx-action@v3
+              
+            - name: Build docker image
+              run: docker build -f dockerimage/dockerfile -t scouting:latest
+
+            - name: save dock to tar
+              run: docker save scouting:latest -o scouting.tar
+
+            - name: upload artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: scouting-image
+                path: scouting.tar
+            
+            

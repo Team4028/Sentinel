@@ -180,11 +180,10 @@ class Processor:
         self._matches = {}
 
     def mad_filter(data, c=2): #https://real-statistics.com/sampling-distributions/identifying-outliers-missing-data
-        d2 = np.sort(data)
-        median = np.median(d2) # X~
-        diff = np.abs(d2 - median) # diffs
+        median = np.median(data) # X~
+        diff = np.abs(data - median) # diffs
         mad = np.median(diff)
-        return d2[diff <= (c * mad)]
+        return data[diff <= (c * mad)]
     
     def get_percent_scouted(self):
         return round(len([x for x in self._teams.keys() if x in self._teamsAt]) / len(self._teamsAt), 2)

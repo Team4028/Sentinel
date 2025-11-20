@@ -15,7 +15,7 @@ def create_app(): # cursed but whatever
 
     if (os.path.exists("./key.txt")):
         with open("./key.txt", 'r') as f:
-            auth_key = f.read()
+            auth_key = f.read().strip()
     else: auth_key = input("Enter TBA Auth key: ")
 
     SERIES = ["Teams", "Matches", "Predictions"]

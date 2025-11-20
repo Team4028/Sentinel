@@ -27,8 +27,8 @@ jobs:
               with:
                 context: ${{github.workspace }}
                 file: ./dockerimage/dockerfile
-                tags: myapp:latest
-                outputs: type=docker,dest=scoutingtar
+                tags: scouting:latest
+                outputs: type=docker,dest=scouting.tar
 
             - name: upload artifact
               uses: actions/upload-artifact@v4

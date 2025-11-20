@@ -196,6 +196,7 @@
                 <option title="output.csv-morepredict.csv" value="output.csv-morepredict.csv">Future Match Stats
                 </option>
                 <option title="output.csv-predict.csv" value="output.csv-predict.csv">Match Predictions</option>
+                <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
             </select>
             <button id="send-it" class="btn">Download</button>
             <button id="cancel" class="btn">Cancel</button>
@@ -298,6 +299,22 @@
             });
         });
 
+        const obs = new MutationObserver((mutlist) => {
+            for (const mutation of mutlist) {
+                if (mutation.type === "childList" || mutation.type === "characterData") {
+                    if (statusText.innerText.toLowerCase().includes("error"))
+                        statusText.style.color = "#a00";
+                    else statusText.style.color = "#000";
+                }
+            }
+        });
+
+        obs.observe(statusText, {
+            characterData: true,
+            childList: true,
+            subtree: true,
+        })
+
         downloadButton.addEventListener("click", async () => {
             const res = await fakeWaitingForGodot();
             if (!res.cancelled)
@@ -338,6 +355,8 @@
                     a.click();
                     URL.revokeObjectURL(a.href);
                     statusText.textContent = `[${new Date().toLocaleString()}] File downloaded: ${file}`;
+                } else {
+                    xhr.response.text().then(t => statusText.textContent = `[${new Date().toLocaleString()}] Error downloading file: ${t}`);
                 }
             }
 

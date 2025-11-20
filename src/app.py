@@ -159,10 +159,10 @@ def stream(file):
 
 @app.get("/download/<file>")
 def dload(file):
-    if not file: return "File not found."
+    if not file: return Response("File not found.", 403)
     file = os.path.basename(file) # no .. touchy
     file = os.path.join(OUT_DIR if "output" in file else UPL_DIR, file)
-    if not os.path.exists(file): return "File not found."
+    if not os.path.exists(file): return Response("File not found.", 403)
     return Response(stream(file), mimetype='text/csv', headers={
         'Content-Disposition': f"attachment; filename={os.path.basename(file)}"
     })

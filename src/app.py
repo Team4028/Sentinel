@@ -1,9 +1,13 @@
 from flask import Flask, request, render_template, jsonify, Response
-from src.lib.data_main import Processor
+if __name__ == "__main__":
+    from lib.data_main import Processor
+else:
+    from src.lib.data_main import Processor
 import os
 import requests
 import json
 import re
+
 
 def create_app(): # cursed but whatever
 
@@ -65,7 +69,7 @@ def create_app(): # cursed but whatever
                 yield chunk
 
     def reload_js():
-        global js
+        nonlocal js
         if not os.path.exists(os.path.join(OUT_DIR, "other-metrics.json")):
             js = None
             return

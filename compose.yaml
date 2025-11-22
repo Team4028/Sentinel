@@ -1,0 +1,55 @@
+services:
+  backend:
+    image: scouting:latest
+    restart: unless-stopped
+    container_name: sentinel
+    profiles:
+      - [prod]
+    ports:
+      - "5000:5000"
+    volumes:
+      - appdata:/app
+
+  backend-buildsource:
+    build:
+      context: .
+      dockerfile: dockerimage/dockerfile
+      target: scouting:latest
+    restart: unless-stopped
+    container_name: sentinel
+    profiles:
+      - [localbuild]
+    ports:
+      - "5000:5000"
+    volumes:
+      - appdata:/app
+
+  grafana:
+    image: grafana-scouting:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3005:3000"
+    volumes:
+      - "grafana_storage:/var/lib/grafana"
+    profiles:
+      - [prod]
+
+  grafana-buildsource:
+    build:
+      context: .
+      dockerfile: grafana-dashboard/dockerfile
+      target: grafana-scouting:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3005:3000"
+    volumes:
+      - "grafana_storage:/var/lib/grafana"
+    profiles:
+      - [localbuild]
+
+volumes:
+  appdata:
+    driver: local
+  grafana_storage: {}

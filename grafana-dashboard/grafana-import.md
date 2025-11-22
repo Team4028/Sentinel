@@ -25,3 +25,6 @@ Authorization: Bearer eyJrIjoiT0tTcG1pUlY2RnVKZTFVaDFsNFZXdE9ZWmNrMkZYbk
 ```
 
 Additionally, this data is accessible by `GET` ing `/api/datasources` or visiting it in your browser.
+
+# EDIT
+## With the grafana docker image distributed, this is not necessary

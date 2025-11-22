@@ -47,5 +47,6 @@ jobs:
               with:
                 name: scouting-app
                 path: scouting-app/**
+                include-hidden-files: true
             
             

@@ -13,7 +13,7 @@ services:
     build:
       context: .
       dockerfile: dockerimage/dockerfile
-      target: scouting:latest
+    image: scouting:latest
     restart: unless-stopped
     container_name: sentinel
     profiles: [localbuild]
@@ -33,19 +33,25 @@ services:
       - appdata:/app
       - "./grafana.ini:/etc/grafana/grafana.ini"
     profiles: [prod]
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1" # ip may need to be changed, probably not
 
   grafana-buildsource:
     build:
       context: .
       dockerfile: grafana-dashboard/dockerfile
-      target: grafana-scouting:latest
+    image: grafana-scouting:latest
     container_name: grafana
     restart: unless-stopped
     ports:
       - "3005:3000"
     volumes:
       - "grafana_storage:/var/lib/grafana"
+      - appdata:/app
+      - "./grafana.ini:/etc/grafana/grafana.ini"
     profiles: [localbuild]
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1" # ip may need to be changed, probably not
 
 volumes:
   appdata:

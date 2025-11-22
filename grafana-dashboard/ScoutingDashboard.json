@@ -87,7 +87,7 @@
           "root_selector": "",
           "source": "url",
           "type": "json",
-          "url": "http://localhost:5001/percent",
+          "url": "http://localhost:5000/percent",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -1283,7 +1283,7 @@
             "root_selector": "",
             "source": "url",
             "type": "json",
-            "url": "http://localhost:5001/next-3",
+            "url": "http://localhost:5000/next-3",
             "url_options": {
               "data": "",
               "method": "GET",

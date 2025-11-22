@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 1,
   "links": [],
   "panels": [
     {
@@ -71,7 +71,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "columns": [],
@@ -87,7 +87,7 @@
           "root_selector": "",
           "source": "url",
           "type": "json",
-          "url": "http://localhost:5000/percent",
+          "url": "http://host.docker.internal:5000/percent",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -208,7 +208,7 @@
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.0",
       "repeat": "Next3M",
       "repeatDirection": "v",
       "targets": [
@@ -357,7 +357,7 @@
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.0",
       "repeat": "Next3M",
       "repeatDirection": "v",
       "targets": [
@@ -491,7 +491,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 196
+            "y": 284
           },
           "id": 10,
           "options": {
@@ -793,7 +793,7 @@
             "h": 13,
             "w": 24,
             "x": 0,
-            "y": 151
+            "y": 239
           },
           "id": 8,
           "options": {
@@ -974,7 +974,7 @@
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 46
+            "y": 134
           },
           "id": 7,
           "options": {
@@ -1283,7 +1283,7 @@
             "root_selector": "",
             "source": "url",
             "type": "json",
-            "url": "http://localhost:5000/next-3",
+            "url": "http://host.docker.internal:5000/next-3",
             "url_options": {
               "data": "",
               "method": "GET",
@@ -1316,5 +1316,5 @@
   "timezone": "browser",
   "title": "Scouting Dashboard",
   "uid": "adfs6pg",
-  "version": 106
+  "version": 1
 }

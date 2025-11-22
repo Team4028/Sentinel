@@ -2,7 +2,7 @@ apiVersion: 1
 
 prune: true
 
-datasources:
+datasources: # these can be translated from the data-sources.json file obtained as described in ./grafana-import.md with an online translator
   - name: matches
     id: 16
     uid: df4ihhh7qqha8a

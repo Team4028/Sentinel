@@ -3,8 +3,7 @@ services:
     image: scouting:latest
     restart: unless-stopped
     container_name: sentinel
-    profiles:
-      - [prod]
+    profiles: [prod]
     ports:
       - "5000:5000"
     volumes:
@@ -17,8 +16,7 @@ services:
       target: scouting:latest
     restart: unless-stopped
     container_name: sentinel
-    profiles:
-      - [localbuild]
+    profiles: [localbuild]
     ports:
       - "5000:5000"
     volumes:
@@ -32,8 +30,7 @@ services:
       - "3005:3000"
     volumes:
       - "grafana_storage:/var/lib/grafana"
-    profiles:
-      - [prod]
+    profiles: [prod]
 
   grafana-buildsource:
     build:
@@ -46,8 +43,7 @@ services:
       - "3005:3000"
     volumes:
       - "grafana_storage:/var/lib/grafana"
-    profiles:
-      - [localbuild]
+    profiles: [localbuild]
 
 volumes:
   appdata:

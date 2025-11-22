@@ -36,17 +36,16 @@ jobs:
                 tags: grafana-scouting:latest
                 outputs: type=docker,dest=scouting-app/grafana-scouting.tar
 
-            - name: Prepare additional archive utilities and zip
+            - name: Prepare additional archive utilities
               run: |
                 cp ./compose.yaml scouting-app
                 cp ./docker-compose-runner.env scouting-app/.env
                 cp ./docker-compose-runner.sh scouting-app/run.sh
-                zip -r scouting-app.zip scouting-app
             
             - name: Upload Archive
               uses: actions/upload-artifact@v4
               with:
                 name: scouting-app
-                path: scouting-app.zip
+                path: scouting-app/**
             
             

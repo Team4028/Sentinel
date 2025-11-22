@@ -30,6 +30,8 @@ services:
       - "3005:3000"
     volumes:
       - "grafana_storage:/var/lib/grafana"
+      - appdata:/app
+      - "./grafana.ini:/etc/grafana/grafana.ini"
     profiles: [prod]
 
   grafana-buildsource:

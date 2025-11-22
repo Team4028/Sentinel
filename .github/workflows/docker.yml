@@ -41,7 +41,8 @@ jobs:
                 cp ./compose.yaml scouting-app
                 cp ./docker-compose-runner.env scouting-app/.env
                 cp ./docker-compose-runner.sh scouting-app/run.sh
-            
+                cp ./grafana.ini scouting-app/grafana.ini
+
             - name: Upload Archive
               uses: actions/upload-artifact@v4
               with:

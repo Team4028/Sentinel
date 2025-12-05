@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Configuration</title>
+    <style>
+        html,
+        body,
+        #editor {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+
+        #backBtn {
+            position: absolute;
+            top: 10px;
+            right: 80px;
+            z-index: 10;
+            padding: 8px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 10%;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #saveBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            padding: 8px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 10%;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #status {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            z-index: 10;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="backBtn" onclick="window.location.href='/'">Back</button>
+    <button id="saveBtn">Save</button>
+    <div id="status"></div>
+    <div id="editor"></div>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script>
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+        const ymlContent = {{ yaml_content | tojson | safe}};
+        require(['vs/editor/editor.main'], function () {
+
+            window.editor = monaco.editor.create(document.getElementById('editor'), {
+                value: ymlContent,
+                theme: 'vs-dark',
+                language: "yaml",
+                automaticLayout: true
+            });
+            window.editor.onDidChangeModelContent(() => {
+                console.log("EJKGFOARKOGER");
+                const current = window.editor.getValue();
+                dirty = current !== lastSaved;
+                saveBtn.innerHTML = dirty ? "Save &#9679" : "Save";
+            });
+        });
+
+        let lastSaved = ymlContent;
+        let dirty = false;
+
+        const saveBtn = document.getElementById('saveBtn');
+        const statusDiv = document.getElementById('status');
+
+        window.addEventListener("keydown", ev => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key == "s") {
+                ev.preventDefault();
+                saveYAML();
+            }
+        })
+
+        saveBtn.addEventListener('click', () => {
+            saveYAML();
+        });
+
+        async function saveYAML() {
+            const code = window.editor.getValue();
+            try {
+                const res = await fetch("/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    statusDiv.innerText = "Saved";
+                    statusDiv.style.color = "green";
+                    lastSaved = code;
+                    saveBtn.innerHTML = "Save";
+                    dirty = false;
+                    setTimeout(() => statusDiv.innerText = "", 1000);
+                } else {
+                    statusDiv.innerText = "Error: " + data.message;
+                    statusDiv.style.color = "red";
+                }
+            } catch (err) {
+                statusDiv.innerText = "Network error";
+                statusDiv.style.color = "red";
+            }
+        }
+    </script>
+</body>
+
+</html>

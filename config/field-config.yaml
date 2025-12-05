@@ -1,0 +1,115 @@
+compute-fields:
+  - name: Total ACoral
+    equation: $AL1,AL2,AL3,AL4
+  - name: Total TCoral
+    equation: $TL1,TL2,TL3,TL4
+  - name: Total AAlgae
+    equation: $ATP,ATB
+  - name: Total TAlgae
+    equation: $AP,AB
+  - name: Total ACycles
+    equation: $Total ACoral,Total AAlgae
+  - name: Total TCycles
+    equation: $Total TCoral,Total TAlgae
+  - name: Total Score
+    equation: >-
+      $AL1 * 3 + $AL2 * 4 + $AL3 * 6 + $AL4 * 7
+      + $TL1 * 2 + $TL2 * 3 + $TL3 * 4 + $TL4 * 5
+      + $ATP,AP * 2 + $ATB,AB * 4
+      + $M * 3
+      + $CP * 2
+      + $CS * 6
+      + $CD * 12
+
+team-fields:
+  - name: Algae Auton
+    derive: $Total AAlgae
+    avg:
+    max:
+    fil:
+  - name: Algae Teleop
+    derive: $Total TAlgae
+    avg:
+    max:
+    fil:
+  - name: Total Algae
+    derive: $Total AAlgae,Total TAlgae
+    max:
+  - name: Coral Auton
+    derive: $Total ACoral
+    avg:
+    max:
+    fil:
+  - name: Coral Teleop
+    derive: $Total TCoral
+    avg:
+    max:
+    fil:
+  - name: Total Coral
+    derive: $Total ACoral,Total TCoral
+    max:
+  - name: Cycles Auton
+    derive: $Total ACycles
+    avg:
+    max:
+    fil:
+  - name: Cycles Teleop
+    derive: $Total TCycles
+    avg:
+    max:
+    fil:
+  - name: Total Cycles
+    derive: $Total ACycles,Total TCycles
+    max:
+  - name: Shallow
+    derive: $CS
+    avg:
+  - name: Deep
+    derive: $CD
+    avg:
+  - name: Score
+    derive: $Total Score
+    avg:
+    max:
+    fil:
+  - name: Defensive Rating
+    derive: $DR[$D = 1]
+    avg:
+    max:
+  - name: Matches Playing Defense
+    derive: $DR[$D = 1]
+match-fields:
+  - name: Total Coral Auton
+    derive: $Total ACoral
+  - name: Total Coral Teleop
+    derive: $Total TCoral
+  - name: Total Algae Auton
+    derive: $Total AAlgae
+  - name: Total Algae Teleop
+    derive: $Total TAlgae
+  - name: Total Cycles Auton
+    derive: $Total ACycles
+  - name: Total Cycles Teleop
+    derive: $Total TCycles
+  - name: Score
+    derive: $Total Score
+  - name: Park
+    derive: $CP
+  - name: Shallow Climb
+    derive: $CS
+  - name: Deep Climb
+    derive: $CD
+predict-metric:
+  name: Score
+  source: Filtered Score
+depth-predict-fields:
+  - name: Shallow Climb
+    source: Average Shallow
+  - name: Deep Climb
+    source: Average Deep
+  - name: Auto Cycles
+    source: Average Cycles Auton
+  - name: Teleop Cycles
+    source: Average Cycles Teleop
+  - name: Def
+    source: Average Defensive Rating

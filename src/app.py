@@ -1,19 +1,23 @@
-from flask import Flask, request, render_template, jsonify, Response
-if __name__ == "__main__":
+from flask import Flask, request, render_template, jsonify, Response, send_file
+try:
     from lib.data_main import Processor
-else:
+    import lib.mesh as mesh
+except ModuleNotFoundError:
     from src.lib.data_main import Processor
+    import src.lib.mesh as mesh
 import os
 import requests
 import json
 import re
-
+from threading import Thread
+import html
+import yaml
 
 def create_app(): # cursed but whatever
-
     app = Flask(__name__)
     UPL_DIR = "datain"
     OUT_DIR = "dataout"
+    CONFIG_FILE = os.path.join("config", "field-config.yaml")
     CHUNK = 10000
     EVENT_KEY = "2025iri"
 
@@ -107,6 +111,11 @@ def create_app(): # cursed but whatever
                 processor.proccess_data(infile, "output.csv")
                 reload_js()
         return "", 200
+    
+    @app.get("/schema.json")
+    def send_schema():
+        f = os.path.join("config", "schema.json")
+        return send_file(f)
 
     @app.route("/reproc")
     def reprocess():
@@ -163,6 +172,23 @@ def create_app(): # cursed but whatever
             processor.proccess_data(infile, "output.csv")
             reload_js()
         return "", 200
+    
+    @app.get("/edit")
+    def edit_yaml():
+        with open(CONFIG_FILE, "r") as r:
+            content = r.read()
+        return render_template("edit.html", yaml_content=content)
+    
+    @app.post("/save")
+    def save_yaml():
+        data = html.unescape(request.json.get("code", ""))
+        try:
+            yaml.safe_load(data)
+            with open(CONFIG_FILE, 'w') as f:
+                f.write(data)
+            return jsonify({"ok": True, "message": "Saved"})
+        except yaml.YAMLError as e:
+            return jsonify({"ok": False, "message": str(e)}), 400
 
     @app.get("/download/<file>")
     def dload(file):
@@ -173,8 +199,21 @@ def create_app(): # cursed but whatever
         return Response(stream(file), mimetype=('text/json' if ".json" in file else 'text/csv'), headers={
             'Content-Disposition': f"attachment; filename={os.path.basename(file)}"
         })
-    return app
+    
+    def handle_mesh_line(message):
+        exists = os.path.exists(infile)
+        with open(infile, 'a' if exists else 'w') as append:
+            line_to_write= message
+            if line_to_write:
+                if exists: append.write("\n")
+                append.write(line_to_write)
 
+    def mesh_listen():
+        mesh.main(handle_mesh_line)
+
+    Thread(target=mesh_listen, daemon=True).start()
+
+    return app
 
 if __name__ == "__main__":
     create_app().run(port=5001, use_reloader=False)

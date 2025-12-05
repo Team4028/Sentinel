@@ -1,0 +1,84 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "title": "Sentinel Configuration",
+    "type": "object",
+    "properties": {
+        "compute-fields": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the field and new csv header to generate"},
+                    "equation": {"type": "string", "description": "A beakscript (lol) string defining the process to calculate this field"} 
+                },
+                "required": ["name", "equation"]
+            },
+            "uniqueItems": true
+        },
+        "team-fields": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the field and csv header to generate in the teams csv"},
+                    "derive": {"type": "string", "description": "A beakscript string defining the process by which the elements of this set are obtained"},
+                    "avg": {
+                        "type": "null",
+                        "description": "Creates a field that is the average of this field"
+                    },
+                    "max": {
+                        "type": "null",
+                        "description": "Creates a field that is the max of this field"
+                    },
+                    "fil": {
+                        "type": "null",
+                        "description": "Creates a field that is the filtered average of this field"
+                    }
+                },
+                "required": ["name", "derive"]
+            }
+        },
+        "match-fields": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the field and csv header to generate in the teams csv"},
+                    "derive": {"type": "string", "description": "A beakscript string defining the process by which the elements of this set are obtained"}
+                },
+                "required": ["name", "derive"]
+            }
+        },
+        "predict-metric": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "This specific name is just to be thorough and is currently hardcoded to Score for the csv"
+                },
+                "source": {
+                    "type": "string",
+                    "description": "The header (defined earlier in the YAML or in data-in) name (NOT BKSCRIPT) to pull from to calculate team score (ie. Average vs. Filtered)"
+                }
+            },
+            "required": ["name", "source"]
+        },
+        "depth-predict-fields": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of this field and its output csv header"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "The particular header name (not beakscript so no '$') from which to source this field"
+                    }
+                },
+                "required": ["name", "source"]
+            }
+        }
+    }
+}

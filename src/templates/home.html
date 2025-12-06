@@ -397,7 +397,7 @@
                 if (xhr.status === 200) {
                     statusText.textContent = `[${new Date().toLocaleString()}] Upload complete!`;
                 } else {
-                    statusText.textContent = `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.status;
+                    statusText.textContent = `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.responseText;
                 }
                 fileInput.value = "";
                 dropZone.textContent = "Drag & Drop or Click to Select a File";

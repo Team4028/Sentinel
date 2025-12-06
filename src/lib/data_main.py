@@ -4,11 +4,10 @@ import json
 import numpy as np
 import warnings
 try: 
-    from lib.data_config import lex_config, eval_lex
+    from lib.data_config import eval_beakscript
 except ModuleNotFoundError:
-    from src.lib.data_config import lex_config, eval_lex
+    from src.lib.data_config import eval_beakscript
 from collections import defaultdict
-import copy
 
 class TeamStruct:
     def __init__(self):
@@ -17,7 +16,10 @@ class TeamStruct:
         merged = defaultdict(list)
         for d in [self.data, data]:
             for k, v in d.items():
-                merged[k].extend(v)
+                try:
+                    merged[k].extend(v)
+                except:
+                    merged[k].append(v)
         self.data = dict(merged)
 
     def output_dict(self, config):
@@ -50,6 +52,8 @@ class DataField:
         if (len(self.filters) > 0):
             for fil in self.filters:
                 data[FANCY_FIL[fil] + " " + self.name] = self.calc_map[fil](self)
+        elif type(self.data) == list and len(self.data) == 1:
+            data[self.name] = self.data[0]
         else: data[self.name] = self.data
         return data
 
@@ -89,13 +93,14 @@ class Processor:
     CORAL_VALS_T = [2, 3, 4, 5]
     ALGAE_VALS = [2, 4]
 
-    def __init__(self, outpath, chunk_size, teams, sched):
+    def __init__(self, outpath, chunk_size, teams, sched, config_data):
         self.chunk_size = chunk_size
         self.outpath = outpath
         self._teamsAt = teams
         self._sched = sched
         self._teams: dict[str, TeamStruct] = {}
         self._matches = {}
+        self.config_data = config_data
 
     def mad_filter(data, c=2): #https://real-statistics.com/sampling-distributions/identifying-outliers-missing-data
         median = np.median(data) # X~
@@ -106,44 +111,44 @@ class Processor:
     def get_percent_scouted(self):
         return round(len([x for x in self._teams.keys() if x in self._teamsAt]) / len(self._teamsAt), 2)
 
-    def output_teams(self, config, outfile):
+    def output_teams(self, outfile):
         df = []
         for k, v in self._teams.items():
-            df.append({"Team": k} | v.output_dict(config))
+            df.append({"Team": k} | v.output_dict(self.config_data))
         pd.DataFrame(df).to_csv(outfile, index=False)
 
-    def get_match_pred_score(self, config, match, c):
+    def get_match_pred_score(self, match, c):
         score = []
         for key in match[c]:
             if int(key.removeprefix("frc")) in self._teams:
                 score.append(self._teams[
                     int(key.removeprefix("frc"))
-                ].output_dict(config)[config["p-metric"]["source"]])
+                ].output_dict(self.config_data)[self.config_data["p-metric"]["source"]])
 
         return score
     
-    def match_predict_depth(self, config, outfile):
+    def match_predict_depth(self, outfile):
         df = []
         for match in self._sched:
             for color in ['b', 'r']:
                 for i in range(3):
                     team = match[color][i].removeprefix("frc")
-                    teamO = self._teams[int(team)].output_dict(config)
+                    teamO = self._teams[int(team)].output_dict(self.config_data)
                     dat = {
                         "Match": match['k'],
                         "Color": color,
                         "Team": team,
                     }
-                    for field in config["deep-predict"]:
+                    for field in self.config_data["deep-predict"]:
                         dat |= {field["name"]: teamO[field["source"]]}
                     df.append(dat)
         pd.DataFrame(df).to_csv(outfile, index=False)
 
-    def predict_matches(self, config, outfile):
+    def predict_matches(self, outfile):
         df = []
         for match in self._sched:
             for color in ['b', 'r']:
-                score = self.get_match_pred_score(config, match, color)
+                score = self.get_match_pred_score(match, color)
                 df.append({
                     "Match": match['k'],
                     "Teams": " + ".join(map(lambda x: x.removeprefix("frc"),  match[color])) + f" ({"Blue" if color == "b" else "Red"})",
@@ -151,7 +156,7 @@ class Processor:
                     "2 Score": round(score[1]),
                     "3 Score": round(score[2]),
                     "Score": round(sum(score)),
-                    "Won": 1 if (sum(score) > sum(self.get_match_pred_score(config, match, 'b' if color == 'r' else 'r'))) else float("nan")
+                    "Won": 1 if (sum(score) > sum(self.get_match_pred_score(match, 'b' if color == 'r' else 'r'))) else float("nan")
                 })
         pd.DataFrame(df).to_csv(outfile, index=False)
 
@@ -161,10 +166,10 @@ class Processor:
                 "Percent Teams Scouted": self.get_percent_scouted()
             }, w)
 
-    def output_matches(self, config, outfile):
+    def output_matches(self, outfile):
         df = []
         for k, v in self._matches.items():
-            for matTeam in v.output_dict(config):
+            for matTeam in v.output_dict(self.config_data):
                 df.append({
                     "Match": k
                 } | matTeam)
@@ -182,21 +187,25 @@ class Processor:
                     print(chunk[dupes][["MN", "TN"]].drop_duplicates())
                     print("Filtering out...")
                 chunk = chunk.drop_duplicates(subset=["MN", "TN"], keep="first")
-                config_data = lex_config()
-                for comp in config_data["compute"]:
-                    chunk[comp["name"]] = eval_lex(copy.deepcopy(comp["eqTokens"]), chunk)
+                for comp in self.config_data["compute"]:
+                    chunk[comp["name"]] = eval_beakscript(comp["eq"], chunk)
                 for team in chunk["TN"].unique():
                     team_data = {}
-                    for field in config_data["teams"]:
-                        val = eval_lex(copy.deepcopy(field["deriveTok"]), chunk.loc[chunk["TN"] == team]).tolist()
+                    for field in self.config_data["teams"]:
+                        val = eval_beakscript(field["derive"], chunk.loc[chunk["TN"] == team])
+                        if type(val) == pd.Series:
+                            val = val.tolist()
                         team_data[field["name"]] = val
                     self._teams.setdefault(int(team), TeamStruct()).extend_data(team_data)
                 for match in chunk["MN"]:
                     for team in chunk.loc[chunk["MN"] == match, "TN"]:
                         row = chunk.loc[(chunk["TN"] == team) & (chunk["MN"] == match)]
                         data = {}
-                        for field in config_data["matches"]:
-                            data[field["name"]] = eval_lex(copy.deepcopy(field["deriveTok"]), row.iloc[0]).tolist()
+                        for field in self.config_data["matches"]:
+                            val = eval_beakscript(field["derive"], row.iloc[0])
+                            if type(val) == pd.Series:
+                                val = val.tolist()
+                            data[field["name"]] = val
                         self._matches.setdefault(match, MatchStruct()).add_team_data(
                             int(team),
                             data
@@ -207,8 +216,8 @@ class Processor:
                     header=first,
                 )
                 first = False
-        self.output_teams(config_data, os.path.join(self.outpath, outname + "-teams.csv"))
-        self.output_matches(config_data, os.path.join(self.outpath, outname + "-matches.csv"))
-        self.predict_matches(config_data, os.path.join(self.outpath, outname + "-predict.csv"))
-        self.match_predict_depth(config_data, os.path.join(self.outpath, outname + "-morepredict.csv"))
+        self.output_teams(os.path.join(self.outpath, outname + "-teams.csv"))
+        self.output_matches(os.path.join(self.outpath, outname + "-matches.csv"))
+        self.predict_matches(os.path.join(self.outpath, outname + "-predict.csv"))
+        self.match_predict_depth(os.path.join(self.outpath, outname + "-morepredict.csv"))
         self.write_other_metrics(os.path.join(self.outpath, "other-metrics.json"))

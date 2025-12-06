@@ -12,14 +12,13 @@ compute-fields:
   - name: Total TCycles
     equation: $Total TCoral,Total TAlgae
   - name: Total Score
+    # explanation of formula
+    # when dealing with sets in the form {a,b}, 
     equation: >-
-      $AL1 * 3 + $AL2 * 4 + $AL3 * 6 + $AL4 * 7
-      + $TL1 * 2 + $TL2 * 3 + $TL3 * 4 + $TL4 * 5
-      + $ATP,AP * 2 + $ATB,AB * 4
-      + $M * 3
-      + $CP * 2
-      + $CS * 6
-      + $CD * 12
+      @sum({$AL1, $AL2, $AL3, $AL4} * {3, 4, 6, 7}) +
+      @sum({$TL1, $TL2, $TL3, $TL4} * {2, 3, 4, 5}) +
+      @sum({$ATP + $AP, $ATB + $AB} * {2, 4}) +
+      @sum({$M, $CP, $CS, $CD} * {3, 2, 6, 12})
 
 team-fields:
   - name: Algae Auton
@@ -77,7 +76,7 @@ team-fields:
     avg:
     max:
   - name: Matches Playing Defense
-    derive: $DR[$D = 1]
+    derive: "@len$DR[$D = 1]"
 match-fields:
   - name: Total Coral Auton
     derive: $Total ACoral

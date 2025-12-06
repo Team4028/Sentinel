@@ -33,18 +33,18 @@ def lex_config():
         for field in data['compute-fields']:
             config["compute"].append({
                 "name": field["name"],
-                "eqTokens": parse_equation(field["equation"])
+                "eq": field["equation"]
             })
         for field in data["team-fields"]:
             config["teams"].append({
                 "name": field["name"],
                 "filters": [x for x in FILTERS if x in field],
-                "deriveTok": parse_equation(field["derive"]),
+                "derive": field["derive"],
             })
         for field in data["match-fields"]:
             config["matches"].append({
                 "name": field["name"],
-                "deriveTok": parse_equation(field["derive"]),
+                "derive": field["derive"],
                 "filters": [x for x in FILTERS if x in field]
             })
         config["p-metric"] = data["predict-metric"]
@@ -63,6 +63,7 @@ class TOKENS(Enum):
     HEADER = 3
     HEADER_COND = 4
     PAREN = 5
+    LIST_LITERAL = 6
 
 class Token:
     token: TOKENS
@@ -77,26 +78,32 @@ class Token:
     def __repr__(self):
         return f"{self.token.name}: {self.symbol}"
 
+UNOPS = [
+    "-",
+    "@avg",
+    "@max",
+    "@min",
+    "@sum",
+    "@len",
+]
+
 OPERATOR_STRINGS = [
     "+",
     "-",
     "*",
     "/",
+    "%",
     ">",
     "<",
     "=",
     "!",
-    "}",
-    "{"
+    "&",
+    "|",
 ]
 
-COMP_STRINGS = [
+COMP_EXTEND = [
     ">",
     "<",
-    "}",
-    "{",
-    "=",
-    "!"
 ]
 
 PARENS = [
@@ -104,7 +111,41 @@ PARENS = [
     ")"
 ]
 
-def parse_equation(equation: str):
+LIST_LITERALS = [
+    "{",
+    "}"
+]
+
+OP_PRECEDENCE = {
+    "[]": 10,
+    "-": 7,
+    "@sum": 7,
+    "@avg": 7,
+    "@max": 7,
+    "@min": 7,
+    "@len": 7,
+    "*": 6,
+    "/": 6,
+    "%": 6,
+    "+": 5,
+    "-": 5,
+    ">": 4,
+    "<": 4,
+    ">=": 4,
+    "<=": 4,
+    "!": 3,
+    "=": 3,
+    "&": 2,
+    "|": 1,
+}
+
+def check_last_nowhitespace(s, i):
+    j = i - 1
+    while j >= 0 and s[j].isspace():
+        j -= 1
+    return s[j] if j >= 0 else None
+
+def parse_equation(equation: str, df: pd.DataFrame):
     equation_tokens = []
     equation = equation.strip()
     i = 0
@@ -113,33 +154,69 @@ def parse_equation(equation: str):
         if c.isspace():
             i += 1
             continue
+        if c == "@":
+            if i + 3 < len(equation):
+                equation_tokens.append(Token(TOKENS.UNARY_OP, "".join(equation[i + j] for j in range(4))))
+                i += 4
+            else: i += 1
+            continue
         if c in PARENS:
             equation_tokens.append(Token(TOKENS.PAREN, c))
-        if c == "[" or c == "]":
+        elif c == "[" or c == "]":
             equation_tokens.append(Token(TOKENS.HEADER_COND, c))
-        elif i == 0 and c == "-": # y = -thing
-            equation_tokens.append(Token(TOKENS.UNARY_OP, "-"))
+        elif c == "{":
+            i += 1
+            list_tokens = []
+            curr = ""
+            b_count = 1
+            while i < len(equation):
+                c = equation[i]
+                if c == "{":
+                    b_count += 1
+                    curr += c
+                elif c == "}":
+                    b_count -= 1
+                    if b_count == 0:
+                        if curr.strip():
+                            list_tokens.append(curr.strip())
+                        break
+                    else:
+                        curr += c
+                elif c == "," and b_count == 1:
+                    list_tokens.append(curr.strip())
+                    curr = ""
+                else:
+                    curr += c
+                i += 1
+            literal_list = [eval_beakscript(item, df) for item in list_tokens]
+            equation_tokens.append(Token(TOKENS.LITERAL, pd.Series(literal_list)))
+            
         elif c in OPERATOR_STRINGS:
-            if equation[i - 1] in OPERATOR_STRINGS or equation[i - 1] == "(":
+            if i == 0 or check_last_nowhitespace(equation, i) in OPERATOR_STRINGS or equation[i - 1] == "(":
                 equation_tokens.append(Token(TOKENS.UNARY_OP, c))
+            elif equation[i] in COMP_EXTEND:
+                if i + 1 < len(equation) and equation[i + 1] == "=":
+                    equation_tokens.append(Token(TOKENS.BINARY_OP, c + "="))
+                    i += 1
+                else:
+                    equation_tokens.append(Token(TOKENS.BINARY_OP, c))
             else: equation_tokens.append(Token(TOKENS.BINARY_OP, c))
         elif c == "$":
             if (i < len(equation)): i += 1
             else: break
             ref_name = ""
-            while (i < len(equation)) and (not equation[i] == "$") and (not equation[i] in ['$', '[', ']', *OPERATOR_STRINGS, *PARENS]):
+            while (i < len(equation)) and (not equation[i] == "$") and (not equation[i] in ['$', '[', ']', '@', *OPERATOR_STRINGS, *PARENS, *LIST_LITERALS]):
                 ref_name += equation[i]
                 i += 1
-            ref_name = ref_name.strip()
-            equation_tokens.append(Token(TOKENS.HEADER, ref_name))
+            equation_tokens.append(Token(TOKENS.HEADER, ref_name.strip()))
             continue
         else:
             literal_value = ""
             if (i >= len(equation)): break
-            while (i < len(equation)) and (not equation[i] == "$") and (not equation[i] in ['$', '[', ']', *OPERATOR_STRINGS, *PARENS]):
+            while (i < len(equation)) and (not equation[i] == "$") and (not equation[i] in ['$', '[', ']', '@', *OPERATOR_STRINGS, *PARENS, *LIST_LITERALS]):
                 literal_value += equation[i]
                 i += 1
-            equation_tokens.append(Token(TOKENS.LITERAL, literal_value))
+            equation_tokens.append(Token(TOKENS.LITERAL, literal_value.strip()))
             continue
         i += 1
     return equation_tokens
@@ -160,101 +237,219 @@ def strfloatize_if_bool(x):
         return "1" if x else "0"
     return x
 
-def eval_lex(tokens: List[Token], df: pd.DataFrame):
-    # df refs
+def df_safe_and(a, b):
+    try:
+        return a & b
+    except:
+        return bool(a) and bool(b)
+    
+def df_safe_or(a, b):
+    try:
+        return a | b
+    except:
+        return bool(a) or bool(b)
+    
+def evaluate_unary_operator(x, op):
+    match (op):
+        case "+":
+            return strize_if_float(abs(x))
+        case "-":
+            return strize_if_float(-x)
+        case "@avg":
+            try:
+                return strize_if_float(x.mean()) # pd
+            except:
+                try:
+                    return strize_if_float(sum(x) / len(x)) # list
+                except:
+                    return strize_if_float(x) # else
+        case "@max":
+            try:
+                return strize_if_float(x.max()) # pd
+            except:
+                try:
+                    return strize_if_float(max(x)) # list
+                except:
+                    return strize_if_float(x)
+        case "@min":
+            try:
+                return strize_if_float(x.min())
+            except: 
+                try:
+                    return strize_if_float(min(x))
+                except:
+                    return strize_if_float(x)
+        case "@sum":
+            try:
+                return strize_if_float(x.sum(axis=1))
+            except: 
+                try:
+                    return strize_if_float(sum(x))
+                except: return strize_if_float(x)
+        case "@len":
+            try:
+                return strize_if_float(len(x))
+            except: strize_if_float(x)
+    print(f"Parser Error: Unknown unary operation: {op}")
+    return "nan"
+
+    
+def evaluate_binary_operator(lhs, rhs, op):
+    match (op):
+        case "+":
+            return strize_if_float(lhs + rhs)
+        case "-":
+            return strize_if_float(lhs - rhs)
+        case "*":
+            return strize_if_float(lhs * rhs)
+        case "/":
+            return strize_if_float(lhs / rhs)
+        case "%":
+            return strize_if_float(lhs % rhs)
+        case ">":
+            return strfloatize_if_bool(lhs > rhs)
+        case "<":
+            return strfloatize_if_bool(lhs < rhs)
+        case ">=":
+            return strfloatize_if_bool(lhs >= rhs)
+        case "<=":
+            return strfloatize_if_bool(lhs <= rhs)
+        case "=":
+            return strfloatize_if_bool(lhs == rhs)
+        case "!":
+            return strfloatize_if_bool(not (lhs == rhs))
+        case "&":
+            return strfloatize_if_bool(df_safe_and(lhs, rhs))
+        case "|":
+            return strfloatize_if_bool(df_safe_or(lhs, rhs))
+        case "[]":
+            return lhs.loc[rhs]
+    print(f"Parser error: Unexpected binary operator: {op}")
+    return "nan"
+
+def preproc_implicit_ops(tokens: List[Token]):
+    """Convert HEADER_COND tokens <h[expr]> into binary operators h [] (expr) to make rpn easier"""
+    output = []
     i = 0
     while i < len(tokens):
-        if (tokens[i].token == TOKENS.HEADER):
-            if i + 1 < len(tokens) and tokens[i + 1].token == TOKENS.HEADER_COND:
-                cols = tokens[i].symbol.split(",") if "," in tokens[i].symbol else tokens[i].symbol
-                inner_exp = []
-                b_index = i + 1
-                bracket_count = 1
+        t = tokens[i]
+        if t.token == TOKENS.HEADER:
+            output.append(t)
+
+            if i + 1 < len(tokens) and tokens[i + 1].token == TOKENS.HEADER_COND and tokens[i + 1].symbol == "[":
                 i += 2
+                inner = []
+                b_count = 1
                 while i < len(tokens):
                     if tokens[i].token == TOKENS.HEADER_COND:
                         if tokens[i].symbol == "[":
-                            bracket_count += 1
+                            b_count += 1
                         else:
-                            bracket_count -= 1
-                            if bracket_count == 0: break
-                    inner_exp.append(tokens[i])
+                            b_count -= 1
+                            if b_count == 0: break
+                    inner.append(tokens[i])
                     i += 1
-                mask = eval_lex(inner_exp, df)
-                tokens[b_index - 1:i + 1] = [Token(TOKENS.LITERAL, df.loc[mask, cols] if type(cols) == str else df.loc[mask, cols].sum(axis=1))]
-                i = b_index
-            else:
-                tokens[i] = Token(TOKENS.LITERAL, df[tokens[i].symbol.split(",")].sum(axis=1) if "," in tokens[i].symbol else df[tokens[i].symbol])
-        i += 1
-
-    i = 0
-    # parens
-    while i < len(tokens):
-        if tokens[i].token == TOKENS.PAREN and tokens[i].symbol == "(":
-            inner_exp = []
-            p_index = i
-            paren_count = 1
+                output.append(Token(TOKENS.BINARY_OP, "[]"))
+                output.append(Token(TOKENS.PAREN, "("))
+                output.extend(preproc_implicit_ops(inner))
+                output.append(Token(TOKENS.PAREN, ")"))
+        elif t.token == TOKENS.HEADER_COND and i > 0 and type(tokens[i - 1].symbol) == pd.Series:
             i += 1
-            while (i < len(tokens)):
-                if tokens[i].token == TOKENS.PAREN:
-                    paren_count += (1 if tokens[i].symbol == "(" else -1)
-                    if paren_count == 0: break
-                inner_exp.append(tokens[i])
+            inner = []
+            b_count = 1
+            while i < len(tokens):
+                if tokens[i].token == TOKENS.HEADER_COND:
+                    if tokens[i].symbol == "[":
+                        b_count += 1
+                    else:
+                        b_count -= 1
+                        if b_count == 0: break
+                inner.append(tokens[i])
                 i += 1
-            tokens[p_index:i + 1] = [Token(TOKENS.LITERAL, strize_if_float(eval_lex(inner_exp, df)))]
-            i = p_index + 1
-        else: i += 1
+            output.append(Token(TOKENS.BINARY_OP, "[]"))
+            output.append(Token(TOKENS.PAREN, "("))
+            output.extend(preproc_implicit_ops(inner))
+            output.append(Token(TOKENS.PAREN, ")"))
+        else:
+            output.append(t)
 
-    i = 0
-    # mul/div
-    while i < len(tokens):
-        if tokens[i].token == TOKENS.UNARY_OP and tokens[i].symbol == "-":
-            tokens[i:i + 2] = [Token(TOKENS.LITERAL, str(-float(tokens[i + 1].symbol)))]
-        elif tokens[i].token == TOKENS.BINARY_OP and (tokens[i].symbol == "*" or tokens[i].symbol == "/"):
-            lhs = floatize_if_str(tokens[i - 1].symbol)
-            rhs = floatize_if_str(tokens[i + 1].symbol)
-            tokens[i - 1:i + 2] = [Token(TOKENS.LITERAL, strize_if_float(lhs * rhs if tokens[i].symbol == "*" else strize_if_float(lhs / rhs)))]
-            i -= 1
         i += 1
+    return output
 
-    i = 0
-    # add/sub
-    while i < len(tokens):
-        if tokens[i].token == TOKENS.BINARY_OP and (tokens[i].symbol == "+" or tokens[i].symbol == "-"):
-            lhs = floatize_if_str(tokens[i - 1].symbol)
-            rhs = floatize_if_str(tokens[i + 1].symbol)
-            tokens[i - 1:i + 2] = [Token(TOKENS.LITERAL, strize_if_float(lhs + rhs) if tokens[i].symbol == "+" else strize_if_float(lhs - rhs))]
-            i -= 1
-        i += 1
+def rpn(tokens: List[Token]):
+    output = []
+    ops: List[Token] = []
 
-    i = 0
-    # boolean ops
-    while i < len(tokens):
-        if tokens[i].token == TOKENS.BINARY_OP and (tokens[i].symbol in COMP_STRINGS):
-            lhs = floatize_if_str(tokens[i - 1].symbol)
-            rhs = floatize_if_str(tokens[i + 1].symbol)
-            match (tokens[i].symbol):
-                case ">":
-                    value = strfloatize_if_bool(lhs > rhs)
-                case "<":
-                    value = strfloatize_if_bool(lhs < rhs)
-                case "}":
-                    value = strfloatize_if_bool(lhs >= rhs)
-                case "{":
-                    value = strfloatize_if_bool(lhs <= rhs)
-                case "=":
-                    value = strfloatize_if_bool(lhs == rhs)
-                case "!":
-                    value = strfloatize_if_bool(lhs != rhs)
-            tokens[i - 1:i + 2] = [Token(TOKENS.LITERAL, value)]
-            i -= 1
-        i += 1
+    for token in tokens:
+        if token.token == TOKENS.LITERAL:
+            output.append(token)
+        elif token.token in [TOKENS.UNARY_OP, TOKENS.BINARY_OP]:
+            while ops and ops[-1].token in [TOKENS.UNARY_OP, TOKENS.BINARY_OP] and OP_PRECEDENCE[ops[-1].symbol] >= OP_PRECEDENCE[token.symbol]:
+                output.append(ops.pop())
+            ops.append(token)
+        elif token.token == TOKENS.PAREN and token.symbol:
+            if token.symbol == "(":
+                ops.append(Token(TOKENS.PAREN, "("))
+            else:
+                while ops and not (ops[-1].token == TOKENS.PAREN and ops[-1].symbol == "("):
+                    output.append(ops.pop())
+                ops.pop()
+        elif token.token == TOKENS.HEADER or token.token == TOKENS.HEADER_COND:
+            output.append(token)
 
-    return floatize_if_str(tokens[0].symbol)
+    while ops:
+        output.append(ops.pop())
+
+    return list(output)
+
+def solve_rpn(rpn_tokens: List[Token], df: pd.DataFrame):
+    stack_overflow = []
+    for t in rpn_tokens:
+        tok = t.token
+        sym = t.symbol
+
+        if tok == TOKENS.HEADER:
+            if "," in sym:
+                stack_overflow.append(df[[s.strip() for s in sym.split(",")]].sum(axis=1))
+            else:
+                stack_overflow.append(df[sym])
+            continue
+
+        if tok == TOKENS.LITERAL:
+            stack_overflow.append(sym)
+            continue
+
+        if tok == TOKENS.UNARY_OP:
+            val = floatize_if_str(stack_overflow.pop())
+            stack_overflow.append(evaluate_unary_operator(val, sym))
+            continue
+
+        if tok == TOKENS.BINARY_OP:
+            rhs = floatize_if_str(stack_overflow.pop())
+            lhs = floatize_if_str(stack_overflow.pop())
+            stack_overflow.append(evaluate_binary_operator(lhs, rhs, sym))
+            continue
+
+    if len(stack_overflow) != 1:
+        raise ValueError(f"Error: operation: {stack_overflow} cannot be simplified.")
+    ret = stack_overflow[0]
+    try:
+        return float(ret)
+    except:
+        return ret
+
+def eval_beakscript(equation: str, df: pd.DataFrame):
+    tokens = parse_equation(equation, df)
+    tokens = preproc_implicit_ops(tokens)
+    rpnResult = rpn(tokens)
+    return solve_rpn(rpnResult, df)
 
 if __name__ == "__main__":
-    print(eval_lex(parse_equation("2 + 3 + $TN,MN[$TC = B]"), pd.DataFrame({
-        "TN": [3, 5],
-        "MN": [2, 3],
-        "TC": ["R", "B"]
+    # test beakscript
+    print(eval_beakscript("@sum$TN,MN[$TC = R | $TC = Y]", pd.DataFrame({
+        "TN": [3, 5, 2],
+        "MN": [2, 3, 8],
+        "TC": ["R", "B", "Y"]
     })))
+
+    print(eval_beakscript("@len{2, 3, 5, 6}", {}))

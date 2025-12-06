@@ -2,9 +2,11 @@ from flask import Flask, request, render_template, jsonify, Response, send_file
 try:
     from lib.data_main import Processor
     import lib.mesh as mesh
+    from lib.data_config import lex_config
 except ModuleNotFoundError:
     from src.lib.data_main import Processor
     import src.lib.mesh as mesh
+    from src.lib.data_config import lex_config
 import os
 import requests
 import json
@@ -12,6 +14,7 @@ import re
 from threading import Thread
 import html
 import yaml
+import traceback
 
 def create_app(): # cursed but whatever
     app = Flask(__name__)
@@ -25,8 +28,6 @@ def create_app(): # cursed but whatever
         with open("./key.txt", 'r') as f:
             auth_key = f.read().strip()
     else: auth_key = input("Enter TBA Auth key: ")
-
-    SERIES = ["Teams", "Matches", "Predictions"]
 
     teams = [
         x["team_number"]
@@ -63,9 +64,19 @@ def create_app(): # cursed but whatever
         ).json()
     ], key=sched_sorter)
 
-    processor = Processor(OUT_DIR, CHUNK, teams, schedule)
+    config_data = lex_config()
+    processor = Processor(OUT_DIR, CHUNK, teams, schedule, config_data)
     infile = os.path.join(UPL_DIR, "data_in.csv")
     js = None
+
+    def exception_format(e: Exception): # bruh
+        """Gets the stack frame where the exception ACTUALLY occured (deepest frame not in a dependecy)"""
+        tb = traceback.extract_tb(e.__traceback__)
+        for i in range(len(tb)):
+            if not ".venv" in tb[len(tb) - i - 1].filename: # make all the junk go away
+                tb = tb[len(tb) - i - 1]
+                break
+        return f"Error in {tb.filename}, line {tb.lineno}, in {tb.name}\n" + traceback.format_exception_only(e)[0]
 
     def stream(file):
         with open(file, 'rb') as r:
@@ -83,17 +94,6 @@ def create_app(): # cursed but whatever
     reload_js()
 
 
-    def de_prettify_series(series):
-        match (series):
-            case "Teams":
-                return "teams"
-            case "Matches":
-                return "matches"
-            case "Predictions":
-                return "predict"
-        return ""
-
-
     @app.route("/")
     def main():
         return render_template("home.html")
@@ -104,13 +104,17 @@ def create_app(): # cursed but whatever
 
     @app.post("/upload")
     def upload_file():
-        if "data" in request.files:
-            d_file = request.files["data"]
-            if d_file.filename != "":
-                d_file.save(infile)
-                processor.proccess_data(infile, "output.csv")
-                reload_js()
-        return "", 200
+        try:
+            if "data" in request.files:
+                d_file = request.files["data"]
+                if d_file.filename != "":
+                    d_file.save(infile)
+                    processor.proccess_data(infile, "output.csv")
+                    reload_js()
+            return "", 200
+        except Exception as e:
+            raise e
+            return exception_format(e), 500
     
     @app.get("/schema.json")
     def send_schema():
@@ -119,9 +123,12 @@ def create_app(): # cursed but whatever
 
     @app.route("/reproc")
     def reprocess():
-        processor.proccess_data(infile, "output.csv")
-        reload_js()
-        return "Data reloaded."
+        try: 
+            processor.proccess_data(infile, "output.csv")
+            reload_js()
+            return "Data reloaded."
+        except Exception as e:
+            return exception_format(e), 500
 
     @app.route("/team-meta")
     def tmeta():
@@ -161,17 +168,20 @@ def create_app(): # cursed but whatever
 
     @app.route("/append", methods=["POST"])
     def append_line():
-        if "data" in request.files:
-            d_file = request.files["data"]
-            exists = os.path.exists(infile)
-            with open(infile, 'a' if exists else 'w') as append:
-                lines_to_write = [l.decode("utf-8") for l in d_file.readlines() if l and ((not exists) or (not "MN" in l.decode("utf-8")))]
-                if len(lines_to_write) > 0:
-                    if exists: append.write("\n")
-                    append.writelines(lines_to_write) # dodge header if exists
-            processor.proccess_data(infile, "output.csv")
-            reload_js()
-        return "", 200
+        try:
+            if "data" in request.files:
+                d_file = request.files["data"]
+                exists = os.path.exists(infile)
+                with open(infile, 'a' if exists else 'w', encoding='utf-8') as append:
+                    lines_to_write = [l.decode("utf-8").strip() + "\n" for l in d_file.readlines() if l and ((not exists) or (not "MN" in l.decode("utf-8")))]
+                    if len(lines_to_write) > 0:
+                        if exists: append.write("\n")
+                        append.writelines(lines_to_write) # dodge header if exists
+                processor.proccess_data(infile, "output.csv")
+                reload_js()
+            return "", 200
+        except Exception as e:
+            return exception_format(e), 500
     
     @app.get("/edit")
     def edit_yaml():
@@ -186,6 +196,7 @@ def create_app(): # cursed but whatever
             yaml.safe_load(data)
             with open(CONFIG_FILE, 'w') as f:
                 f.write(data)
+            processor.config_data = lex_config()
             return jsonify({"ok": True, "message": "Saved"})
         except yaml.YAMLError as e:
             return jsonify({"ok": False, "message": str(e)}), 400
@@ -202,8 +213,8 @@ def create_app(): # cursed but whatever
     
     def handle_mesh_line(message):
         exists = os.path.exists(infile)
-        with open(infile, 'a' if exists else 'w') as append:
-            line_to_write= message
+        with open(infile, 'a' if exists else 'w', encoding='utf-8') as append:
+            line_to_write = message
             if line_to_write:
                 if exists: append.write("\n")
                 append.write(line_to_write)

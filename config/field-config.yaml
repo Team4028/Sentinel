@@ -12,8 +12,17 @@ compute-fields:
   - name: Total TCycles
     equation: $Total TCoral,Total TAlgae
   - name: Total Score
-    # explanation of formula
-    # when dealing with sets in the form {a,b}, 
+    # explanation of formula for example usage of this scripting pseudolang:
+    
+    # when dealing with sets in the form {a,b}, basic operaters are element wise (ex. {2, 3} + {2, 4} = {4, 7})
+    # as such, finding the total score works as follows:
+    # STEP 1 (line 1): calculate the total coral score in auton: multiply the set of coral cycles on each level by their respective point values,
+    #   and then use the @sum set operator to calculate the sum of each entry
+    # STEP 2 (line 2): calculate the total coral score in teleop: same method as the auton coral score, but with different weights for tele
+    # STEP 3 (line 3): algae score: this is simpler because there is no auton bonus for algae. Tou can add up the algae cycles for the processer and
+    #   the barge respectively inside the list delcaration, and then multiply it by the weights, summing the result
+    # STEP 4 (line 4): Finally, you calculate mobility and endgame scores using an identical method to above
+    # Summing the result of these steps allows you to find the total score by a robot in a match
     equation: >-
       @sum({$AL1, $AL2, $AL3, $AL4} * {3, 4, 6, 7}) +
       @sum({$TL1, $TL2, $TL3, $TL4} * {2, 3, 4, 5}) +

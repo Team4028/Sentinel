@@ -80,6 +80,7 @@ class Token:
 
 UNOPS = [
     "-",
+    "~"
     "@avg",
     "@max",
     "@min",
@@ -99,6 +100,7 @@ OPERATOR_STRINGS = [
     "!",
     "&",
     "|",
+    "~"
 ]
 
 COMP_EXTEND = [
@@ -116,14 +118,18 @@ LIST_LITERALS = [
     "}"
 ]
 
-OP_PRECEDENCE = {
-    "[]": 10,
+UNOP_PRECEDENCE = {
     "-": 7,
+    "~": 7,
     "@sum": 7,
     "@avg": 7,
     "@max": 7,
     "@min": 7,
     "@len": 7,
+}
+
+BIOP_PRECEDENCE = {
+    "[]": 10,
     "*": 6,
     "/": 6,
     "%": 6,
@@ -169,9 +175,14 @@ def parse_equation(equation: str, df: pd.DataFrame):
             list_tokens = []
             curr = ""
             b_count = 1
+            p_count = 0
             while i < len(equation):
                 c = equation[i]
-                if c == "{":
+                if c == "(":
+                    p_count += 1
+                elif c == ")":
+                    p_count -= 1
+                elif c == "{":
                     b_count += 1
                     curr += c
                 elif c == "}":
@@ -182,7 +193,7 @@ def parse_equation(equation: str, df: pd.DataFrame):
                         break
                     else:
                         curr += c
-                elif c == "," and b_count == 1:
+                elif c == "," and b_count == 1 and p_count == 0:
                     list_tokens.append(curr.strip())
                     curr = ""
                 else:
@@ -192,7 +203,7 @@ def parse_equation(equation: str, df: pd.DataFrame):
             equation_tokens.append(Token(TOKENS.LITERAL, pd.Series(literal_list)))
             
         elif c in OPERATOR_STRINGS:
-            if i == 0 or check_last_nowhitespace(equation, i) in OPERATOR_STRINGS or equation[i - 1] == "(":
+            if i == 0 or check_last_nowhitespace(equation, i) in OPERATOR_STRINGS or equation[i - 1] in ["(", "[", "{"] or (i - 4 >= 0 and equation[i - 4] == "@"):
                 equation_tokens.append(Token(TOKENS.UNARY_OP, c))
             elif equation[i] in COMP_EXTEND:
                 if i + 1 < len(equation) and equation[i + 1] == "=":
@@ -251,10 +262,12 @@ def df_safe_or(a, b):
     
 def evaluate_unary_operator(x, op):
     match (op):
-        case "+":
-            return strize_if_float(abs(x))
         case "-":
             return strize_if_float(-x)
+        case "~":
+            if type(x) == pd.Series:
+                return ~x
+            return strfloatize_if_bool(not x)
         case "@avg":
             try:
                 return strize_if_float(x.mean()) # pd
@@ -353,7 +366,7 @@ def preproc_implicit_ops(tokens: List[Token]):
                 output.append(Token(TOKENS.PAREN, "("))
                 output.extend(preproc_implicit_ops(inner))
                 output.append(Token(TOKENS.PAREN, ")"))
-        elif t.token == TOKENS.HEADER_COND and i > 0 and type(tokens[i - 1].symbol) == pd.Series:
+        elif t.token == TOKENS.HEADER_COND and i > 0 and (type(tokens[i - 1].symbol) == pd.Series or tokens[i - 1].symbol == ")"):
             i += 1
             inner = []
             b_count = 1
@@ -384,7 +397,14 @@ def rpn(tokens: List[Token]):
         if token.token == TOKENS.LITERAL:
             output.append(token)
         elif token.token in [TOKENS.UNARY_OP, TOKENS.BINARY_OP]:
-            while ops and ops[-1].token in [TOKENS.UNARY_OP, TOKENS.BINARY_OP] and OP_PRECEDENCE[ops[-1].symbol] >= OP_PRECEDENCE[token.symbol]:
+            if token.token == TOKENS.UNARY_OP:
+                prec_list = UNOP_PRECEDENCE
+                l_assoc = False
+            else:
+                prec_list = BIOP_PRECEDENCE
+                l_assoc = True
+            while ops and ops[-1].token in [TOKENS.UNARY_OP, TOKENS.BINARY_OP] and \
+                (((UNOP_PRECEDENCE if ops[-1].token == TOKENS.UNARY_OP else BIOP_PRECEDENCE)[ops[-1].symbol] >= prec_list[token.symbol]) if l_assoc else ((UNOP_PRECEDENCE if ops[-1].token == TOKENS.UNARY_OP else BIOP_PRECEDENCE)[ops[-1].symbol] > prec_list[token.symbol])):
                 output.append(ops.pop())
             ops.append(token)
         elif token.token == TOKENS.PAREN and token.symbol:
@@ -452,4 +472,11 @@ if __name__ == "__main__":
         "TC": ["R", "B", "Y"]
     })))
 
+    print(eval_beakscript("{($TN,MN), $TN - $MN}", pd.DataFrame({
+        "TN": [3, 5, 2],
+        "MN": [2, 3, 8],
+        "TC": ["R", "B", "Y"]
+    })))
+
     print(eval_beakscript("@len{2, 3, 5, 6}", {}))
+    print(eval_beakscript("@lenn-{2, 3, 5, 6}", {})) # had to keep this one around because I was impressed that it worked

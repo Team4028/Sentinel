@@ -80,7 +80,7 @@ class Token:
 
 UNOPS = [
     "-",
-    "~"
+    "!"
     "@avg",
     "@max",
     "@min",
@@ -99,13 +99,14 @@ OPERATOR_STRINGS = [
     "=",
     "!",
     "&",
-    "|",
-    "~"
+    "|"
 ]
 
 COMP_EXTEND = [
     ">",
     "<",
+    "!",
+    "="
 ]
 
 PARENS = [
@@ -120,7 +121,7 @@ LIST_LITERALS = [
 
 UNOP_PRECEDENCE = {
     "-": 7,
-    "~": 7,
+    "!": 7,
     "@sum": 7,
     "@avg": 7,
     "@max": 7,
@@ -140,7 +141,9 @@ BIOP_PRECEDENCE = {
     ">=": 4,
     "<=": 4,
     "!": 3,
+    "!=": 3,
     "=": 3,
+    "==": 3,
     "&": 2,
     "|": 1,
 }
@@ -264,7 +267,7 @@ def evaluate_unary_operator(x, op):
     match (op):
         case "-":
             return strize_if_float(-x)
-        case "~":
+        case "!":
             if type(x) == pd.Series:
                 return ~x
             return strfloatize_if_bool(not x)
@@ -327,10 +330,10 @@ def evaluate_binary_operator(lhs, rhs, op):
             return strfloatize_if_bool(lhs >= rhs)
         case "<=":
             return strfloatize_if_bool(lhs <= rhs)
-        case "=":
+        case "=" | "==":
             return strfloatize_if_bool(lhs == rhs)
-        case "!":
-            return strfloatize_if_bool(not (lhs == rhs))
+        case "!" | "!=":
+            return strfloatize_if_bool(lhs != rhs)
         case "&":
             return strfloatize_if_bool(df_safe_and(lhs, rhs))
         case "|":
@@ -466,13 +469,19 @@ def eval_beakscript(equation: str, df: pd.DataFrame):
 
 if __name__ == "__main__":
     # test beakscript
-    print(eval_beakscript("@sum$TN,MN[$TC = R | $TC = Y]", pd.DataFrame({
+    print(eval_beakscript("@sum$TN,MN[$TC == R | $TC = Y]", pd.DataFrame({
         "TN": [3, 5, 2],
         "MN": [2, 3, 8],
         "TC": ["R", "B", "Y"]
     })))
 
     print(eval_beakscript("{($TN,MN), $TN - $MN}", pd.DataFrame({
+        "TN": [3, 5, 2],
+        "MN": [2, 3, 8],
+        "TC": ["R", "B", "Y"]
+    })))
+    
+    print(eval_beakscript("$TN[$TC != Y]", pd.DataFrame({
         "TN": [3, 5, 2],
         "MN": [2, 3, 8],
         "TC": ["R", "B", "Y"]

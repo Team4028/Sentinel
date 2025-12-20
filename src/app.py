@@ -1,9 +1,7 @@
-from flask import Flask, request, render_template, jsonify, Response, send_file, url_for, abort, redirect
-from flask_login import current_user, UserMixin, LoginManager, login_user, login_required
+from flask import Flask, request, render_template, jsonify, Response, send_file, url_for, redirect
+from flask_login import login_user, login_required
 from flask_cors import cross_origin
-from flask_wtf import CSRFProtect, FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired
+from flask_wtf import CSRFProtect
 try:
     from lib.data_main import Processor
     import lib.mesh as mesh
@@ -13,47 +11,16 @@ except ModuleNotFoundError:
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
 import os
-import secrets
-import requests
 import json
-import re
 from threading import Thread
 import html
 import yaml
-import traceback
 from pywebpush import webpush, WebPushException
-from pywebpush import Vapid as Vap
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
-import base64
 import sys
-import hashlib
 import tempfile
 import sqlite3
-from functools import wraps
-
-def generate_keys():
-    """ Generates a pair (pub/priv) of vapid keys for webpush notification, prints them out, and saves them to the ./secrets/vapid-keys.txt dir """
-    os.makedirs("secrets", exist_ok=True) # we will write here, make sure it exsists
-    v = Vap()
-    v.generate_keys()
-    public_key_o = load_pem_public_key(v.public_pem())
-    pub_bytes = public_key_o.public_bytes(encoding=serialization.Encoding.X962, format=serialization.PublicFormat.UncompressedPoint) # this is apparently right
-    pub_b64 = base64.urlsafe_b64encode(pub_bytes).rstrip(b'=').decode('utf-8') # the public key needs to be in B64URL
-    private = v.private_pem().decode('utf-8').strip().replace("\n", "").removeprefix("-----BEGIN PRIVATE KEY-----").removesuffix("-----END PRIVATE KEY-----")
-    print(f"Public Vapid Key: {pub_b64}")
-    print(f"Private Vapid Key: {private}")
-    with open("./secrets/vapid-keys.txt", 'w') as w:
-        w.writelines([pub_b64 + "\n", private])
-
-def generate_admin():
-    os.makedirs("secrets", exist_ok=True)
-    un = input("Enter username: ")
-    pwd = hashlib.sha256(input("Enter password: ").encode("utf-8"))
-    sec = secrets.token_hex(32)
-    with open("./secrets/admin.txt", 'w') as f:
-        f.write(un + '\n' + pwd + '\n' + sec)
-
+import apputils
+from auth import BigBrother, LoginForm, require_admin, init_loginm_app
 
 def create_app(): # cursed but whatever
     """ Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy """
@@ -64,6 +31,28 @@ def create_app(): # cursed but whatever
     vapid_keys = {}
     admin_login = {}
     CONFIG_FILE = os.path.join("config", "field-config.yaml")
+
+    def render_template_pass_vapids(template, **context):
+        return render_template(template, pubkey=vapid_keys["public"], **context)
+
+# =======================================================
+# Initialize sqlite database for storing notification subscriptions
+# =======================================================
+    
+    os.makedirs(os.path.dirname(app.config["NOTIFY_SUB_STORAGE"]), exist_ok=True)
+    conn = sqlite3.connect(app.config["NOTIFY_SUB_STORAGE"])
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS subs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        endpoint TEXT UNIQUE,
+        p256dh TEXT,
+        auth TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    conn.commit()
+    conn.close()
 
 # =======================================================
 # Ensure directories on gitignore are present
@@ -80,73 +69,18 @@ def create_app(): # cursed but whatever
 # Load Auth Keys
 # =======================================================
 
-    if (os.path.exists('./secrets/vapid-keys.txt')):
-        with open("./secrets/vapid-keys.txt", 'r') as f:
-            vapid_keys["public"] = f.readline().strip()
-            vapid_keys["private"] = f.readline().strip()
-    else: raise Exception("Error: Missing vapid-keys.txt file in secrets") # hmm yes very safe
-
-    if (os.path.exists('./secrets/admin.txt')):
-        with open("./secrets/admin.txt", 'r') as r:
-            admin_login["un"] = r.readline().strip()
-            admin_login["pwd"] = r.readline().strip()
-            app.config["SECRET_KEY"] = r.readline().strip()
-    else: raise Exception("Error: Missing admin.txt file in secrets")
-
-    if (os.path.exists("./secrets/key.txt")):
-        with open("./secrets/key.txt", 'r') as f:
-            auth_key = f.read().strip()
-    else:
-        auth_key = input("Enter TBA Auth key: ")
-        if auth_key: # save the one they enter
-            with open("./secrets/key.txt", 'w') as w:
-                w.write(auth_key)
+    vapid_keys, admin_login, app.config["SECRET_KEY"], auth_key = apputils.read_secrets()
 
 # =======================================================
 # Load TBA Schedule from event key for match predictor
 # =======================================================
-
-    teams = [
-        x["team_number"]
-        for x in requests.get(
-            f"https://www.thebluealliance.com/api/v3/event/{app.config["EVENT_KEY"]}/teams",
-            headers={"X-TBA-Auth-Key": auth_key},
-        ).json()
-    ]
-
-    def sched_sorter(match): # sorting function
-        key = match["k"].removeprefix(app.config["EVENT_KEY"] + "_")
-        order = {"qm": 0, "sf": 1, "f": 2}
-
-        if key.startswith("qm"):
-            x = int(key[2:])
-            return (order["qm"], x, 0)
-        else:
-            m = re.match(r"(sf|f)(\d+)m(\d+)", key) # match sf<x>m<y>
-            if m:
-                prefix, round, idx = m.groups()
-                return (order[prefix], int(round), int(idx))
-            else:
-                return (99, 0, 0)
-
-    schedule = sorted([
-        {
-            "k": x["key"],
-            "r": x["alliances"]["red"]["team_keys"],
-            "b": x["alliances"]["blue"]["team_keys"],
-        }
-        for x in requests.get(
-            f"https://www.thebluealliance.com/api/v3/event/{app.config["EVENT_KEY"]}/matches",
-            headers={"X-TBA-Auth-Key": auth_key},
-        ).json()
-    ], key=sched_sorter)
 
 # =======================================================
 # Parse field config and setup processor
 # =======================================================
 
     config_data = lex_config()
-    processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], teams, schedule, config_data)
+    processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key), config_data) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
     infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])
     js = None
 
@@ -156,68 +90,7 @@ def create_app(): # cursed but whatever
 # Helper functions
 # =======================================================
 
-    def init_db():
-        """ Initialize a new sqlite database to store notification subscriptions through runtimes """
-        os.makedirs(os.path.dirname(app.config["NOTIFY_SUB_STORAGE"]), exist_ok=True)
-        conn = sqlite3.connect(app.config["NOTIFY_SUB_STORAGE"])
-        c = conn.cursor()
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS subs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            endpoint TEXT UNIQUE,
-            p256dh TEXT,
-            auth TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """)
-        conn.commit()
-        conn.close()
-
-    init_db()
-
-    class BigBrother(UserMixin):
-        id = "admin"
-        is_admin = True
-
-    class LoginForm(FlaskForm):
-        username = StringField("Username", validators=[DataRequired()])
-        password = PasswordField("Password", validators=[DataRequired()])
-        submit = SubmitField("Log in")
-
-    login_manager = LoginManager()
-    login_manager.login_view = "login"
-    login_manager.init_app(app)
-
-    @login_manager.user_loader
-    def load_user(user_id):
-        if user_id == "admin":
-            return BigBrother()
-        return None
-
-    def require_admin(f):
-        @wraps(f)
-        def decorated(*args, **kwargs):
-            if not current_user.is_authenticated:
-                abort(401) # unauthorized
-            if not current_user.is_admin:
-                abort(403) # forbidden
-            return f(*args, **kwargs)
-        return decorated
-
-    def exception_format(e: Exception): # bruh
-        """Gets the stack frame where the exception ACTUALLY occured (deepest frame not in a dependecy)"""
-        tb = traceback.extract_tb(e.__traceback__)
-        for i in range(len(tb)):
-            if not ".venv" in tb[len(tb) - i - 1].filename: # make all the junk go away
-                tb = tb[len(tb) - i - 1]
-                break
-        return f"Error in {tb.filename}, line {tb.lineno}, in {tb.name}\n" + traceback.format_exception_only(e)[0]
-
-    def stream(file):
-        """ Return a stream which reads a file in chunks; used for downloading in case files get big """
-        with open(file, 'rb') as r:
-            while chunk := r.read(8192):
-                yield chunk
+    init_loginm_app(app)
 
     def reload_js():
         """ Updates the copy of the 'other-metrics.json' file in memory (used for '/percent' endpoint) to use the newest file """
@@ -229,10 +102,6 @@ def create_app(): # cursed but whatever
             js = json.load(r) if os.path.exists(os.path.join(app.config["OUT_DIR"], app.config["METRIC_OUTPUT_FILENAME"])) else None
     
     reload_js()
-
-    def line_str_hash(row: str):
-        """ Hashes a line of text with sha256 """
-        return hashlib.sha256(row.encode("utf-8")).hexdigest()
 
     def send_change_notification(lines: str | None = None):
         """ Sends a notification to all subscribers. <br>
@@ -258,7 +127,7 @@ def create_app(): # cursed but whatever
         ]
         if lines != None:
             data["data"] = {
-                "line-hashes": json.dumps([line_str_hash(x) for x in lines])
+                "line-hashes": json.dumps([apputils.line_str_hash(x) for x in lines])
             }
         con = sqlite3.connect(app.config["NOTIFY_SUB_STORAGE"])
         c = con.cursor()
@@ -299,7 +168,7 @@ def create_app(): # cursed but whatever
              open(temp_path, 'w', newline='', encoding='utf-8') as outf:
             
             for line in inf:
-                if line_str_hash(line.strip()) not in speedy_hashes:
+                if apputils.line_str_hash(line.strip()) not in speedy_hashes:
                     outf.write(("" if firstLine else "\n") + line.strip())
                     firstLine = False
         os.replace(temp_path, infile)
@@ -344,28 +213,20 @@ def create_app(): # cursed but whatever
     @require_admin
     def main():
         """ Renders homepage html template, passes the public key to the client to bind the service worker  """
-        return render_template("home.html", pubkey=vapid_keys["public"])
+        return render_template_pass_vapids("home.html")
     
     @app.route("/login", methods=["GET", "POST"])
     def login():
         form = LoginForm()
         if form.validate_on_submit():
             if form.username.data == admin_login["un"] \
-                and hashlib.sha256(form.password.data.encode("utf-8")).hexdigest() == admin_login["pwd"]:
+                and apputils.line_str_hash(form.password.data) == admin_login["pwd"]:
                 login_user(BigBrother())
                 next_site = request.args.get('next') or '/'
                 print(next_site)
                 return redirect(next_site)
             else:
                 return "Invalid Credentials", 401
-        # if request.method == "POST":
-        #     if (
-        #         request.form["un"] == admin_login["un"]
-        #         and hashlib.sha256(request.form["pwd"]) == admin_login["pwd"]
-        #     ):
-        #         login_user(BigBrother())
-        #         return redirect(request.args.get("next") or '/')
-        #     abort(401)
         return render_template("login.html", form=form)
     
     @app.get('/service_worker.js')
@@ -378,7 +239,7 @@ def create_app(): # cursed but whatever
     @require_admin
     def changes():
         """ Renders page listing changes to apply for restrict append level 2 """
-        return render_template("change.html", append_queue=process_queue)
+        return render_template_pass_vapids("change.html", append_queue=process_queue)
     
     @app.post('/subscribe')
     def push_sub():
@@ -424,7 +285,7 @@ def create_app(): # cursed but whatever
                     reload_js()
             return "", 200
         except Exception as e:
-            return exception_format(e), 500
+            return apputils.exception_format(e), 500
     
     @app.get("/schema.json")
     def send_schema():
@@ -442,7 +303,7 @@ def create_app(): # cursed but whatever
             reload_js()
             return "Data reloaded."
         except Exception as e:
-            return exception_format(e), 500
+            return apputils.exception_format(e), 500
 
     @app.route("/team-meta")
     def tmeta():
@@ -474,7 +335,7 @@ def create_app(): # cursed but whatever
         curr_match = request.args["mkey"]
         foundit = False # whether it has found the curr_match yet
         next_3 = []
-        for m in schedule:
+        for m in processor._sched:
             if foundit:
                 if len(next_3) >= app.config["NEXT_N_MATCHES_NUMBER"]: # app is compatible for >3 next, but keep endpoint name because i don't want to redo dash
                     break # stop looking once you find all of them
@@ -506,7 +367,7 @@ def create_app(): # cursed but whatever
                 append_lines_nofile(lines_to_write)
             return "", 200
         except Exception as e:
-            return exception_format(e), 500
+            return apputils.exception_format(e), 500
         
     @app.post("/apply-change/<int:idx>")
     @login_required
@@ -519,7 +380,7 @@ def create_app(): # cursed but whatever
                 append_lines_nofile([item]) # pass in as a single-element list
                 return "", 200
             except Exception as e:
-                return exception_format(e), 500
+                return apputils.exception_format(e), 500
         return "Invalid request", 400
     
     @app.post("/delete-change/<int:idx>")
@@ -549,7 +410,7 @@ def create_app(): # cursed but whatever
         """ Renders the editing template for web editing the field-config.yaml file """
         with open(CONFIG_FILE, "r") as r: # load CONFIG_FILE into mem to pass into jinja2
             content = r.read()
-        return render_template("edit.html", yaml_content=content)
+        return render_template_pass_vapids("edit.html", yaml_content=content)
     
     @app.post("/save")
     @login_required
@@ -573,7 +434,7 @@ def create_app(): # cursed but whatever
     @require_admin
     def edit_app_conf_page():
         """ Returns a template for editing the app configuration """
-        return render_template("appconfig.html")
+        return render_template_pass_vapids("appconfig.html")
 
     @app.get("/get-config")
     @login_required
@@ -594,10 +455,12 @@ def create_app(): # cursed but whatever
                 with open(os.path.join(app.root_path, "config", "app-config.json"), 'w') as w:
                     json.dump(request.json, w, indent=4) # indent=4 auto-formats the json with \t = 4 spaces
                 app.config.from_file("config/app-config.json", load=json.load)
+                processor._teamsAt, processor._sched = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key) # event key may have changed
+                processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # upgated processor, so this
                 ensure_configurable_dirs() # if either of the the upl/out dirs were changed, they may no longer exist
                 return "", 200
             except Exception as e:
-                return exception_format(e), 500
+                return apputils.exception_format(e), 500
         return "Invalid Request", 400
 
     @app.get("/download/<file>")
@@ -610,7 +473,7 @@ def create_app(): # cursed but whatever
         file = os.path.join(app.config["OUT_DIR"] if (app.config["BASE_OUTPUT_FILENAME"] in file or
                                                     file == app.config["METRIC_OUTPUT_FILENAME"]) else app.config["UPLOAD_DIR"], file) # get dir based on name
         if not os.path.exists(file): return "File not found.", 403
-        return Response(stream(file), mimetype=('text/json' if ".json" in file else 'text/csv'), headers={ # send over a file stream to be handled by the client XHR
+        return Response(apputils.stream(file), mimetype=('text/json' if ".json" in file else 'text/csv'), headers={ # send over a file stream to be handled by the client XHR
             'Content-Disposition': f"attachment; filename={os.path.basename(file)}"
         })
     
@@ -640,6 +503,8 @@ def create_app(): # cursed but whatever
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "gen": # python src/app.py gen (argv[0] is src/app.py so check argv[1])
-        generate_keys()
+        apputils.generate_keys()
+    elif len(sys.argv) > 1 and sys.argv[1] == "pwd":
+        apputils.generate_admin()
     else:
         create_app().run(port=5001, use_reloader=False) # debug run python

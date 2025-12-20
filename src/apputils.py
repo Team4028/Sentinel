@@ -1,0 +1,119 @@
+import os
+from pywebpush import Vapid
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
+import hashlib
+import secrets
+import base64
+import traceback
+import requests
+import re
+
+def generate_keys():
+    """ Generates a pair (pub/priv) of vapid keys for webpush notification, prints them out, and saves them to the ./secrets/vapid-keys.txt dir """
+    os.makedirs("secrets", exist_ok=True) # we will write here, make sure it exsists
+    v = Vapid()
+    v.generate_keys()
+    public_key_o = load_pem_public_key(v.public_pem())
+    pub_bytes = public_key_o.public_bytes(encoding=serialization.Encoding.X962, format=serialization.PublicFormat.UncompressedPoint) # this is apparently right
+    pub_b64 = base64.urlsafe_b64encode(pub_bytes).rstrip(b'=').decode('utf-8') # the public key needs to be in B64URL
+    private = v.private_pem().decode('utf-8').strip().replace("\n", "").removeprefix("-----BEGIN PRIVATE KEY-----").removesuffix("-----END PRIVATE KEY-----")
+    print(f"Public Vapid Key: {pub_b64}")
+    print(f"Private Vapid Key: {private}")
+    with open("./secrets/vapid-keys.txt", 'w') as w:
+        w.writelines([pub_b64 + "\n", private])
+
+def generate_admin():
+    """ Generates admin credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt """
+    os.makedirs("secrets", exist_ok=True)
+    un = input("Enter username: ")
+    pwd = hashlib.sha256(input("Enter password: ").encode("utf-8"))
+    sec = secrets.token_hex(32)
+    with open("./secrets/admin.txt", 'w') as f:
+        f.write(un + '\n' + pwd + '\n' + sec)
+
+def load_tba_data(event_key, api_key):
+    """ Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule) """
+    teams = [
+        x["team_number"]
+        for x in requests.get(
+            f"https://www.thebluealliance.com/api/v3/event/{event_key}/teams",
+            headers={"X-TBA-Auth-Key": api_key},
+        ).json()
+    ]
+
+    def sched_sorter(match): # sorting function
+        key = match["k"].removeprefix(event_key + "_")
+        order = {"qm": 0, "sf": 1, "f": 2}
+
+        if key.startswith("qm"):
+            x = int(key[2:])
+            return (order["qm"], x, 0)
+        else:
+            m = re.match(r"(sf|f)(\d+)m(\d+)", key) # match sf<x>m<y>
+            if m:
+                prefix, round, idx = m.groups()
+                return (order[prefix], int(round), int(idx))
+            else:
+                return (99, 0, 0)
+
+    schedule = sorted([
+        {
+            "k": x["key"],
+            "r": x["alliances"]["red"]["team_keys"],
+            "b": x["alliances"]["blue"]["team_keys"],
+        }
+        for x in requests.get(
+            f"https://www.thebluealliance.com/api/v3/event/{event_key}/matches",
+            headers={"X-TBA-Auth-Key": api_key},
+        ).json()
+    ], key=sched_sorter)
+
+    return (teams, schedule)
+
+def read_secrets():
+    """ Reads the different secrets of the repo: vapid keys, admin creds, flask secret key, and tba auth key in that order """
+    vapid_keys = {}
+    admin_login = {}
+    if (os.path.exists('./secrets/vapid-keys.txt')):
+        with open("./secrets/vapid-keys.txt", 'r') as f:
+            vapid_keys["public"] = f.readline().strip()
+            vapid_keys["private"] = f.readline().strip()
+    else: raise Exception("Error: Missing vapid-keys.txt file in secrets") # hmm yes very safe
+
+    if (os.path.exists('./secrets/admin.txt')):
+        with open("./secrets/admin.txt", 'r') as r:
+            admin_login["un"] = r.readline().strip()
+            admin_login["pwd"] = r.readline().strip()
+            key = r.readline().strip()
+    else: raise Exception("Error: Missing admin.txt file in secrets")
+
+    if (os.path.exists("./secrets/key.txt")):
+        with open("./secrets/key.txt", 'r') as f:
+            auth_key = f.read().strip()
+    else:
+        auth_key = input("Enter TBA Auth key: ")
+        if auth_key: # save the one they enter
+            with open("./secrets/key.txt", 'w') as w:
+                w.write(auth_key)
+
+    return (vapid_keys, admin_login, key, auth_key)
+
+def line_str_hash(row: str):
+        """ Hashes a line of text with sha256 """
+        return hashlib.sha256(row.encode("utf-8")).hexdigest()
+
+def stream(file):
+        """ Return a stream which reads a file in chunks; used for downloading in case files get big """
+        with open(file, 'rb') as r:
+            while chunk := r.read(8192):
+                yield chunk
+
+def exception_format(e: Exception): # bruh
+        """Gets the stack frame where the exception ACTUALLY occured (deepest frame not in a dependecy)"""
+        tb = traceback.extract_tb(e.__traceback__)
+        for i in range(len(tb)):
+            if not ".venv" in tb[len(tb) - i - 1].filename: # make all the junk go away
+                tb = tb[len(tb) - i - 1]
+                break
+        return f"Error in {tb.filename}, line {tb.lineno}, in {tb.name}\n" + traceback.format_exception_only(e)[0]

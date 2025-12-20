@@ -36,8 +36,9 @@ self.addEventListener("notificationclick", event => {
         );
     } else if (event.action === "remove-change") {
         fetch("/delete-lines", { // use stored notification data from webpush in flask to delete these lines
-            "method": "POST",
-            "headers": {
+            method: "POST",
+            credentials: 'include',
+            headers: {
                 "Content-Type": "application/json",
                 'X-CSRFToken': csrfToken
             },

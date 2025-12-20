@@ -99,6 +99,11 @@ def read_secrets():
 
     return (vapid_keys, admin_login, key, auth_key)
 
+def change_un_pwd(current_secret_key: str, newun: str, newpwd: str):
+    os.makedirs("./secrets", exist_ok=True)
+    with open("./secrets/admin.txt", 'w') as f:
+        f.write('\n'.join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
+
 def line_str_hash(row: str):
         """ Hashes a line of text with sha256 """
         return hashlib.sha256(row.encode("utf-8")).hexdigest()

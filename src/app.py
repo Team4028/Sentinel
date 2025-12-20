@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template, jsonify, Response, send_file, url_for, redirect
-from flask_login import login_user, login_required
+from flask_login import login_user, login_required, logout_user
 from flask_cors import cross_origin
 from flask_wtf import CSRFProtect
 try:
@@ -82,7 +82,7 @@ def create_app(): # cursed but whatever
     config_data = lex_config()
     processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key), config_data) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
     infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])
-    js = None
+    js = None # load the json file into mem so we don't have to read it every time its requested
 
     process_queue = []
 
@@ -142,7 +142,6 @@ def create_app(): # cursed but whatever
                         vapid_private_key=vapid_keys["private"], # PEM form
                         vapid_claims={"sub": "https://beaksquad.dev"}) # <- who sent it
             except WebPushException as we:
-                print(we)
                 if we.response and we.response.status_code in (404, 410): # sw expired
                     print(f"Subscription {sub_id} expired.")
                     expired_ids.append(sub_id)
@@ -208,6 +207,7 @@ def create_app(): # cursed but whatever
 # Endpoints
 # =======================================================
 
+    # RESTRICTED (can download and edit things and such, though not directly so ig it could be open)
     @app.route("/")
     @login_required
     @require_admin
@@ -215,6 +215,7 @@ def create_app(): # cursed but whatever
         """ Renders homepage html template, passes the public key to the client to bind the service worker  """
         return render_template_pass_vapids("home.html")
     
+    # OPEN (need to log in before you can be logged in)
     @app.route("/login", methods=["GET", "POST"])
     def login():
         form = LoginForm()
@@ -222,18 +223,25 @@ def create_app(): # cursed but whatever
             if form.username.data == admin_login["un"] \
                 and apputils.line_str_hash(form.password.data) == admin_login["pwd"]:
                 login_user(BigBrother())
-                next_site = request.args.get('next') or '/'
-                print(next_site)
-                return redirect(next_site)
+                return "Login Successful", 200
             else:
                 return "Invalid Credentials", 401
         return render_template("login.html", form=form)
     
+    # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
+    @app.route("/logout")
+    @login_required
+    def logout():
+        logout_user()
+        return redirect(url_for('login'))
+    
+    # OPEN (sends immutable copy, nothing to hide bc open source)
     @app.get('/service_worker.js')
     def send_sw():
         """ Passthrough for the service worker so that the client can fetch it """
         return send_file("service_worker.js")
     
+    # RESTRICTED (can edit things and delete data = restrict)
     @app.route("/changes")
     @login_required
     @require_admin
@@ -241,7 +249,10 @@ def create_app(): # cursed but whatever
         """ Renders page listing changes to apply for restrict append level 2 """
         return render_template_pass_vapids("change.html", append_queue=process_queue)
     
+    # RESTRICTED (edits db = bad)
     @app.post('/subscribe')
+    @login_required
+    @require_admin
     def push_sub():
         """ Consumes subscription data from a service worker and stores it in the db """
         json_data = request.get_json() # comes from the service worker
@@ -260,17 +271,20 @@ def create_app(): # cursed but whatever
         con.close()
         return "", 200
     
+    # OPEN + CORS OPEN (just health, literally returns a string)
     @app.route("/health")
     @cross_origin(origins="*") # average cors experience
     def health():
         """ Health check, primarily so that QRScout can know its url is correct """
         return "Sentinel is watching", 200
 
+    # OPEN (immutable passthrough for other-metrics = fine)
     @app.get("/percent")
     def percent(): # need because grafana infinity can't do local JSON
         """ Rest passthrough for other-metrics.json, named percent because its current data is the percentage of teams scouted. """
         return jsonify(js) if js else ""
 
+    # RESTRICTED (completely wipes out input data = bad)
     @app.post("/upload")
     @login_required
     @require_admin
@@ -287,12 +301,14 @@ def create_app(): # cursed but whatever
         except Exception as e:
             return apputils.exception_format(e), 500
     
+    # OPEN (immutable passthrough, literally a yaml schema)
     @app.get("/schema.json")
     def send_schema():
         """ Passthrough for the field-config.yaml schema, because I want to pretend it works with monaco """
         f = os.path.join("config", "schema.json")
         return send_file(f)
 
+    # RESTRICTED (not as bad, but still requires decent processing power)
     @app.route("/reproc")
     @login_required
     @require_admin
@@ -305,6 +321,7 @@ def create_app(): # cursed but whatever
         except Exception as e:
             return apputils.exception_format(e), 500
 
+    # OPEN (grafana need this)
     @app.route("/team-meta")
     def tmeta():
         """ Returns the field names (headers) contained in the teams output csv """
@@ -315,6 +332,7 @@ def create_app(): # cursed but whatever
                 return jsonify(headers)
         return ""
 
+    # OPEN (grafana needs this)
     @app.route("/match-meta")
     def mmeta():
         """ Returns the field names (headers) contained in the matches output csv """
@@ -326,6 +344,7 @@ def create_app(): # cursed but whatever
                 return jsonify(headers)
         return ""
 
+    # OPEN (grafana needs this)
     @app.get("/next-3")
     def n3():
         """ Returns the next app.config["NEXT_N_MATCHES_NUMBER"] (currently 3, hence the name) matches after ?`mkey` that contain ?`team`<br>
@@ -345,6 +364,7 @@ def create_app(): # cursed but whatever
                 foundit = True
         return jsonify(next_3)
 
+    # RESTRICTED (edits input data = bad)
     @app.route("/append", methods=["POST"])
     @login_required
     @require_admin
@@ -369,6 +389,7 @@ def create_app(): # cursed but whatever
         except Exception as e:
             return apputils.exception_format(e), 500
         
+    # RESTRICTED (edits input data = bad)
     @app.post("/apply-change/<int:idx>")
     @login_required
     @require_admin
@@ -383,6 +404,7 @@ def create_app(): # cursed but whatever
                 return apputils.exception_format(e), 500
         return "Invalid request", 400
     
+    # RESTRICTED (can delete queued data = bad)
     @app.post("/delete-change/<int:idx>")
     @login_required
     @require_admin
@@ -393,6 +415,7 @@ def create_app(): # cursed but whatever
             return "", 200
         return "Invalid request", 400
     
+    # RESTRICTED (can delete input data = bad)
     @app.post("/delete-lines")
     @login_required
     @require_admin
@@ -403,6 +426,7 @@ def create_app(): # cursed but whatever
             return "", 200
         return "Invalid request", 400
     
+    # RESTRICTED (can edit field-config = bad (technically not but still))
     @app.get("/edit")
     @login_required
     @require_admin
@@ -412,6 +436,7 @@ def create_app(): # cursed but whatever
             content = r.read()
         return render_template_pass_vapids("edit.html", yaml_content=content)
     
+    # RESTRICTED (overwrites field-config = bad)
     @app.post("/save")
     @login_required
     @require_admin
@@ -429,6 +454,7 @@ def create_app(): # cursed but whatever
         except yaml.YAMLError as e:
             return jsonify({"ok": False, "message": str(e)}), 400
         
+    # RESTRICTED (technically doesn't write to app config but still bad)
     @app.get("/edit-app-conf")
     @login_required
     @require_admin
@@ -436,6 +462,7 @@ def create_app(): # cursed but whatever
         """ Returns a template for editing the app configuration """
         return render_template_pass_vapids("appconfig.html")
 
+    # RESTRICTED (don't want to share app config because it has secrets)
     @app.get("/get-config")
     @login_required
     @require_admin
@@ -444,7 +471,26 @@ def create_app(): # cursed but whatever
         with open(os.path.join(app.root_path, "config", "app-config.json"), 'r') as r:
             return jsonify(json.load(r))
         return "", 500
+
+    # RESTRICTED (overwrites un/pwd = bad)
+    @app.post("/set-admin-creds")
+    def set_admin_creds():
+        nonlocal admin_login
+        if request and request.json:
+            try:
+                un = request.json.get('un', admin_login["un"])
+                pwd = apputils.line_str_hash(request.json["pwd"]) if "pwd" in request.json else admin_login["pwd"]
+                apputils.change_un_pwd(app.config["SECRET_KEY"], un, pwd)
+                admin_login = {
+                    "un": un,
+                    "pwd": pwd
+                }
+                return "Password change successful", 200
+            except Exception as e:
+                return apputils.exception_format(e), 500
+        return "Invalid Request", 400
     
+    # RESTRICTED (overwrites app config = bad)
     @app.post("/save-app-config")
     @login_required
     @require_admin
@@ -463,6 +509,7 @@ def create_app(): # cursed but whatever
                 return apputils.exception_format(e), 500
         return "Invalid Request", 400
 
+    # RESTRICTED (save bandwidth)
     @app.get("/download/<file>")
     @login_required
     @require_admin
@@ -477,6 +524,7 @@ def create_app(): # cursed but whatever
             'Content-Disposition': f"attachment; filename={os.path.basename(file)}"
         })
     
+    # RESTRICTED (edits input data = bad)
     @app.get("/test-mesh")
     @login_required
     @require_admin

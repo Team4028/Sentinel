@@ -177,15 +177,34 @@
             background-color: rgba(0, 0, 0, 0.6);
         }
 
-        .settings-btn {
+        .top-corner-div {
             position: fixed;
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            top: 10px;
+            right: 10px;
+            width: 160px;
+        }
+
+        .settings-btn {
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: large;
-            top: 10px;
-            right: 10px;
             width: 40px;
+            height: 40px;
+            padding: 10px;
+            margin: 0;
+            color: white;
+        }
+
+        .logout-btn {
+            display: inline-block;
+            align-items: center;
+            justify-content: center;
+            font-size: small;
+            width: 80px;
             height: 40px;
             padding: 10px;
             margin: 0;
@@ -243,7 +262,10 @@
         <button id="reload-btn" class="btn">Reload</button>
         <button id="download-btn" class="btn">Download</button>
         <button class="btn" onclick="window.location.href='/edit'">Edit Config</button>
-        <button class="btn settings-btn" onclick="window.location.href='/edit-app-conf'">⚙️</button>
+        <div class="top-corner-div">
+            <button class="btn settings-btn" onclick="window.location.href='/edit-app-conf'">⚙️</button>
+            <button class="btn logout-btn" onclick="window.location.href='/logout'">Log out</button>
+        </div>
 
         <!-- Progress bar -->
         <div id="progress-container">

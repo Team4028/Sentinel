@@ -72,6 +72,11 @@
         form input[type="submit"]:hover {
             background-color: #4a8ac2;
         }
+
+        #loginError {
+            text-align: center;
+            font-size: x-large;
+        }
     </style>
 </head>
 
@@ -79,18 +84,33 @@
     <h1>
         <img src="{{url_for('static', filename='favicon.ico')}}" style="transform: translateY(25%);"> Sentinel
     </h1>
-    <form method="post" action="{{url_for('login', next=request.args.get('next'))}}">
+    <form method="post" id="loginForm" action="{{url_for('login')}}">
         {{ form.hidden_tag() }}
         <label>
             Username
             {{ form.username() }}
         </label>
         <label>
-            Password
+            <!-- Use <input> instead of button because I copied it from appconfig.html which uses it because there is default css for <button> it wants to avoid -->
+            Password<input value="👁" style="background: none; border: none; text-align: center; border-radius: 5px; width: 30px; height: 30px; color: white;" type="button" onclick="document.querySelector(`input[name='password']`).setAttribute('type', document.querySelector(`input[name='password']`).getAttribute('type') == 'text' ? 'password' : 'text')">
             {{ form.password() }}
         </label>
         {{ form.submit() }}
     </form>
+    <div id="loginError" style="color: #a00;"></div>
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+            const fData = new FormData(this);
+            const res = await fetch(this.action, {method: "POST", body: fData});
+            if (res.ok)
+                window.location.href = "{{request.args.get('next', '/')}}";
+            else if (res.status === 401)
+                document.getElementById('loginError').textContent = "Error: Invalid username or password";
+            else
+                document.getElementById('loginError').textContent = `Error: ${await res.text()}`;
+        });
+    </script>
 </body>
 
 </html>

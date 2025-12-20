@@ -52,7 +52,9 @@
             color: var(--muted);
         }
 
-        input,
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
         select,
         textarea,
         button {
@@ -97,6 +99,13 @@
 
         button:hover {
             opacity: 0.9;
+        }
+
+        .floating-panel {
+            position: fixed;
+            right: 1rem;
+            width: 20%;
+            top: 10rem;
         }
 
         #status {
@@ -158,6 +167,19 @@
             <input type="number" id="next-n">
         </label>
     </div>
+    <div class="panel floating-panel">
+        <h3>Set New Admin Username and Password</h3>
+        <label>
+            Username
+            <input type="text" id="new-un">
+        </label>
+        <label>
+            <!-- Use an <input type='button'> so that the default 'button' css won't apply -->
+            Password <input value="👁" style="background: none; border: none; text-align: center; border-radius: 5px; width: 30px; height: 30px; color: var(--text);" type="button" onclick="document.getElementById('new-pwd').setAttribute('type', document.getElementById('new-pwd').getAttribute('type') == 'text' ? 'password' : 'text')">
+            <input type="password" id="new-pwd">
+        </label>
+        <button onclick="setCred()">Set</button>
+    </div>
     <div class="button-cont">
         <button onclick="saveCfg()">Save Changes</button>
         <button onclick="loadCfg()">Discard Changes</button>
@@ -178,6 +200,9 @@
         const metricFile = document.getElementById("metric-file");
         const nextN = document.getElementById("next-n");
         const statusDiv = document.getElementById("status");
+        const newUN = document.getElementById("new-un");
+        const newPWD = document.getElementById("new-pwd");
+
         const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
 
         async function loadCfg() {
@@ -198,6 +223,32 @@
             outFile.value = json["BASE_OUTPUT_FILENAME"];
             metricFile.value = json["METRIC_OUTPUT_FILENAME"];
             nextN.value = json["NEXT_N_MATCHES_NUMBER"];
+        }
+
+        async function setCred() {
+            const json = {
+                "un": newUN.value,
+                "pwd": newPWD.value
+            }
+
+            const res = await fetch('/set-admin-creds', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(json)
+            });
+
+            if (res.ok) {
+                statusDiv.style.color = "#0a0";
+                statusDiv.innerHTML = "";
+                statusDiv.innerText = "Set successfully";
+                setTimeout(() => statusDiv.innerHTML = "", 2000);
+            } else {
+                statusDiv.style.color = "#a00";
+                statusDiv.innerHTML = `Set Error: ${await res.text()}`;
+            }
         }
 
         async function saveCfg() {

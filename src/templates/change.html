@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{csrf_token()}}">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Data Change Queue</title>
@@ -149,11 +150,15 @@
     <p class="empty">No lines in queue.</p>
     {% endif %}
     <script>
+        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
         Array.from(document.getElementsByTagName("li")).forEach(li => { // loop through all <li>'s, use Array.from() to unwrap HTMLCollection
             const a = li.getElementsByTagName("a")[0];
             a.addEventListener("click", ev => {
                 fetch(`/delete-change/${[...li.parentNode.children].indexOf(li)}`, { // delete the change based on list index
-                    method: "POST"
+                    method: "POST",
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
                 });
                 li.remove();
                 if (document.getElementsByTagName("ul")[0].children.length == 0) {
@@ -168,7 +173,10 @@
             li.addEventListener("click", ev => {
                 if (ev.target === a) return;
                 fetch(`/apply-change/${[...li.parentNode.children].indexOf(li)}`, { // apply the change based on list index
-                    method: "POST"
+                    method: "POST",
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
                 });
                 li.remove();
                 if (document.getElementsByTagName("ul")[0].children.length == 0) {

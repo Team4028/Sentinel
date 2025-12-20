@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{csrf_token()}}">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Data Processor Configuration</title>
@@ -68,6 +69,7 @@
         // configuer monaco
         require.config({ paths: { vs: "{{url_for('static', filename='monaco-editor/0.44.0/min/vs')}}" } });
         const ymlContent = {{ yaml_content | tojson | safe}};
+        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
         require(['vs/editor/editor.main'], function () {
 
             window.editor = monaco.editor.create(document.getElementById('editor'), {
@@ -109,7 +111,10 @@
             try {
                 const res = await fetch("/save", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify({ code })
                 });
                 const data = await res.json();

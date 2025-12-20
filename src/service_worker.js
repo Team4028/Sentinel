@@ -1,5 +1,14 @@
 'use strict';
 
+let csrfToken = null;
+
+self.addEventListener("message", event => {
+    if (event.data.type == "SET_CSRF") {
+        csrfToken = event.data.token;
+        console.log("Service Worker recieved CSRF");
+    }
+});
+
 self.addEventListener('install', function (event) {
     console.log('Service Worker installing.');
 });
@@ -28,7 +37,10 @@ self.addEventListener("notificationclick", event => {
     } else if (event.action === "remove-change") {
         fetch("/delete-lines", { // use stored notification data from webpush in flask to delete these lines
             "method": "POST",
-            "headers": { "Content-Type": "application/json" },
+            "headers": {
+                "Content-Type": "application/json",
+                'X-CSRFToken': csrfToken
+            },
             "body": JSON.stringify({ lines: JSON.parse(event.notification.data["line-hashes"]) }) // parse and then unparse the json string
         });
     }

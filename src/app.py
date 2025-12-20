@@ -1,5 +1,9 @@
-from flask import Flask, request, render_template, jsonify, Response, send_file, url_for
+from flask import Flask, request, render_template, jsonify, Response, send_file, url_for, abort, redirect
+from flask_login import current_user, UserMixin, LoginManager, login_user, login_required
 from flask_cors import cross_origin
+from flask_wtf import CSRFProtect, FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import DataRequired
 try:
     from lib.data_main import Processor
     import lib.mesh as mesh
@@ -9,6 +13,7 @@ except ModuleNotFoundError:
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
 import os
+import secrets
 import requests
 import json
 import re
@@ -25,6 +30,7 @@ import sys
 import hashlib
 import tempfile
 import sqlite3
+from functools import wraps
 
 def generate_keys():
     """ Generates a pair (pub/priv) of vapid keys for webpush notification, prints them out, and saves them to the ./secrets/vapid-keys.txt dir """
@@ -40,12 +46,23 @@ def generate_keys():
     with open("./secrets/vapid-keys.txt", 'w') as w:
         w.writelines([pub_b64 + "\n", private])
 
+def generate_admin():
+    os.makedirs("secrets", exist_ok=True)
+    un = input("Enter username: ")
+    pwd = hashlib.sha256(input("Enter password: ").encode("utf-8"))
+    sec = secrets.token_hex(32)
+    with open("./secrets/admin.txt", 'w') as f:
+        f.write(un + '\n' + pwd + '\n' + sec)
+
+
 def create_app(): # cursed but whatever
-    """ Wraps the flask app in an exportable context so you can run it from the project root dir to make gunicorn happy """
+    """ Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy """
     app = Flask(__name__)
+    csrf = CSRFProtect(app)
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
     vapid_keys = {}
+    admin_login = {}
     CONFIG_FILE = os.path.join("config", "field-config.yaml")
 
 # =======================================================
@@ -68,6 +85,13 @@ def create_app(): # cursed but whatever
             vapid_keys["public"] = f.readline().strip()
             vapid_keys["private"] = f.readline().strip()
     else: raise Exception("Error: Missing vapid-keys.txt file in secrets") # hmm yes very safe
+
+    if (os.path.exists('./secrets/admin.txt')):
+        with open("./secrets/admin.txt", 'r') as r:
+            admin_login["un"] = r.readline().strip()
+            admin_login["pwd"] = r.readline().strip()
+            app.config["SECRET_KEY"] = r.readline().strip()
+    else: raise Exception("Error: Missing admin.txt file in secrets")
 
     if (os.path.exists("./secrets/key.txt")):
         with open("./secrets/key.txt", 'r') as f:
@@ -98,7 +122,7 @@ def create_app(): # cursed but whatever
             x = int(key[2:])
             return (order["qm"], x, 0)
         else:
-            m = re.match(r"(sf|f)(\d+)m(\d+)", key)
+            m = re.match(r"(sf|f)(\d+)m(\d+)", key) # match sf<x>m<y>
             if m:
                 prefix, round, idx = m.groups()
                 return (order[prefix], int(round), int(idx))
@@ -150,6 +174,35 @@ def create_app(): # cursed but whatever
         conn.close()
 
     init_db()
+
+    class BigBrother(UserMixin):
+        id = "admin"
+        is_admin = True
+
+    class LoginForm(FlaskForm):
+        username = StringField("Username", validators=[DataRequired()])
+        password = PasswordField("Password", validators=[DataRequired()])
+        submit = SubmitField("Log in")
+
+    login_manager = LoginManager()
+    login_manager.login_view = "login"
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        if user_id == "admin":
+            return BigBrother()
+        return None
+
+    def require_admin(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if not current_user.is_authenticated:
+                abort(401) # unauthorized
+            if not current_user.is_admin:
+                abort(403) # forbidden
+            return f(*args, **kwargs)
+        return decorated
 
     def exception_format(e: Exception): # bruh
         """Gets the stack frame where the exception ACTUALLY occured (deepest frame not in a dependecy)"""
@@ -287,9 +340,33 @@ def create_app(): # cursed but whatever
 # =======================================================
 
     @app.route("/")
+    @login_required
+    @require_admin
     def main():
         """ Renders homepage html template, passes the public key to the client to bind the service worker  """
         return render_template("home.html", pubkey=vapid_keys["public"])
+    
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        form = LoginForm()
+        if form.validate_on_submit():
+            if form.username.data == admin_login["un"] \
+                and hashlib.sha256(form.password.data.encode("utf-8")).hexdigest() == admin_login["pwd"]:
+                login_user(BigBrother())
+                next_site = request.args.get('next') or '/'
+                print(next_site)
+                return redirect(next_site)
+            else:
+                return "Invalid Credentials", 401
+        # if request.method == "POST":
+        #     if (
+        #         request.form["un"] == admin_login["un"]
+        #         and hashlib.sha256(request.form["pwd"]) == admin_login["pwd"]
+        #     ):
+        #         login_user(BigBrother())
+        #         return redirect(request.args.get("next") or '/')
+        #     abort(401)
+        return render_template("login.html", form=form)
     
     @app.get('/service_worker.js')
     def send_sw():
@@ -297,6 +374,8 @@ def create_app(): # cursed but whatever
         return send_file("service_worker.js")
     
     @app.route("/changes")
+    @login_required
+    @require_admin
     def changes():
         """ Renders page listing changes to apply for restrict append level 2 """
         return render_template("change.html", append_queue=process_queue)
@@ -321,17 +400,19 @@ def create_app(): # cursed but whatever
         return "", 200
     
     @app.route("/health")
-    @cross_origin(origins="*")
+    @cross_origin(origins="*") # average cors experience
     def health():
         """ Health check, primarily so that QRScout can know its url is correct """
         return "Sentinel is watching", 200
 
     @app.get("/percent")
-    def percent():
+    def percent(): # need because grafana infinity can't do local JSON
         """ Rest passthrough for other-metrics.json, named percent because its current data is the percentage of teams scouted. """
         return jsonify(js) if js else ""
 
     @app.post("/upload")
+    @login_required
+    @require_admin
     def upload_file():
         """ Overrides the current input data with an uploaded file from the frontend and reprocesses the data """
         try:
@@ -352,6 +433,8 @@ def create_app(): # cursed but whatever
         return send_file(f)
 
     @app.route("/reproc")
+    @login_required
+    @require_admin
     def reprocess():
         """ Reprocesses the data with no additional inputs; for testing or manual csv changes """
         try: 
@@ -387,7 +470,7 @@ def create_app(): # cursed but whatever
         """ Returns the next app.config["NEXT_N_MATCHES_NUMBER"] (currently 3, hence the name) matches after ?`mkey` that contain ?`team`<br>
             where ?`x` is the url parameter named `x` """
         if not request.args["mkey"]: return "", 400 # bad request
-        team = request.args["team"] or -1 # just gets the next 3 matches
+        team = request.args["team"] or -1 # just gets the next 3 matches if team == None
         curr_match = request.args["mkey"]
         foundit = False # whether it has found the curr_match yet
         next_3 = []
@@ -402,6 +485,8 @@ def create_app(): # cursed but whatever
         return jsonify(next_3)
 
     @app.route("/append", methods=["POST"])
+    @login_required
+    @require_admin
     def append_lines():
         """ Appends a series of csv lines to the input data based off of the file sent via request.files.<br>
             Complies with the restrict append level. """
@@ -424,6 +509,8 @@ def create_app(): # cursed but whatever
             return exception_format(e), 500
         
     @app.post("/apply-change/<int:idx>")
+    @login_required
+    @require_admin
     def apply_change(idx):
         """ For restrict append level 2: applies the `idx`'th queued append """
         if idx != None:
@@ -436,6 +523,8 @@ def create_app(): # cursed but whatever
         return "Invalid request", 400
     
     @app.post("/delete-change/<int:idx>")
+    @login_required
+    @require_admin
     def delete_change(idx):
         """ For restrict append level 2: drops the `idx`'th queued append """
         if idx != None:
@@ -444,6 +533,8 @@ def create_app(): # cursed but whatever
         return "Invalid request", 400
     
     @app.post("/delete-lines")
+    @login_required
+    @require_admin
     def delete_lines():
         """ For restrict append level 1: deletes the already applied append cooresponding to the input json's `lines` field using `rm_row_hash` """
         if request.json and request.json["lines"]:
@@ -452,6 +543,8 @@ def create_app(): # cursed but whatever
         return "Invalid request", 400
     
     @app.get("/edit")
+    @login_required
+    @require_admin
     def edit_yaml():
         """ Renders the editing template for web editing the field-config.yaml file """
         with open(CONFIG_FILE, "r") as r: # load CONFIG_FILE into mem to pass into jinja2
@@ -459,6 +552,8 @@ def create_app(): # cursed but whatever
         return render_template("edit.html", yaml_content=content)
     
     @app.post("/save")
+    @login_required
+    @require_admin
     def save_yaml():
         """ A file consumer that saves the field-config.yaml file during web editing """
         data = html.unescape(request.json.get("code", ""))
@@ -474,11 +569,15 @@ def create_app(): # cursed but whatever
             return jsonify({"ok": False, "message": str(e)}), 400
         
     @app.get("/edit-app-conf")
+    @login_required
+    @require_admin
     def edit_app_conf_page():
         """ Returns a template for editing the app configuration """
         return render_template("appconfig.html")
 
     @app.get("/get-config")
+    @login_required
+    @require_admin
     def get_app_config():
         """ Returns the app configuration for the editor at /edit-app-conf to read """
         with open(os.path.join(app.root_path, "config", "app-config.json"), 'r') as r:
@@ -486,12 +585,14 @@ def create_app(): # cursed but whatever
         return "", 500
     
     @app.post("/save-app-config")
+    @login_required
+    @require_admin
     def save_app_config():
         """ Consumes an app configuration json, saves it, and applies it """
         if request and request.json:
             try:
                 with open(os.path.join(app.root_path, "config", "app-config.json"), 'w') as w:
-                    json.dump(request.json, w, indent=4)
+                    json.dump(request.json, w, indent=4) # indent=4 auto-formats the json with \t = 4 spaces
                 app.config.from_file("config/app-config.json", load=json.load)
                 ensure_configurable_dirs() # if either of the the upl/out dirs were changed, they may no longer exist
                 return "", 200
@@ -500,6 +601,8 @@ def create_app(): # cursed but whatever
         return "Invalid Request", 400
 
     @app.get("/download/<file>")
+    @login_required
+    @require_admin
     def dload(file):
         """ Sends a stream using the `stream` helper for the requested file to download it """
         if not file: return "File not found.", 403
@@ -512,6 +615,8 @@ def create_app(): # cursed but whatever
         })
     
     @app.get("/test-mesh")
+    @login_required
+    @require_admin
     def test_mesh():
         """ Debug endpoint to test the meshtastic listener without a mesh radio """
         m = request.args.get('m') # (m is the message)
@@ -534,7 +639,7 @@ def create_app(): # cursed but whatever
 # =======================================================
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "gen": # python src/app.py gen (argv[0] is src/app.py)
+    if len(sys.argv) > 1 and sys.argv[1] == "gen": # python src/app.py gen (argv[0] is src/app.py so check argv[1])
         generate_keys()
     else:
         create_app().run(port=5001, use_reloader=False) # debug run python

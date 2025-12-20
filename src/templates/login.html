@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Login Page</title>
+    <style>
+        * {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            box-sizing: border-box; /* keeps the sizing from becoming unhappy */
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 128px;
+        }
+
+        body {
+            background-color: #222;
+        }
+
+        form {
+            max-width: 400px;
+            margin: 80px auto;
+            padding: 30px;
+            background-color: #333;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+        }
+
+        form label {
+            display: block;
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: #f9f9f9;
+        }
+
+        form input[type="text"],
+        form input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin-top: 5px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        form input[type="text"]:focus,
+        form input[type="password"]:focus {
+            border-color: #5b9bd5;
+            box-shadow: 0 0 5px rgba(91, 155, 213, 0.5);
+            outline: none;
+        }
+
+        form input[type="submit"] {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: #5b9bd5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        form input[type="submit"]:hover {
+            background-color: #4a8ac2;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>
+        <img src="{{url_for('static', filename='favicon.ico')}}" style="transform: translateY(25%);"> Sentinel
+    </h1>
+    <form method="post" action="{{url_for('login', next=request.args.get('next'))}}">
+        {{ form.hidden_tag() }}
+        <label>
+            Username
+            {{ form.username() }}
+        </label>
+        <label>
+            Password
+            {{ form.password() }}
+        </label>
+        {{ form.submit() }}
+    </form>
+</body>
+
+</html>

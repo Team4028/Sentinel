@@ -20,7 +20,7 @@ compute-fields:
     #   and then use the @sum set operator to calculate the sum of each entry
     # STEP 2 (line 2): calculate the total coral score in teleop: same method as the auton coral score, but with different weights for tele
     # STEP 3 (line 3): algae score: this is simpler because there is no auton bonus for algae. Tou can add up the algae cycles for the processer and
-    #   the barge respectively inside the list delcaration, and then multiply it by the weights, summing the result
+    #   the barge respectively inside the list delcaration and then multiply it by the weights, summing the result
     # STEP 4 (line 4): Finally, you calculate mobility and endgame scores using an identical method to above
     # Summing the result of these steps allows you to find the total score by a robot in a match
     equation: >-

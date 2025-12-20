@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{csrf_token()}}">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Scouting App Backend Frontend</title>
@@ -266,6 +267,7 @@
         const reloadButton = document.getElementById("reload-btn");
         const downloadButton = document.getElementById("download-btn");
         const dialog = document.getElementById("surprise");
+        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content');
 
         let selectedFile = null;
 
@@ -294,7 +296,8 @@
             return fetch(apiEndpoint, { // send sub data to backend so it can send you things (like Mr. Beast)
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
                     subscription_json: JSON.stringify(subscription)
@@ -327,6 +330,10 @@
                 navigator.serviceWorker.register(serviceWorkerUrl); // make SW
                 navigator.serviceWorker.ready.then(function (swReg) { // when it is done being created...
                     console.log('Service Worker is registered', swReg);
+                    swReg.active.postMessage({
+                        type: "SET_CSRF",
+                        token: csrfToken
+                    });
                     subscribeUser(swReg, applicationServerPublicKey, apiEndpoint); // subscribe to the server
                     swRegistration = swReg;
                 })
@@ -412,7 +419,11 @@
             progressContainer.style.display = "block";
             progressBar.style.width = "0";
             statusText.innerText = `[${new Date().toLocaleString()}] ` + "Reloading data..."
-            fetch("/reproc").then(async res => {
+            fetch("/reproc", {
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            }).then(async res => {
                 progressBar.style.width = "100%";
                 statusText.innerText = `[${new Date().toLocaleString()}] ` + await res.text();
             });
@@ -451,6 +462,7 @@
             progressContainer.style.display = "block";
             const xhr = new XMLHttpRequest();
             xhr.open('GET', `/download/${file}`, true);
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
             xhr.responseType = "blob";
 
             xhr.onloadstart = () => {
@@ -503,6 +515,7 @@
 
             const xhr = new XMLHttpRequest();
             xhr.open("POST", url, true);
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
 
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
@@ -551,6 +564,7 @@
 
             const xhr = new XMLHttpRequest();
             xhr.open("POST", url, true);
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
 
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {

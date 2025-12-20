@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{csrf_token()}}">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Backend Settings</title>
@@ -177,9 +178,14 @@
         const metricFile = document.getElementById("metric-file");
         const nextN = document.getElementById("next-n");
         const statusDiv = document.getElementById("status");
+        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
 
         async function loadCfg() {
-            const res = await fetch("/get-config");
+            const res = await fetch("/get-config", {
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            });
             if (!res.ok) return;
             const json = await res.json();
             eventKey.value = json["EVENT_KEY"];
@@ -210,7 +216,10 @@
 
             const res = await fetch('/save-app-config', {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify(json)
             });
 
@@ -218,7 +227,7 @@
                 statusDiv.style.color = "#0a0";
                 statusDiv.innerHTML = "";
                 statusDiv.innerText = "Save Successful.";
-                setTimeout(() => statusDiv.innerHTML = "", 2000);
+                setTimeout(() => statusDiv.innerHTML = "", 2000); // clear text after 2 seconds
             } else {
                 statusDiv.style.color = "#a00";
                 statusDiv.innerHTML = `Save Error: ${await res.text()}`;

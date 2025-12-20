@@ -99,9 +99,17 @@
     </form>
     <div id="loginError" style="color: #a00;"></div>
     <script>
+        async function sha256(str) {
+            const strBuf = new TextEncoder().encode(str);
+            const hashBuf = await window.crypto.subtle.digest('SHA-256', strBuf);
+            const hashArr = Array.from(new Uint8Array(hashBuf));
+            return hashArr.map(b => ('00' + b.toString(16)).slice(-2)).join(''); // add '00' to pad b.toString(16) and guarentee 2 char length
+        }
+
         document.getElementById("loginForm").addEventListener("submit", async function(event) {
             event.preventDefault();
             const fData = new FormData(this);
+            fData.set('password', await sha256(fData.get('password'))); // sha client-side so communication is encrypted, otherwise intercepting a successful login would reveal pwd
             const res = await fetch(this.action, {method: "POST", body: fData});
             if (res.ok)
                 window.location.href = "{{request.args.get('next', '/')}}";

@@ -221,7 +221,7 @@ def create_app(): # cursed but whatever
         form = LoginForm()
         if form.validate_on_submit():
             if form.username.data == admin_login["un"] \
-                and apputils.line_str_hash(form.password.data) == admin_login["pwd"]:
+                and form.password.data.strip() == admin_login["pwd"]:
                 login_user(BigBrother())
                 return "Login Successful", 200
             else:

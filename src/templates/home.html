@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Scouting App Backend Frontend</title>
 
@@ -92,6 +93,7 @@
 
 
         input[type="file"] {
+            /* hide the file input so its just the div */
             display: none;
         }
 
@@ -159,16 +161,34 @@
         dialog button {
             background-color: #4a90e2;
             color: #fff;
+            /* click cursor */
             cursor: pointer;
+            /* brighten slow */
             transition: background-color 0.2s ease;
         }
 
         dialog button:hover {
+            /* brighten on hover */
             background-color: #357ab8;
         }
 
         dialog::backdrop {
             background-color: rgba(0, 0, 0, 0.6);
+        }
+
+        .settings-btn {
+            position: fixed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: large;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            padding: 10px;
+            margin: 0;
+            color: white;
         }
     </style>
 </head>
@@ -181,22 +201,28 @@
 
         <h2>Backend Frontend (not to be confused with frontend)</h2>
 
+        <!-- Exactly what it says it is: is a div because everything is handled by eventlisteners -->
         <div id="drop-zone" class="drop-zone">
             Drag & Drop or Click to Select a File
         </div>
+        <!-- Holds the selected file -->
         <input id="file-input" type="file" />
 
+        <!-- Enter csv text to upload -->
         <textarea id="text-input" placeholder="CSV Data..."></textarea>
 
+        <!-- Whether to append to or overwrite the current data -->
         <select id="endpoint-select">
+            <!-- value is the server endpoint -->
             <option value="/append">Append</option>
             <option value="/upload">Overwrite</option>
         </select>
 
-
+        <!-- Download dialog box -->
         <dialog id="surprise">
             <h1>Pick a file</h1>
             <select id="cake-select">
+                <!-- All of the files -->
                 <option title="data_in.csv" value="data_in.csv">Data Input</option>
                 <option title="output.csv" value="output.csv">Data Output</option>
                 <option title="output.csv-teams.csv" value="output.csv-teams.csv">Team Stats</option>
@@ -211,15 +237,19 @@
             <button id="cancel" class="btn">Cancel</button>
         </dialog>
 
+        <!-- Buttons -->
         <button id="upload-btn" class="btn" disabled>Upload</button>
         <button id="reload-btn" class="btn">Reload</button>
         <button id="download-btn" class="btn">Download</button>
         <button class="btn" onclick="window.location.href='/edit'">Edit Config</button>
+        <button class="btn settings-btn" onclick="window.location.href='/edit-app-conf'">⚙️</button>
 
+        <!-- Progress bar -->
         <div id="progress-container">
             <div id="progress-bar"></div>
         </div>
 
+        <!-- Status text -->
         <div id="status" style="color: black;"></div>
 
     </div>
@@ -239,6 +269,83 @@
 
         let selectedFile = null;
 
+        // ==
+        // much thanks to: https://suryasankar.medium.com/how-to-setup-basic-web-push-notification-functionality-using-a-flask-backend-1251a5413bbe
+
+        /**
+         * Name is self-explanatory, converts a base64url string into a char[]
+         */
+        function urlB64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/'); // convert b64url to b64
+
+            const rawData = window.atob(base64); // convert b64 to string
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i); // str -> char[]
+            }
+            return outputArray;
+        }
+
+        function updateSubscriptionOnServer(subscription, apiEndpoint) {
+            return fetch(apiEndpoint, { // send sub data to backend so it can send you things (like Mr. Beast)
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subscription_json: JSON.stringify(subscription)
+                })
+            });
+
+        }
+
+        function subscribeUser(swRegistration, applicationServerPublicKey, apiEndpoint) {
+            const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey);
+            swRegistration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: applicationServerKey
+            })
+                .then(function (subscription) {
+                    console.log('User is subscribed.');
+                    return updateSubscriptionOnServer(subscription, apiEndpoint);
+                })
+                .catch(function (err) {
+                    console.log('Failed to subscribe the user: ', err);
+                    console.log(err.stack);
+                });
+        }
+
+        function registerServiceWorker(serviceWorkerUrl, applicationServerPublicKey, apiEndpoint) {
+            let swRegistration = null;
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                console.log('Service Worker and Push is supported');
+
+                navigator.serviceWorker.register(serviceWorkerUrl); // make SW
+                navigator.serviceWorker.ready.then(function (swReg) { // when it is done being created...
+                    console.log('Service Worker is registered', swReg);
+                    subscribeUser(swReg, applicationServerPublicKey, apiEndpoint); // subscribe to the server
+                    swRegistration = swReg;
+                })
+                    .catch(function (error) {
+                        console.error('Service Worker Error', error);
+                    });
+            } else {
+                console.warn('Push messaging is not supported');
+            }
+            return swRegistration;
+        }
+
+        // use the service_worker.js file passthough, jinja2 public key from flask ({{pubkey}}), and the /subscribe endpoint
+        registerServiceWorker('/service_worker.js', '{{pubkey}}', '/subscribe');
+        // ==
+
+        /**
+         * Creates a promise that waits for the dialog window to be resolved, faking a modal dialog
+         */
         function fakeWaitingForGodot() {
             return new Promise(resolve => {
                 dialog.showModal();
@@ -259,11 +366,14 @@
             })
         }
 
+        /**
+         * Check if there's actually a file selected, and enable the upload button if there is
+         */
         function updateUploadEnabled() {
             uploadBtn.disabled = !(selectedFile || textInput.value.trim().length > 0);
         }
 
-        dropZone.addEventListener("click", () => fileInput.click());
+        dropZone.addEventListener("click", () => fileInput.click()); // passthrough from normal div to file selector
 
         fileInput.addEventListener("change", () => {
             selectedFile = fileInput.files[0];
@@ -285,8 +395,7 @@
         dropZone.addEventListener("drop", (e) => {
             e.preventDefault();
             dropZone.classList.remove("dragover");
-
-            selectedFile = e.dataTransfer.files[0];
+            selectedFile = e.dataTransfer.files[0]; // this is the file they dropped
             dropZone.textContent = selectedFile ? selectedFile.name : "Drag & Drop or Click to Select a File";
             updateUploadEnabled();
         });
@@ -309,6 +418,7 @@
             });
         });
 
+        // use a mut observer to set the text to red if there's an error (slightly cursed)
         const obs = new MutationObserver((mutlist) => {
             for (const mutation of mutlist) {
                 if (mutation.type === "childList" || mutation.type === "characterData") {
@@ -331,8 +441,12 @@
                 downloadFile(res.file);
         });
 
+        /**
+         * Requests a stream to a server file and then uses it to download the file locally
+         */
         function downloadFile(file) {
             statusText.textContent = `[${new Date().toLocaleString()}] Downloading file ${file}`;
+            // reset bar
             progressBar.style.width = 0;
             progressContainer.style.display = "block";
             const xhr = new XMLHttpRequest();
@@ -359,10 +473,10 @@
                 progressBar.style.width = "100%";
                 if (xhr.status === 200) {
                     const blob = xhr.response;
-                    const a = document.createElement('a');
+                    const a = document.createElement('a'); // make a link to the file so that we can click it to download automatically
                     a.href = URL.createObjectURL(blob);
                     a.download = file;
-                    a.click();
+                    a.click(); // click the download link
                     URL.revokeObjectURL(a.href);
                     statusText.textContent = `[${new Date().toLocaleString()}] File downloaded: ${file}`;
                 } else {
@@ -373,10 +487,14 @@
             xhr.send();
         }
 
+        /**
+         * Send the selected file to the selected endpoint on the backend
+         */
         function uploadFile(file) {
             const url = endpointSelect.value;
 
-            statusText.textContent = `[${new Date().toLocaleString()}] Uploading: ${file.name}`;
+            statusText.textContent = `[${new Date().toLocaleString()}] Uploading: ${file.name}`; // timestamp
+            // reset progressbar
             progressContainer.style.display = "block";
             progressBar.style.width = "0";
 
@@ -388,6 +506,7 @@
 
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
+                    // update bar
                     const percent = (e.loaded / e.total) * 100;
                     progressBar.style.width = percent + "%";
                 }
@@ -399,6 +518,8 @@
                 } else {
                     statusText.textContent = `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.responseText;
                 }
+
+                // clear the fileInput from the prev file
                 fileInput.value = "";
                 dropZone.textContent = "Drag & Drop or Click to Select a File";
                 selectedFile = null;
@@ -412,10 +533,14 @@
 
         }
 
+        /**
+         * Creates a blob with the input area text content to send it to the proper backend endpoint
+         */
         function uploadText(text) {
             const url = endpointSelect.value;
 
             statusText.textContent = `[${new Date().toLocaleString()}] Uploading text...`;
+            // reset progress bar
             progressContainer.style.display = "block";
             progressBar.style.width = "0";
 
@@ -429,6 +554,7 @@
 
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
+                    // update prog bar with css
                     const percent = (e.loaded / e.total) * 100;
                     progressBar.style.width = percent + "%";
                 }
@@ -436,7 +562,7 @@
 
             xhr.onload = () => {
                 statusText.textContent =
-                    xhr.status === 200 ? `[${new Date().toLocaleString()}] Upload complete!` : `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.status;
+                    xhr.status === 200 ? `[${new Date().toLocaleString()}] Upload complete!` : `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.responseText;
             };
 
             xhr.onerror = (err) => {

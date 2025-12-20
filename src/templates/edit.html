@@ -2,8 +2,11 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Configuration</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Data Processor Configuration</title>
     <style>
         html,
         body,
@@ -59,34 +62,37 @@
     <div id="status"></div>
     <div id="editor"></div>
     <!-- oh yes i did -->
+    <!-- loads in monaco (basically vscode web)  -->
     <script src="{{url_for('static', filename='monaco-editor/0.44.0/min/vs/loader.js')}}"></script>
     <script>
+        // configuer monaco
         require.config({ paths: { vs: "{{url_for('static', filename='monaco-editor/0.44.0/min/vs')}}" } });
         const ymlContent = {{ yaml_content | tojson | safe}};
         require(['vs/editor/editor.main'], function () {
 
             window.editor = monaco.editor.create(document.getElementById('editor'), {
-                value: ymlContent,
+                value: ymlContent, // get content from jinja2 from flask
                 theme: 'vs-dark',
-                language: "yaml",
+                language: "yaml", // doesn't really exist but wtvr
                 automaticLayout: true
             });
             window.editor.onDidChangeModelContent(() => {
                 const current = window.editor.getValue();
                 dirty = current !== lastSaved;
-                saveBtn.innerHTML = dirty ? "Save &#9679" : "Save";
+                saveBtn.innerHTML = dirty ? "Save &#9679" : "Save"; // add a dot if unsaved
             });
         });
 
         let lastSaved = ymlContent;
+        // dirty = unsaved changes (its a git term)
         let dirty = false;
 
         const saveBtn = document.getElementById('saveBtn');
         const statusDiv = document.getElementById('status');
 
         window.addEventListener("keydown", ev => {
-            if ((ev.ctrlKey || ev.metaKey) && ev.key == "s") {
-                ev.preventDefault();
+            if ((ev.ctrlKey || ev.metaKey) && ev.key == "s") { // override Ctrl+S to save
+                ev.preventDefault(); // stop Ctrl+S from doing what it normally does
                 saveYAML();
             }
         })
@@ -95,6 +101,9 @@
             saveYAML();
         });
 
+        /**
+         * Sends the current yaml file to the server to be saved
+         */
         async function saveYAML() {
             const code = window.editor.getValue();
             try {
@@ -110,7 +119,7 @@
                     lastSaved = code;
                     saveBtn.innerHTML = "Save";
                     dirty = false;
-                    setTimeout(() => statusDiv.innerText = "", 1000);
+                    setTimeout(() => statusDiv.innerText = "", 2000); // clear after a second
                 } else {
                     statusDiv.innerText = "Error: " + data.message;
                     statusDiv.style.color = "red";

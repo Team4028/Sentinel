@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Data Change Queue</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --text: #c9d1d9;
+            --muted: #8b949e;
+            --green: #2ea043;
+            --green-bg: #033a16;
+            --green-hover: #0f5323;
+            --border: #30363d;
+        }
+
+        body {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            background: var(--bg);
+            color: var(--text);
+            max-width: 720px;
+            margin: 40px auto;
+        }
+
+        h1,
+        h2 {
+            font-weight: 600;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 75%;
+            padding: 8px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+        }
+
+        input::placeholder {
+            color: var(--muted);
+        }
+
+        button {
+            padding: 8px 12px;
+            margin-left: 8px;
+            background: var(--green);
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            padding: 6px 10px;
+            background: var(--green-bg);
+            border-left: 4px solid var(--green);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.15s ease;
+            position: relative;
+            overflow: visible;
+        }
+
+        li:hover {
+            background: var(--green-hover);
+            transform: translateX(2px);
+        }
+
+        li::before {
+            content: "+";
+            color: var(--green);
+            font-weight: bold;
+        }
+
+        .empty {
+            color: var(--muted);
+        }
+
+        .line-text {
+            flex: 1;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .delete-btn {
+            position: absolute;
+            right: 10px;
+            opacity: 0;
+            transform: translateX(10px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            color: #f85149;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        .delete-btn:hover {
+            /* slide out */
+            background: rgba(248, 81, 73, 0.15);
+        }
+
+        li:hover .delete-btn {
+            opacity: 1;
+            transform: translateX(0px);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Pending Data to Append</h1>
+    {% if append_queue %}
+    <ul>
+        <!-- jinja2 template for loop, make <li>'s for all of the changes sent from flask -->
+        {% for line in append_queue %}
+        <li title="Apply change">
+            <span class="line-text">{{ line }}</span>
+            <a
+                class="delete-btn"
+                title="Remove change"
+            >✕</a>
+            </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">No lines in queue.</p>
+    {% endif %}
+    <script>
+        Array.from(document.getElementsByTagName("li")).forEach(li => { // loop through all <li>'s, use Array.from() to unwrap HTMLCollection
+            const a = li.getElementsByTagName("a")[0];
+            a.addEventListener("click", ev => {
+                fetch(`/delete-change/${[...li.parentNode.children].indexOf(li)}`, { // delete the change based on list index
+                    method: "POST"
+                });
+                li.remove();
+                if (document.getElementsByTagName("ul")[0].children.length == 0) {
+                    // make the empty <p> because jinja only updates on page refresh
+                    const empty = document.createElement("p");
+                    empty.classList.add("empty");
+                    empty.innerText = "No lines in queue."
+                    document.body.appendChild(empty);
+                }
+            });
+
+            li.addEventListener("click", ev => {
+                if (ev.target === a) return;
+                fetch(`/apply-change/${[...li.parentNode.children].indexOf(li)}`, { // apply the change based on list index
+                    method: "POST"
+                });
+                li.remove();
+                if (document.getElementsByTagName("ul")[0].children.length == 0) {
+                    const empty = document.createElement("p");
+                    empty.classList.add("empty");
+                    empty.innerText = "No lines in queue."
+                    document.body.appendChild(empty);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

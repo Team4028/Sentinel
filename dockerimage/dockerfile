@@ -1,15 +1,27 @@
 FROM python:slim
 
+# set WD to subdirectory of / so all the files aren't just hanging out in root
 WORKDIR /app
+
+# grab the requirements from the project
 COPY requirements.txt requirements.txt
+
+# install the requirements
 RUN pip install -r requirements.txt
 RUN pip install gunicorn
 
+# copy all of the necessary files from the project to the image
 COPY src src
 COPY config config
-COPY scouting_app.py key.txt ./
+COPY secrets secrets
+COPY scouting_app.py ./
 COPY dockerimage/boot.sh /
+
+# make boot.sh executable
 RUN chmod a+x /boot.sh
 
+# expose the gunicorn port
 EXPOSE 5000
+
+# run boot.sh on startup
 ENTRYPOINT [ "/boot.sh" ]

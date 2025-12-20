@@ -1,11 +1,12 @@
 name: Build Docker Image
 
+# run it manually
 on:
     workflow_dispatch:
 
 jobs:
     build:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-latest # ofc
 
         steps:
             - name: Check out repo
@@ -14,12 +15,16 @@ jobs:
             - name: Set up docker build
               uses: docker/setup-buildx-action@v3
 
-            - name: Generate Key 
-              run: echo "${{ secrets.TBA_KEY }}" > ${{ github.workspace }}/key.txt
+            - name: Generate Key
+              # instead of pushing all of the passwords to github, make repository secrets and generate the files on the runner from them 
+              run: |
+                echo "${{ secrets.TBA_KEY }}" > ${{ github.workspace }}/secrets/key.txt
+                echo "${{ secrets.VAPID_PUB }}\n${{ secrets.VAPID_PRIV }}" > ${{ github.workspace }}/secrets/vapid-keys.txt
             
             - name: Make Zip Directory
               run: mkdir scouting-app
 
+              # build the backend docker image
             - name: Build Scouting Backend
               uses: docker/build-push-action@v6
               with:
@@ -28,6 +33,7 @@ jobs:
                 tags: scouting:latest
                 outputs: type=docker,dest=scouting-app/scouting.tar
 
+              # build the grafana docker image
             - name: Build Grafana Frontend
               uses: docker/build-push-action@v6
               with:
@@ -37,12 +43,14 @@ jobs:
                 outputs: type=docker,dest=scouting-app/grafana-scouting.tar
 
             - name: Prepare additional archive utilities
+              # copy all of the necessary files from the repo to the runner 
               run: |
-                cp ./compose.yaml scouting-app
-                cp ./docker-compose-runner.env scouting-app/.env
-                cp ./docker-compose-runner.sh scouting-app/run.sh
-                cp ./grafana.ini scouting-app/grafana.ini
+                cp ./compose/compose.yaml scouting-app
+                cp ./compose/docker-compose-runner.env scouting-app/.env
+                cp ./compose/docker-compose-runner.sh scouting-app/run.sh
+                cp ./grafana-dashboard/grafana.ini scouting-app/grafana-dashboard/grafana.ini
 
+              # zip up and export all of the things
             - name: Upload Archive
               uses: actions/upload-artifact@v4
               with:

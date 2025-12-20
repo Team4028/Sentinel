@@ -29,6 +29,7 @@ RUN mkdir -p "$GF_PATHS_PLUGINS" && \
       fi \
     fi
 
+# change 1: copy the dashboard/datasource prefabs over to grafana while building it, so dashboard is there out of the box
 COPY grafana-dashboard/grafana-data-sources.yaml /etc/grafana/provisioning/datasources/datasources.yaml
 COPY grafana-dashboard/ScoutingDashboard.json /var/lib/grafana/dashboards/scoutingdash.json
 COPY grafana-dashboard/grafana-dash-sources.yaml /etc/grafana/provisioning/dashboards/scoutingdash.yaml
@@ -49,6 +50,7 @@ RUN if [ $GF_INSTALL_IMAGE_RENDERER_PLUGIN = "true" ]; then \
       fi \
     fi
 
+# change 2: automatically install infinity (json) and csv datasources
 ARG GF_INSTALL_PLUGINS="marcusolsson-csv-datasource,yesoreyeram-infinity-datasource"
 
 RUN if [ ! -z "${GF_INSTALL_PLUGINS}" ]; then \

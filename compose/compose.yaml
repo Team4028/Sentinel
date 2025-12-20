@@ -3,11 +3,11 @@ services:
     image: scouting:latest
     restart: unless-stopped
     container_name: sentinel
-    profiles: [prod]
+    profiles: [prod] # already exists
     ports:
       - "5000:5000"
     volumes:
-      - appdata:/app
+      - appdata:/app # save all of the files to the volume
 
   backend-buildsource:
     build:
@@ -16,11 +16,11 @@ services:
     image: scouting:latest
     restart: unless-stopped
     container_name: sentinel
-    profiles: [localbuild]
+    profiles: [localbuild] # build it yourself
     ports:
       - "5000:5000"
     volumes:
-      - appdata:/app
+      - appdata:/app # save all of the files to the volume
 
   grafana:
     image: grafana-scouting:latest
@@ -29,9 +29,9 @@ services:
     ports:
       - "3005:3000"
     volumes:
-      - "grafana_storage:/var/lib/grafana"
-      - appdata:/app
-      - "./grafana.ini:/etc/grafana/grafana.ini"
+      - "grafana_storage:/var/lib/grafana" # save all of the files
+      - appdata:/app # share storage with flask
+      - "./grafana-dashboard/grafana.ini:/etc/grafana/grafana.ini" # inject our grafana.ini into the grafana image
     profiles: [prod]
     extra_hosts:
       - "host.docker.internal:172.17.0.1" # ip may need to be changed, probably not
@@ -46,9 +46,9 @@ services:
     ports:
       - "3005:3000"
     volumes:
-      - "grafana_storage:/var/lib/grafana"
-      - appdata:/app
-      - "./grafana.ini:/etc/grafana/grafana.ini"
+      - "grafana_storage:/var/lib/grafana" # save all of the files
+      - appdata:/app # share storage with flask
+      - "./grafana-dashboard/grafana.ini:/etc/grafana/grafana.ini" # inject our grafana.ini into the grafana image
     profiles: [localbuild]
     extra_hosts:
       - "host.docker.internal:172.17.0.1" # ip may need to be changed, probably not

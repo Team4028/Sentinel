@@ -2,4 +2,5 @@ datain
 dataout
 .venv
 __pycache__
-key.txt
+secrets
+storage

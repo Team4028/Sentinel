@@ -1,0 +1,12 @@
+{
+    "EVENT_KEY": "2025iri",
+    "CHUNK_SIZE": 10000,
+    "RESTRICT_APPEND_LEVEL": 1,
+    "NOTIFY_SUB_STORAGE": "./storage/subs.db",
+    "UPLOAD_DIR": "datain",
+    "INPUT_FILENAME": "data_in.csv",
+    "OUT_DIR": "dataout",
+    "BASE_OUTPUT_FILENAME": "output.csv",
+    "METRIC_OUTPUT_FILENAME": "other-metrics.json",
+    "NEXT_N_MATCHES_NUMBER": 3
+}

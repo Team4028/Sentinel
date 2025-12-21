@@ -479,6 +479,7 @@
                 fileInput.value = "";
                 dropZone.textContent = "Drag & Drop or Click to Select a File";
                 selectedFile = null;
+                updateUploadEnabled();
             };
 
             xhr.onerror = (err) => {

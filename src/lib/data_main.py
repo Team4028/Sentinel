@@ -200,6 +200,11 @@ class Processor:
 
     def proccess_data(self, data_filepath: str, outname):
         """ Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files """
+        
+        # CANT believe i forgot this
+        self._teams.clear()
+        self._matches.clear()
+
         with pd.read_csv(
             data_filepath, chunksize=self.chunk_size, iterator=True
         ) as reader:

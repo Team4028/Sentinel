@@ -4,6 +4,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 import hashlib
 import secrets
+import shutil
 import base64
 import traceback
 import requests
@@ -31,6 +32,15 @@ def generate_admin():
     sec = secrets.token_hex(32)
     with open("./secrets/admin.txt", 'w') as f:
         f.write(un + '\n' + pwd + '\n' + sec)
+
+def safer_replace(src, dest):
+    """ os.replace dies sometimes """
+    with open(src, 'rb') as fsrc, open(dest, 'wb') as fdest:
+        shutil.copyfileobj(fsrc, fdest)
+        fdest.flush()
+        os.fsync(fdest.fileno())
+
+    os.remove(src)
 
 def load_tba_data(event_key, api_key):
     """ Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule) """

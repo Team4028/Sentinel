@@ -38,7 +38,7 @@ def main(f):
     try: 
         local = SerialInterface(serial_port)
         print(f"SerialInterface setup for listening on port {serial_port}")
-    except serial.SerialException as e:
+    except Exception as e:
         print(f"Error opening port {serial_port}: {e}")
         print("This channel will remain open for testing purposes.")
         

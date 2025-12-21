@@ -6,10 +6,14 @@ try:
     from lib.data_main import Processor
     import lib.mesh as mesh
     from lib.data_config import lex_config
+    import apputils
+    from auth import BigBrother, LoginForm, require_admin, init_loginm_app
 except ModuleNotFoundError:
     from src.lib.data_main import Processor
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
+    import src.apputils as apputils
+    from src.auth import BigBrother, LoginForm, require_admin, init_loginm_app
 import os
 import json
 from threading import Thread
@@ -18,13 +22,15 @@ import yaml
 from pywebpush import webpush, WebPushException
 import sys
 import tempfile
+import logging
+from logging.handlers import RotatingFileHandler
 import sqlite3
-import apputils
-from auth import BigBrother, LoginForm, require_admin, init_loginm_app
 
 def create_app(): # cursed but whatever
     """ Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy """
     app = Flask(__name__)
+    # setup logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     csrf = CSRFProtect(app)
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
@@ -143,17 +149,17 @@ def create_app(): # cursed but whatever
                         vapid_claims={"sub": "https://beaksquad.dev"}) # <- who sent it
             except WebPushException as we:
                 if we.response and we.response.status_code in (404, 410): # sw expired
-                    print(f"Subscription {sub_id} expired.")
+                    app.logger.warning(f"Subscription {sub_id} expired.")
                     expired_ids.append(sub_id)
                 elif we.response and we.response.json():
                     extra = we.response.json()
-                    print("Remote replied with a {}:{}, {}",
+                    app.logger.warning("Remote replied with a {}:{}, {}",
                         extra.code,
                         extra.errno,
                         extra.message)
         if expired_ids:
             c.executemany("DELETE FROM subs WHERE id = ?", [(i,) for i in expired_ids])
-            print(f"Removed {len(expired_ids)} expired subscriptions")
+            app.logger.info(f"Removed {len(expired_ids)} expired subscriptions")
         con.commit()
         con.close()
 
@@ -170,7 +176,7 @@ def create_app(): # cursed but whatever
                 if apputils.line_str_hash(line.strip()) not in speedy_hashes:
                     outf.write(("" if firstLine else "\n") + line.strip())
                     firstLine = False
-        os.replace(temp_path, infile)
+        apputils.safer_replace(temp_path, infile)
         processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
         reload_js()
 
@@ -206,6 +212,15 @@ def create_app(): # cursed but whatever
 # =======================================================
 # Endpoints
 # =======================================================
+
+    @app.before_request
+    def log_request():
+        app.logger.info(f"{request.method} {request.path}")
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        app.logger.exception(f"Unhandled Exception: {apputils.exception_format(e)}")
+        return "Internal server error", 500
 
     # RESTRICTED (can download and edit things and such, though not directly so ig it could be open)
     @app.route("/")

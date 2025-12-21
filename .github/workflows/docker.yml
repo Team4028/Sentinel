@@ -18,8 +18,10 @@ jobs:
             - name: Generate Key
               # instead of pushing all of the passwords to github, make repository secrets and generate the files on the runner from them 
               run: |
+                mkdir secrets
                 echo "${{ secrets.TBA_KEY }}" > ${{ github.workspace }}/secrets/key.txt
-                echo "${{ secrets.VAPID_PUB }}\n${{ secrets.VAPID_PRIV }}" > ${{ github.workspace }}/secrets/vapid-keys.txt
+                echo "${{ secrets.VAPID_KEYS }}" > ${{ github.workspace }}/secrets/vapid-keys.txt
+                echo "${{ secrets.ADMIN_CREDS }}" > ${{ github.workspace }}/secrets/admin.txt
             
             - name: Make Zip Directory
               run: mkdir scouting-app
@@ -45,7 +47,7 @@ jobs:
             - name: Prepare additional archive utilities
               # copy all of the necessary files from the repo to the runner 
               run: |
-                cp ./compose/compose.yaml scouting-app
+                cp ./compose.yaml scouting-app
                 cp ./compose/docker-compose-runner.env scouting-app/.env
                 cp ./compose/docker-compose-runner.sh scouting-app/run.sh
                 cp ./grafana-dashboard/grafana.ini scouting-app/grafana-dashboard/grafana.ini

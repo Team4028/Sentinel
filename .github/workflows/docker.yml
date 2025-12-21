@@ -14,14 +14,6 @@ jobs:
             
             - name: Set up docker build
               uses: docker/setup-buildx-action@v3
-
-            - name: Generate Key
-              # instead of pushing all of the passwords to github, make repository secrets and generate the files on the runner from them 
-              run: |
-                mkdir secrets
-                echo "${{ secrets.TBA_KEY }}" > ${{ github.workspace }}/secrets/key.txt
-                echo "${{ secrets.VAPID_KEYS }}" > ${{ github.workspace }}/secrets/vapid-keys.txt
-                echo "${{ secrets.ADMIN_CREDS }}" > ${{ github.workspace }}/secrets/admin.txt
             
             - name: Make Zip Directory
               run: mkdir -p scouting-app/grafana-dashboard
@@ -50,6 +42,8 @@ jobs:
                 cp ./compose.yaml scouting-app
                 cp ./compose/docker-compose-runner.env scouting-app/.env
                 cp ./compose/docker-compose-runner.sh scouting-app/run.sh
+                chmod +x scouting-app/run.sh
+                cp ./compose/docker-compose-runner.bat scouting-app/run.bat
                 cp ./grafana-dashboard/grafana.ini scouting-app/grafana-dashboard/grafana.ini
 
               # zip up and export all of the things

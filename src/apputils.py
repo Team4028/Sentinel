@@ -23,15 +23,27 @@ def generate_keys():
     print(f"Private Vapid Key: {private}")
     with open("./secrets/vapid-keys.txt", 'w') as w:
         w.writelines([pub_b64 + "\n", private])
+    return (pub_b64, private)
 
 def generate_admin():
     """ Generates admin credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt """
     os.makedirs("secrets", exist_ok=True)
     un = input("Enter username: ")
-    pwd = hashlib.sha256(input("Enter password: ").encode("utf-8"))
+    pwd = line_str_hash(input("Enter password: "))
     sec = secrets.token_hex(32)
     with open("./secrets/admin.txt", 'w') as f:
         f.write(un + '\n' + pwd + '\n' + sec)
+    return (un, pwd, sec)
+
+def generate_default_admin():
+    """ Generates default admin credentials so as not to rely on input() """
+    os.makedirs("secrets", exist_ok=True)
+    pwd = line_str_hash("admin")
+    sec = secrets.token_hex(32)
+    with open("./secrets/admin.txt", 'w') as f:
+        f.write("admin" + '\n' + pwd + '\n' + sec)
+    return ("admin", pwd, sec)
+    
 
 def safer_replace(src, dest):
     """ os.replace dies sometimes """
@@ -89,14 +101,16 @@ def read_secrets():
         with open("./secrets/vapid-keys.txt", 'r') as f:
             vapid_keys["public"] = f.readline().strip()
             vapid_keys["private"] = f.readline().strip()
-    else: raise Exception("Error: Missing vapid-keys.txt file in secrets") # hmm yes very safe
+    else:
+        vapid_keys["public"], vapid_keys["private"] = generate_keys()
 
     if (os.path.exists('./secrets/admin.txt')):
         with open("./secrets/admin.txt", 'r') as r:
             admin_login["un"] = r.readline().strip()
             admin_login["pwd"] = r.readline().strip()
             key = r.readline().strip()
-    else: raise Exception("Error: Missing admin.txt file in secrets")
+    else:
+        admin_login["un"], admin_login["pwd"], key = generate_default_admin()
 
     if (os.path.exists("./secrets/key.txt")):
         with open("./secrets/key.txt", 'r') as f:

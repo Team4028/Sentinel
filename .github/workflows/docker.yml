@@ -24,7 +24,7 @@ jobs:
                 echo "${{ secrets.ADMIN_CREDS }}" > ${{ github.workspace }}/secrets/admin.txt
             
             - name: Make Zip Directory
-              run: mkdir scouting-app
+              run: mkdir -p scouting-app/grafana-dashboard
 
               # build the backend docker image
             - name: Build Scouting Backend

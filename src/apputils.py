@@ -9,6 +9,7 @@ import base64
 import traceback
 import requests
 import re
+import time
 
 def generate_keys():
     """ Generates a pair (pub/priv) of vapid keys for webpush notification, prints them out, and saves them to the ./secrets/vapid-keys.txt dir """
@@ -54,8 +55,27 @@ def safer_replace(src, dest):
 
     os.remove(src)
 
+def test_tba_key(key: str):
+    if key == None or key.strip() == "": # dont bother testing an empty key
+        return False
+    # use time.time to force a refresh of the server and prevent caches from accepting junk keys
+    response = requests.get(f"https://www.thebluealliance.com/api/v3/event/2025iri?_={int(time.time()*1_000)}", headers={
+        "X-TBA-Auth-Key": key,
+        'Cache-Control': 'no-store, no-cache, max-age=0',
+        'Pragma': 'no-cache'
+    })
+    if response.status_code == 401:
+        return False
+    elif response.status_code == 200 or response.status_code == 304:
+        return True
+    raise Exception(f"Error testing tba key: unexpected reseponse {response.status_code}: {response.text}")
+
 def load_tba_data(event_key, api_key):
     """ Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule) """
+
+    if api_key == None or api_key.strip() == "":
+        return (None, None) # the propogation
+
     teams = [
         x["team_number"]
         for x in requests.get(
@@ -116,12 +136,13 @@ def read_secrets():
         with open("./secrets/key.txt", 'r') as f:
             auth_key = f.read().strip()
     else:
-        auth_key = input("Enter TBA Auth key: ")
-        if auth_key: # save the one they enter
-            with open("./secrets/key.txt", 'w') as w:
-                w.write(auth_key)
+        auth_key = ""
 
     return (vapid_keys, admin_login, key, auth_key)
+
+def set_auth_key(key: str):
+    with open("./secrets/key.txt", 'w') as w:
+        w.write(key.strip())
 
 def change_un_pwd(current_secret_key: str, newun: str, newpwd: str):
     os.makedirs("./secrets", exist_ok=True)

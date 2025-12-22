@@ -201,6 +201,9 @@ class Processor:
     def proccess_data(self, data_filepath: str, outname):
         """ Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files """
         
+        if self._teamsAt == None or self._sched == None:
+            raise Exception("Error: Missing TBA Key: Please add one in settings")
+
         # CANT believe i forgot this
         self._teams.clear()
         self._matches.clear()

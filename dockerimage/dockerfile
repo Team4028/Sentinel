@@ -13,7 +13,6 @@ RUN pip install gunicorn
 # copy all of the necessary files from the project to the image
 COPY src src
 COPY config config
-COPY secrets secrets
 COPY scouting_app.py ./
 COPY dockerimage/boot.sh /
 

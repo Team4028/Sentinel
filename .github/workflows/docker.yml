@@ -14,11 +14,6 @@ jobs:
             
             - name: Set up docker build
               uses: docker/setup-buildx-action@v3
-
-            - name: Add TBA key # todo, find a way to add a tba key without exposing mine to the public
-              run: |
-                mkdir -p secrets
-                echo "${{ secrets.TBA_KEY }}" > "./secrets/key.txt"
             
             - name: Make Zip Directory
               run: mkdir -p scouting-app/grafana-dashboard

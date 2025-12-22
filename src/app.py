@@ -23,7 +23,7 @@ from pywebpush import webpush, WebPushException
 import sys
 import tempfile
 import logging
-from logging.handlers import RotatingFileHandler
+import requests
 import sqlite3
 
 def create_app(): # cursed but whatever
@@ -486,10 +486,51 @@ def create_app(): # cursed but whatever
         with open(os.path.join(app.root_path, "config", "app-config.json"), 'r') as r:
             return jsonify(json.load(r))
         return "", 500
+    
+    # RESTRICTED (obviously don't want to share this)
+    @app.get("/tba-key")
+    @login_required
+    @require_admin
+    def get_tba_key():
+        """ returns the current TBA api key and whether or not it is good """
+        return jsonify({"key": auth_key, "good": apputils.test_tba_key(auth_key)})
+
+    # RESTRICTED (may as well, not used by grafana)
+    @app.post("/test-tba-key/", defaults={"key": ""})
+    @app.post("/test-tba-key/<path:key>")
+    @login_required
+    @require_admin
+    def test_tba_key(key): # necessary because fetching client-side runs into sad caching server-side
+        """ tests whether or not the given TBA api key is valid, returning a string 'true' for good and 'false' for bad """
+        if apputils.test_tba_key(key):
+            return "true", 200
+        return "false", 200
+    
+    @app.post("/set-tba-key")
+    @login_required
+    @require_admin
+    def set_tba_key():
+        """ verifies the inputted api key sent via json["key"], applies it and writes it to key.txt, and reprocesses data """
+        nonlocal auth_key
+        if request.json and request.json["key"]:
+            auth_key = request.json["key"].strip()
+            if not apputils.test_tba_key(auth_key): # health check
+                return "Bad TBA key", 400
+            apputils.set_auth_key(auth_key)
+            processor._teamsAt, processor._sched = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key)
+            try:
+                processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
+                reload_js()
+                return "", 200
+            except Exception as e:
+                return apputils.exception_format(e), 500
+        else:
+            return "Invalid Request", 400
 
     # RESTRICTED (overwrites un/pwd = bad)
     @app.post("/set-admin-creds")
     def set_admin_creds():
+        """ resets the admin username and password to json["un"] and json["pwd"] """
         nonlocal admin_login
         if request and request.json:
             try:
@@ -518,6 +559,7 @@ def create_app(): # cursed but whatever
                 app.config.from_file("config/app-config.json", load=json.load)
                 processor._teamsAt, processor._sched = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key) # event key may have changed
                 processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # upgated processor, so this
+                reload_js()
                 ensure_configurable_dirs() # if either of the the upl/out dirs were changed, they may no longer exist
                 return "", 200
             except Exception as e:

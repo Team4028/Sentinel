@@ -69,6 +69,10 @@
             border-radius: 4px;
         }
 
+        .no-white-border:focus {
+            outline: none;
+        }
+
         textarea {
             min-height: 200px;
             font-family: monospace;
@@ -122,6 +126,10 @@
 <body>
     <div class="panel">
         <h1> <img src="{{ url_for('static', filename='favicon.ico') }}" style="height: 5rem; transform: translateY(2rem);"> Sentinel Settings</h1>
+        <label title="TBA read API key obtained from the account page">
+            TBA API Key
+            <input type="text" class="no-white-border" id="tbakey">
+        </label>
         <label title="TBA key cooresponding to the event to pull the prediction schedule from (ie. 2025iri)">
             Event Key
             <input type="text" id="ekey">
@@ -189,6 +197,7 @@
         <button onclick="window.location.href='/'">Back</button>
     </div>
     <script>
+        const tbakey = document.getElementById("tbakey");
         const eventKey = document.getElementById("ekey");
         const chunkSize = document.getElementById("chunksize");
         const restrictLevel = document.getElementById("restrict-level");
@@ -204,6 +213,21 @@
         const newPWD = document.getElementById("new-pwd");
 
         const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+
+        async function tbaKeyCheckHealth() {
+            const res = await fetch(`/test-tba-key/${tbakey.value.trim()}`, {
+                method: "POST",
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            });
+
+            return res.ok && await res.text() == "true"
+        }
+
+        tbakey.addEventListener("input", async e => {
+            tbakey.style.borderColor = await tbaKeyCheckHealth() ? "#0a0" : "#a00";
+        });
 
         async function loadCfg() {
             const res = await fetch("/get-config", {
@@ -223,6 +247,16 @@
             outFile.value = json["BASE_OUTPUT_FILENAME"];
             metricFile.value = json["METRIC_OUTPUT_FILENAME"];
             nextN.value = json["NEXT_N_MATCHES_NUMBER"];
+
+            const tbares = await fetch("/tba-key", {
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            if (!tbares.ok) return;
+            const tbajson = await tbares.json();
+            tbakey.value = tbajson["key"];
+            tbakey.style.borderColor = tbajson["good"] ? "#0a0" : "#a00";
         }
 
         async function setCred() {
@@ -252,6 +286,30 @@
         }
 
         async function saveCfg() {
+            statusDiv.style.color = "#aaa";
+            statusDiv.innerText = "Setting TBA key..."
+            const tbares = await fetch("/set-tba-key", {
+                method: "POST",
+                headers: {
+                "Content-Type": "application/json",
+                'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({key: tbakey.value})
+            });
+
+            if (!tbares.ok) {
+                if (await tbares.text() == "Bad TBA key") {
+                    tbakey.style.borderColor = "#a00";
+                    return;
+                } else {
+                    statusDiv.style.color = "#a00";
+                    statusDiv.innerHTML = `Update TBA Key Error: ${await tbares.text()}`;
+                }
+                return;
+            } else {
+                tbakey.style.borderColor = "#0a0";
+            }
+
             const json = {
                 "EVENT_KEY": eventKey.value,
                 "CHUNK_SIZE": parseInt(chunkSize.value),
@@ -264,6 +322,9 @@
                 "METRIC_OUTPUT_FILENAME": metricFile.value,
                 "NEXT_N_MATCHES_NUMBER": parseInt(nextN.value),
             }
+
+            statusDiv.style.color = "#aaa";
+            statusDiv.innerText = "Applying settings...";
 
             const res = await fetch('/save-app-config', {
                 method: "POST",

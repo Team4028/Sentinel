@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{csrf_token()}}">
-    <link href="https://fonts.cdnfonts.com/css/neuropolitical" rel="stylesheet">
+    <link href="{{url_for('static', filename='fonts/neuropolitical.css')}}" rel="stylesheet">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Backend Settings</title>

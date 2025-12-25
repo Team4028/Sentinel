@@ -166,4 +166,4 @@ def exception_format(e: Exception): # bruh
             if not ".venv" in tb[len(tb) - i - 1].filename: # make all the junk go away
                 tb = tb[len(tb) - i - 1]
                 break
-        return f"Error in {tb.filename}, line {tb.lineno}, in {tb.name}\n" + traceback.format_exception_only(e)[0]
+        return f"Error in {tb.filename if "filename" in tb else ""}, line {tb.lineno if "lineno" in tb else ""}, in {tb.name if "name" in tb else ""}\n" + traceback.format_exception_only(e)[0]

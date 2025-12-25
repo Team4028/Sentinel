@@ -4,12 +4,19 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://fonts.cdnfonts.com/css/neuropolitical" rel="stylesheet">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Login Page</title>
     <style>
+
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
         * {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
             box-sizing: border-box; /* keeps the sizing from becoming unhappy */
         }
 
@@ -17,10 +24,13 @@
             color: white;
             text-align: center;
             font-size: 128px;
+            font-family: 'Neuropolitical', sans-serif;
         }
 
         body {
             background-color: #222;
+            background-image: url("{{url_for('static', filename='login_bg.png')}}");
+            background-size: cover;
         }
 
         form {
@@ -44,7 +54,7 @@
             width: 100%;
             padding: 10px 12px;
             margin-top: 5px;
-            border: 1px solid #444;
+            border: 2px solid #444;
             border-radius: 8px;
             font-size: 16px;
             transition: border-color 0.3s, box-shadow 0.3s;
@@ -52,7 +62,7 @@
 
         form input[type="text"]:focus,
         form input[type="password"]:focus {
-            border-color: #5b9bd5;
+            border-color: color-mix(in srgb, var(--accent), white 20%);
             box-shadow: 0 0 5px rgba(91, 155, 213, 0.5);
             outline: none;
         }
@@ -60,17 +70,17 @@
         form input[type="submit"] {
             width: 100%;
             padding: 10px 12px;
-            background-color: #5b9bd5;
-            color: white;
+            background-color: var(--accent);
+            color: var(--text);
             border: none;
             border-radius: 8px;
             font-size: 16px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: opacity 0.3s;
         }
 
         form input[type="submit"]:hover {
-            background-color: #4a8ac2;
+            opacity: 0.8;
         }
 
         #loginError {

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{csrf_token()}}">
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>404: Page not found</title>
+    <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        * {
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background-color: #333;
+            color: white;
+        }
+
+        button {
+            position: absolute;
+            top: 10px;
+            right: 80px;
+            z-index: 10;
+            padding: 8px;
+            opacity: 1;
+            background: var(--accent);
+            transition: opacity 0.4s;
+            color: var(--text);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+
+<body
+    onload="document.querySelector('p').innerText = document.querySelector('p').innerText.replace('LOC', window.location.pathname)">
+    <div style="display: flex; justify-content: center; align-items: center; gap: 2%;"> <!-- milk -->
+        <img src="{{ url_for('static', filename='favicon.ico') }}">
+        <h1>404: Page not found</h1>
+    </div>
+    <p style="text-align: center;">Error: the path LOC is not defined for this server. If it should, please submit an issue at
+        https://github.com/Team4028/Sentinel</p>
+    <button onclick="window.location.href='/'" title="Ctrl+Backspace">Return Home</button>
+
+    <script>
+        window.addEventListener("keydown", ev => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key == "Backspace") {
+                ev.preventDefault();
+                window.location.href = "/";
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -5,29 +5,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{csrf_token()}}">
+    <link href="https://fonts.cdnfonts.com/css/neuropolitical" rel="stylesheet">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Backend Settings</title>
     <style>
         :root {
-            --bg: #121212;
-            --panel: #1e1e1e;
-            --text: #e0e0e0;
-            --muted: #9aa0a6;
-            --accent: #4dabf7;
-            --border: #333;
+            --accent: {{accent}};
+            --text: {{text}};
         }
 
         * {
             box-sizing: border-box;
-            font-family: system-ui, sans-serif;
+            font-family: 'Segoe UI', serif;
         }
 
         body {
             margin: 0;
             padding: 2rem;
-            background: var(--bg);
-            color: var(--text);
+            background: #121212;
+            color: #e0e0e0;
             display: flex;
             justify-content: center;
         }
@@ -35,13 +32,14 @@
         h1 {
             margin-bottom: 1rem;
             text-align: center;
+            font-family: 'Neuropolitical', sans-serif;
         }
 
         .panel {
-            background: var(--panel);
+            background: #1e1e1e;
             padding: 1rem;
             border-radius: 8px;
-            border: 1px solid var(--border);
+            border: 1px solid #333;
             width: 80%;
         }
 
@@ -49,7 +47,29 @@
             display: block;
             margin-top: 1rem;
             font-size: 0.9rem;
-            color: var(--muted);
+            color: #9aa0a6;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 60px;
+            height: 60px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            transform: translateY(25%);
+        }
+
+        input[type='color']::-webkit-color-swatch {
+            border-radius: 10px;
+            border: none;
+        }
+
+        input[type=color]::-moz-color-swatch {
+            border-radius: 10px;
+            border: none;
         }
 
         input[type="text"],
@@ -58,14 +78,14 @@
         select,
         textarea,
         button {
+            color: #e0e0e0;
             text-align: center;
             font-size: large;
             width: 100%;
             margin-top: 0.3rem;
             padding: 0.5rem;
             background: #181818;
-            color: var(--text);
-            border: 1px solid var(--border);
+            border: 1px solid #333;
             border-radius: 4px;
         }
 
@@ -97,12 +117,12 @@
             cursor: pointer;
             background: var(--accent);
             border: none;
-            color: #000;
+            color: var(--text);
             font-weight: 600;
         }
 
         button:hover {
-            opacity: 0.9;
+            opacity: 0.8;
         }
 
         .floating-panel {
@@ -118,14 +138,14 @@
             bottom: 1rem;
             right: 2rem;
             z-index: 10;
-            font-family: sans-serif;
         }
     </style>
 </head>
 
 <body>
     <div class="panel">
-        <h1> <img src="{{ url_for('static', filename='favicon.ico') }}" style="height: 5rem; transform: translateY(2rem);"> Sentinel Settings</h1>
+        <h1> <img src="{{ url_for('static', filename='favicon.ico') }}"
+                style="height: 5rem; transform: translateY(2rem);"> Sentinel Settings</h1>
         <label title="TBA read API key obtained from the account page">
             TBA API Key
             <input type="text" class="no-white-border" id="tbakey">
@@ -134,7 +154,19 @@
             Event Key
             <input type="text" id="ekey">
         </label>
-        <label title="Size in bytes of the maximum amount of csv data that the processor can load into memory at a time">
+        <div style="align-items: center; justify-content: center; display: flex; gap: 25%;">
+            <label title="Accent color for the app (mostly for buttons)"
+                style="text-align: center; display: inline-block;">
+                Accent Color
+                <input type="color" id="acola">
+            </label>
+            <label title="Text color for accented elements" style="text-align: center; display: inline-block;">
+                Text color
+                <input type="color" id="tcolor">
+            </label>
+        </div>
+        <label
+            title="Size in bytes of the maximum amount of csv data that the processor can load into memory at a time">
             CSV Parsing Chunk Size (bytes)
             <input type="number" id="chunksize">
         </label>
@@ -166,7 +198,8 @@
             Base Output Filename
             <input type="text" id="out-file">
         </label>
-        <label title="The name of the 'other metrics' json generated by the processor (includes things like percent teams scouted)">
+        <label
+            title="The name of the 'other metrics' json generated by the processor (includes things like percent teams scouted)">
             Metrics Output Filename
             <input type="text" id="metric-file">
         </label>
@@ -183,22 +216,27 @@
         </label>
         <label>
             <!-- Use an <input type='button'> so that the default 'button' css won't apply -->
-            Password <input value="👁" style="background: none; border: none; text-align: center; border-radius: 5px; width: 30px; height: 30px; color: var(--text);" type="button" onclick="document.getElementById('new-pwd').setAttribute('type', document.getElementById('new-pwd').getAttribute('type') == 'text' ? 'password' : 'text')">
+            Password <input value="👁"
+                style="background: none; border: none; text-align: center; border-radius: 5px; width: 30px; height: 30px; color: var(--text);"
+                type="button"
+                onclick="document.getElementById('new-pwd').setAttribute('type', document.getElementById('new-pwd').getAttribute('type') == 'text' ? 'password' : 'text')">
             <input type="password" id="new-pwd">
         </label>
-        <button onclick="setCred()">Set</button>
+        <button onclick="setCred()" title="Ctrl+P">Set</button>
     </div>
     <div class="button-cont">
-        <button onclick="saveCfg()">Save Changes</button>
-        <button onclick="loadCfg()">Discard Changes</button>
+        <button onclick="saveCfg()" title="Ctrl+S">Save Changes</button>
+        <button onclick="loadCfg()" title="Ctrl+D">Discard Changes</button>
     </div>
     <div id="status"></div>
     <div class="back-cont">
-        <button onclick="window.location.href='/'">Back</button>
+        <button onclick="window.location.href='/'" title="Ctrl+Backspace">Back</button>
     </div>
     <script>
         const tbakey = document.getElementById("tbakey");
         const eventKey = document.getElementById("ekey");
+        const acolor = document.getElementById("acola");
+        const tcolor = document.getElementById("tcolor");
         const chunkSize = document.getElementById("chunksize");
         const restrictLevel = document.getElementById("restrict-level");
         const notifyStore = document.getElementById("notify-storage");
@@ -238,6 +276,8 @@
             if (!res.ok) return;
             const json = await res.json();
             eventKey.value = json["EVENT_KEY"];
+            acolor.value = json["ACCENT_COLOR"];
+            tcolor.value = json["TEXT_COLOR"];
             chunkSize.value = json["CHUNK_SIZE"];
             restrictLevel.value = json["RESTRICT_APPEND_LEVEL"];
             notifyStore.value = json["NOTIFY_SUB_STORAGE"];
@@ -291,10 +331,10 @@
             const tbares = await fetch("/set-tba-key", {
                 method: "POST",
                 headers: {
-                "Content-Type": "application/json",
-                'X-CSRFToken': csrfToken
+                    "Content-Type": "application/json",
+                    'X-CSRFToken': csrfToken
                 },
-                body: JSON.stringify({key: tbakey.value})
+                body: JSON.stringify({ key: tbakey.value })
             });
 
             if (!tbares.ok) {
@@ -312,6 +352,8 @@
 
             const json = {
                 "EVENT_KEY": eventKey.value,
+                "ACCENT_COLOR": acolor.value,
+                "TEXT_COLOR": tcolor.value,
                 "CHUNK_SIZE": parseInt(chunkSize.value),
                 "RESTRICT_APPEND_LEVEL": parseInt(restrictLevel.value),
                 "NOTIFY_SUB_STORAGE": notifyStore.value,
@@ -322,6 +364,9 @@
                 "METRIC_OUTPUT_FILENAME": metricFile.value,
                 "NEXT_N_MATCHES_NUMBER": parseInt(nextN.value),
             }
+
+            document.documentElement.style.setProperty("--accent", acolor.value);
+            document.documentElement.style.setProperty("--text", tcolor.value);
 
             statusDiv.style.color = "#aaa";
             statusDiv.innerText = "Applying settings...";
@@ -344,13 +389,29 @@
                 statusDiv.style.color = "#a00";
                 statusDiv.innerHTML = `Save Error: ${await res.text()}`;
             }
-
         }
+
+        window.addEventListener("keydown", ev => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") { // override Ctrl+S to save
+                ev.preventDefault(); // stop Ctrl+S from doing what it normally does
+                saveCfg();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "d") {
+                ev.preventDefault();
+                loadCfg();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "p") {
+                ev.preventDefault();
+                setCred();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace") {
+                ev.preventDefault();
+                window.location.href = "/";
+            }
+        });
 
         loadCfg();
 
     </script>
-    <script src="{{url_for('static', filename='js/register-sw.js')}}" onload="registerServiceWorker('/service_worker.js', `{{pubkey}}`, '/subscribe')"></script>
+    <script src="{{url_for('static', filename='js/register-sw.js')}}"
+        onload="registerServiceWorker('/service_worker.js', `{{pubkey}}`, '/subscribe')"></script>
 </body>
 
 </html>

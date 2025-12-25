@@ -10,10 +10,19 @@
     <title>Scouting App Backend Frontend</title>
 
     <style>
+
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        * {
+            font-family: 'Segoe UI', sans-serif;
+        }
+
         body {
-            font-family: Arial, sans-serif;
             background: #181a1b;
-            color: #e8e6e3;
+            color: var(--text);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -49,7 +58,7 @@
         }
 
         .drop-zone.dragover {
-            border-color: #4da3ff;
+            border-color: color-mix(in srgb, var(--accent), white 20%);
             background: #24292b;
         }
 
@@ -82,7 +91,7 @@
         #progress-bar {
             width: 0;
             height: 100%;
-            background: #4da3ff;
+            background: color-mix(in srgb, var(--accent), white 20%);
             transition: width 0.2s;
         }
 
@@ -102,14 +111,15 @@
             margin-top: 18px;
             display: inline-block;
             padding: 10px 18px;
-            background: #0e63be;
-            color: #000;
+            background: var(--accent);
+            color: var(--text);
             font-weight: bold;
+            box-shadow: none;
             border-radius: 6px;
             opacity: 1;
             cursor: pointer;
             font-size: 14px;
-            transition: background 0.4s;
+            transition: opacity 0.4s;
         }
 
         .btn:disabled {
@@ -119,7 +129,7 @@
 
         .btn:enabled:hover {
             /* .btn:enabled so that the bg no change when hvr :| */
-            background: #3e98f9;
+            opacity: 0.8;
         }
 
         select {
@@ -159,20 +169,6 @@
             font-size: 1rem;
         }
 
-        dialog button {
-            background-color: #4a90e2;
-            color: #fff;
-            /* click cursor */
-            cursor: pointer;
-            /* brighten slow */
-            transition: background-color 0.2s ease;
-        }
-
-        dialog button:hover {
-            /* brighten on hover */
-            background-color: #357ab8;
-        }
-
         dialog::backdrop {
             background-color: rgba(0, 0, 0, 0.6);
         }
@@ -196,7 +192,7 @@
             height: 40px;
             padding: 10px;
             margin: 0;
-            color: white;
+            color: var(--text);
         }
 
         .logout-btn {
@@ -208,7 +204,7 @@
             height: 40px;
             padding: 10px;
             margin: 0;
-            color: white;
+            color: var(--text);
         }
     </style>
 </head>
@@ -258,13 +254,13 @@
         </dialog>
 
         <!-- Buttons -->
-        <button id="upload-btn" class="btn" disabled>Upload</button>
-        <button id="reload-btn" class="btn">Reload</button>
-        <button id="download-btn" class="btn">Download</button>
-        <button class="btn" onclick="window.location.href='/edit'">Edit Config</button>
+        <button id="upload-btn" class="btn" disabled title="Ctrl+U">Upload</button>
+        <button id="reload-btn" class="btn" title="Ctrl+A">Reload</button>
+        <button id="download-btn" class="btn" title="Ctrl+D">Download</button>
+        <button class="btn" onclick="window.location.href='/edit'" title="Ctrl+E">Edit Config</button>
         <div class="top-corner-div">
-            <button class="btn settings-btn" onclick="window.location.href='/edit-app-conf'">⚙️</button>
-            <button class="btn logout-btn" onclick="window.location.href='/logout'">Log out</button>
+            <button class="btn settings-btn" onclick="window.location.href='/edit-app-conf'" title="Ctrl+I">⚙️</button>
+            <button class="btn logout-btn" onclick="window.location.href='/logout'" title="Ctrl+L">Log out</button>
         </div>
 
         <!-- Progress bar -->
@@ -370,6 +366,28 @@
                 progressBar.style.width = "100%";
                 statusText.innerText = `[${new Date().toLocaleString()}] ` + await res.text();
             });
+        });
+
+        window.addEventListener("keydown", ev => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key === "e") { // override Ctrl+S to save
+                ev.preventDefault(); // stop Ctrl+S from doing what it normally does
+                window.location.href = "/edit";
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "i") {
+                ev.preventDefault();
+                window.location.href = "/edit-app-conf"
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "l") {
+                ev.preventDefault();
+                window.location.href = "/logout";
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "u") {
+                ev.preventDefault();
+                uploadBtn.click();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "a") {
+                ev.preventDefault();
+                reloadButton.click();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "d") {
+                ev.preventDefault();
+                downloadButton.click();
+            }
         });
 
         // use a mut observer to set the text to red if there's an error (slightly cursed)

@@ -23,7 +23,6 @@ from pywebpush import webpush, WebPushException
 import sys
 import tempfile
 import logging
-import requests
 import sqlite3
 
 def create_app(): # cursed but whatever
@@ -38,8 +37,11 @@ def create_app(): # cursed but whatever
     admin_login = {}
     CONFIG_FILE = os.path.join("config", "field-config.yaml")
 
+    def render_template_style(template, **context):
+        return render_template(template, accent=app.config["ACCENT_COLOR"], text=app.config["TEXT_COLOR"], **context)
+
     def render_template_pass_vapids(template, **context):
-        return render_template(template, pubkey=vapid_keys["public"], **context)
+        return render_template_style(template, pubkey=vapid_keys["public"], **context)
 
 # =======================================================
 # Initialize sqlite database for storing notification subscriptions
@@ -221,6 +223,11 @@ def create_app(): # cursed but whatever
     def handle_exception(e):
         app.logger.exception(f"Unhandled Exception: {apputils.exception_format(e)}")
         return "Internal server error", 500
+    
+    @app.errorhandler(404)
+    def handle_404(e):
+        app.logger.warning(f"Tried to access nonexistant page: {e}")
+        return render_template_style("404.html")
 
     # RESTRICTED (can download and edit things and such, though not directly so ig it could be open)
     @app.route("/")
@@ -241,7 +248,7 @@ def create_app(): # cursed but whatever
                 return "Login Successful", 200
             else:
                 return "Invalid Credentials", 401
-        return render_template("login.html", form=form)
+        return render_template_style("login.html", form=form)
     
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
     @app.route("/logout")

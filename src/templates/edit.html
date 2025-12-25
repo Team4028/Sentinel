@@ -9,6 +9,16 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Data Processor Configuration</title>
     <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        body {
+            background-color: #1e1e1e;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
         html,
         body,
         #editor {
@@ -25,12 +35,18 @@
             right: 80px;
             z-index: 10;
             padding: 8px;
-            background: #007acc;
-            color: white;
+            opacity: 1;
+            background: var(--accent);
+            transition: opacity 0.4s;
+            color: var(--text);
             border: none;
             border-radius: 10%;
             cursor: pointer;
             font-size: 14px;
+        }
+
+        #backBtn:hover {
+            opacity: 0.8;
         }
 
         #saveBtn {
@@ -39,8 +55,9 @@
             right: 10px;
             z-index: 10;
             padding: 8px;
-            background: #007acc;
-            color: white;
+            background: var(--accent);
+            transition: background 0.4s;
+            color: var(--text);
             border: none;
             border-radius: 10%;
             cursor: pointer;
@@ -52,14 +69,13 @@
             top: 50px;
             right: 10px;
             z-index: 10;
-            font-family: sans-serif;
         }
     </style>
 </head>
 
 <body>
-    <button id="backBtn" onclick="window.location.href='/'">Back</button>
-    <button id="saveBtn">Save</button>
+    <button id="backBtn" onclick="window.location.href='/'" title="Ctrl+Backspace">Back</button>
+    <button id="saveBtn" title="Ctrl+S">Save</button>
     <div id="status"></div>
     <div id="editor"></div>
     <!-- oh yes i did -->
@@ -93,11 +109,14 @@
         const statusDiv = document.getElementById('status');
 
         window.addEventListener("keydown", ev => {
-            if ((ev.ctrlKey || ev.metaKey) && ev.key == "s") { // override Ctrl+S to save
+            if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") { // override Ctrl+S to save
                 ev.preventDefault(); // stop Ctrl+S from doing what it normally does
                 saveYAML();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace") {
+                ev.preventDefault();
+                window.location.href = "/";
             }
-        })
+        });
 
         saveBtn.addEventListener('click', () => {
             saveYAML();

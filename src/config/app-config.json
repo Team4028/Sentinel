@@ -9,6 +9,7 @@
     "INPUT_FILENAME": "data_in.csv",
     "OUT_DIR": "dataout",
     "BASE_OUTPUT_FILENAME": "output.csv",
+    "PHOTO_STORAGE": "photos",
     "METRIC_OUTPUT_FILENAME": "other-metrics.json",
     "NEXT_N_MATCHES_NUMBER": 3
 }

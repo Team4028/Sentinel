@@ -24,6 +24,7 @@ import sys
 import tempfile
 import logging
 import sqlite3
+from pathlib import Path
 
 def create_app(): # cursed but whatever
     """ Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy """
@@ -195,6 +196,13 @@ def create_app(): # cursed but whatever
                     send_change_notification(lines_to_write)
         processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
         reload_js()
+
+    def save_photo(filestorage, team: str):
+        """ saves the given filestorage to PHOTO_STORAGE/{team}.ext where ext is the extension of filestorage """
+        os.makedirs(app.config["PHOTO_STORAGE"], exist_ok=True)
+        ext = os.path.splitext(filestorage.filename)[1].lower() # . + type (ex. .png)
+        file_save = os.path.join(app.config["PHOTO_STORAGE"], team + ext)
+        filestorage.save(file_save)
     
     def handle_mesh_line(message):
         """ This function is a consumer for a meshtastic message (line of csv) and will append it to the csv much like /append """
@@ -322,6 +330,23 @@ def create_app(): # cursed but whatever
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
+        
+    @app.post("/upload-photo")
+    @login_required
+    @require_admin
+    def upload_photo():
+        """ Save a photo for the cooresponding team """
+        try:
+            print(request.files)
+            if ("photo" in request.files) and (team := request.headers.get("team")) != None:
+                photo = request.files["photo"]
+                if photo.filename != "":
+                    save_photo(photo, team)
+                    return "", 200
+            return "Error: invalid request", 400
+        except Exception as e:
+            return apputils.exception_format(e), 500
+
     
     # OPEN (immutable passthrough, literally a yaml schema)
     @app.get("/schema.json")
@@ -365,7 +390,19 @@ def create_app(): # cursed but whatever
                 headers.remove("Team")
                 return jsonify(headers)
         return ""
-
+    
+    @app.get("/team-photo")
+    @login_required
+    @require_admin
+    def get_team_pics():
+        if "team" in request.args:
+            try:
+                files_match = list(Path(app.config["PHOTO_STORAGE"]).glob(f"{request.args.get("team", 0).strip()}.*"))
+                files_match = list(map(lambda p: p.absolute().as_posix(), files_match))
+                return send_file(files_match[0]) if files_match and len(files_match) > 0 else ("Error, team picture not found", 400)
+            except Exception as e:
+                return apputils.exception_format(e), 500
+        return "Error: invalid request", 400
     # OPEN (grafana needs this)
     @app.get("/next-3")
     def n3():
@@ -536,6 +573,8 @@ def create_app(): # cursed but whatever
 
     # RESTRICTED (overwrites un/pwd = bad)
     @app.post("/set-admin-creds")
+    @login_required
+    @require_admin
     def set_admin_creds():
         """ resets the admin username and password to json["un"] and json["pwd"] """
         nonlocal admin_login

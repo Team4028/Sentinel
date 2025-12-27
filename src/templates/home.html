@@ -39,7 +39,7 @@
         .upload-box {
             position: absolute;
             width: 40%;
-            height: 60%;
+            height: 80%;
             padding: 25px;
             background-color: #444;
             border-radius: 12px;
@@ -236,6 +236,21 @@
             <option value="/upload">Overwrite</option>
         </select>
 
+        <dialog id="team-upl">
+            <h1>Upload Team Picture</h1>
+            <label title="Team number as an integer" style="display: block;">
+                Team Number
+                <input type="number" id="team-name" style="display: block;">
+            </label>
+            <br>
+            <label title="Picture as any common picture format" style="display: block;">
+                Picture
+                <input type="file" id="team-file" style="display: block;">
+            </label>
+            <button id="send-pic" class="btn">Upload</button>
+            <button id="pic-cancel" class="btn">Cancel</button>
+        </dialog>
+
         <!-- Download dialog box -->
         <dialog id="surprise">
             <h1>Pick a file</h1>
@@ -258,11 +273,12 @@
         <!-- Buttons -->
         <button id="upload-btn" class="btn" disabled title="Ctrl+U">Upload</button>
         <button id="reload-btn" class="btn" title="Ctrl+A (a for again because Ctrl+R is important)">Reload</button>
+        <button id="pic-btn" class="btn" title="Ctrl+P">Upload Picture</button>
         <button id="download-btn" class="btn" title="Ctrl+D">Download</button>
-        <button class="btn" onclick="window.location.href='/edit'" title="Ctrl+E">Edit Config</button>
+        <button class="btn" onclick="window.location.href='{{url_for('edit_yaml')}}'" title="Ctrl+E">Edit Config</button>
         <div class="top-corner-div">
-            <button class="btn settings-btn" onclick="window.location.href='/edit-app-conf'" title="Ctrl+I">⚙️</button>
-            <button class="btn logout-btn" onclick="window.location.href='/logout'" title="Ctrl+L">Log out</button>
+            <button class="btn settings-btn" onclick="window.location.href='{{url_for('edit_app_conf_page')}}'" title="Ctrl+I">⚙️</button>
+            <button class="btn logout-btn" onclick="window.location.href='{{url_for('logout')}}'" title="Ctrl+L">Log out</button>
         </div>
 
         <!-- Progress bar -->
@@ -284,9 +300,12 @@
         const progressBar = document.getElementById("progress-bar");
         const endpointSelect = document.getElementById("endpoint-select");
         const statusText = document.getElementById("status");
+        const pictureButton = document.getElementById("pic-btn");
         const reloadButton = document.getElementById("reload-btn");
         const downloadButton = document.getElementById("download-btn");
         const dialog = document.getElementById("surprise");
+        const teamName = document.getElementById("team-name");
+        const teamPic = document.getElementById("team-file");
         const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content');
 
         let selectedFile = null;
@@ -294,23 +313,23 @@
         /**
          * Creates a promise that waits for the dialog window to be resolved, faking a modal dialog
          */
-        function fakeWaitingForGodot() {
+        function fakeWaitingForGodot(dlog, confirmBtnID, closeBtnID, selectorID, isRealFile) {
             return new Promise(resolve => {
-                dialog.showModal();
-                dialog.addEventListener("close", function handler() {
-                    dialog.removeEventListener("close", handler);
+                dlog.showModal();
+                dlog.addEventListener("close", function handler() {
+                    dlog.removeEventListener("close", handler);
                     resolve({
-                        cancelled: dialog.returnValue === "cancel",
-                        file: document.getElementById("cake-select").value
+                        cancelled: dlog.returnValue === "cancel",
+                        file: isRealFile ? document.getElementById(selectorID).files[0] : document.getElementById(selectorID).value
                     });
                 });
 
-                document.getElementById("send-it").onclick = () => {
-                    dialog.returnValue = "";
-                    dialog.close();
+                document.getElementById(confirmBtnID).onclick = () => {
+                    dlog.returnValue = "";
+                    dlog.close();
                 };
-                document.getElementById("cancel").onclick = () => dialog.close("cancel");
-                dialog.addEventListener("cancel", () => dialog.close("cancel"), { once: true });
+                document.getElementById(closeBtnID).onclick = () => dlog.close("cancel");
+                dlog.addEventListener("cancel", () => dlog.close("cancel"), { once: true });
             })
         }
 
@@ -365,7 +384,7 @@
             progressContainer.style.display = "block";
             progressBar.style.width = "0";
             statusText.innerText = `[${new Date().toLocaleString()}] ` + "Reloading data..."
-            fetch("/reproc", {
+            fetch("{{url_for('reprocess')}}", {
                 headers: {
                     'X-CSRFToken': csrfToken
                 }
@@ -378,22 +397,26 @@
         window.addEventListener("keydown", ev => {
             if ((ev.ctrlKey || ev.metaKey) && ev.key === "e") { // override Ctrl+S to save
                 ev.preventDefault(); // stop Ctrl+S from doing what it normally does
-                window.location.href = "/edit";
+                window.location.href = "{{url_for('edit_yaml')}}";
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "i") {
                 ev.preventDefault();
-                window.location.href = "/edit-app-conf"
+                window.location.href = "{{url_for('edit_app_conf_page')}}";
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "l") {
                 ev.preventDefault();
-                window.location.href = "/logout";
+                window.location.href = "{{url_for('logout')}}";
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "u") {
                 ev.preventDefault();
-                uploadBtn.click();
+                if (!uploadBtn.disabled)
+                    uploadBtn.click();
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "a") {
                 ev.preventDefault();
                 reloadButton.click();
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "d") {
                 ev.preventDefault();
                 downloadButton.click();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "p") {
+                ev.preventDefault();
+                pictureButton.click();
             }
         });
 
@@ -415,10 +438,56 @@
         })
 
         downloadButton.addEventListener("click", async () => {
-            const res = await fakeWaitingForGodot();
+            const res = await fakeWaitingForGodot(dialog, "send-it", "cancel", "cake-select", false);
             if (!res.cancelled)
                 downloadFile(res.file);
         });
+
+        pictureButton.addEventListener("click", async () => {
+            const res = await fakeWaitingForGodot(document.getElementById("team-upl"), "send-pic", "pic-cancel", "team-file", true);
+            if (!res.cancelled)
+                uploadPicture(res.file);
+        });
+
+        /**
+         * Upload a selected picture to the server
+         */
+        function uploadPicture(file) {
+            statusText.textContent = `[${new Date().toLocaleString()}] Uploading picture ${file}`;
+            console.log(file);
+            progressBar.style.width = 0;
+            progressContainer.style.display = "block";
+            const fData = new FormData();
+            fData.append('photo', file);
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "{{url_for('upload_photo')}}", true);
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            xhr.setRequestHeader('team', String(teamName.value));
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total)* 100;
+                    progressBar.style.width = `${percent}%`;
+                }
+            }
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Upload complete!`;
+                } else {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Upload failed: ${xhr.responseText}`;
+                }
+
+                teamName.value = "";
+                teamPic.value = "";
+            };
+
+            xhr.onerror = (err) => {
+                statusText.textContent = `[${new Date().toLocaleString()}] Error occured: ${err}`; 
+            }
+
+            xhr.send(fData);
+        }
 
         /**
          * Requests a stream to a server file and then uses it to download the file locally
@@ -429,7 +498,7 @@
             progressBar.style.width = 0;
             progressContainer.style.display = "block";
             const xhr = new XMLHttpRequest();
-            xhr.open('GET', `/download/${file}`, true);
+            xhr.open('GET', `{{url_for('dload', file='')}}${file}`, true);
             xhr.setRequestHeader('X-CSRFToken', csrfToken);
             xhr.responseType = "blob";
 

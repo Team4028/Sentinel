@@ -74,7 +74,7 @@
 </head>
 
 <body>
-    <button id="backBtn" onclick="window.location.href='/'" title="Ctrl+Backspace">Back</button>
+    <button id="backBtn" onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Back</button>
     <button id="saveBtn" title="Ctrl+S">Save</button>
     <div id="status"></div>
     <div id="editor"></div>
@@ -114,7 +114,7 @@
                 saveYAML();
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace") {
                 ev.preventDefault();
-                window.location.href = "/";
+                window.location.href = "{{url_for('main')}}";
             }
         });
 
@@ -128,7 +128,7 @@
         async function saveYAML() {
             const code = window.editor.getValue();
             try {
-                const res = await fetch("/save", {
+                const res = await fetch("{{url_for('save_yaml')}}", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

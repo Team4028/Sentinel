@@ -154,7 +154,7 @@
         Array.from(document.getElementsByTagName("li")).forEach(li => { // loop through all <li>'s, use Array.from() to unwrap HTMLCollection
             const a = li.getElementsByTagName("a")[0];
             a.addEventListener("click", ev => {
-                fetch(`/delete-change/${[...li.parentNode.children].indexOf(li)}`, { // delete the change based on list index
+                fetch(`{{url_for('delete_change')}}/${[...li.parentNode.children].indexOf(li)}`, { // delete the change based on list index
                     method: "POST",
                     headers: {
                         'X-CSRFToken': csrfToken
@@ -172,7 +172,7 @@
 
             li.addEventListener("click", ev => {
                 if (ev.target === a) return;
-                fetch(`/apply-change/${[...li.parentNode.children].indexOf(li)}`, { // apply the change based on list index
+                fetch(`{{url_for('apply_change')}}/${[...li.parentNode.children].indexOf(li)}`, { // apply the change based on list index
                     method: "POST",
                     headers: {
                         'X-CSRFToken': csrfToken

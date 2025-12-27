@@ -54,13 +54,13 @@
     </div>
     <p style="text-align: center;">Error: the path LOC is not defined for this server. If it should, please submit an issue at
         https://github.com/Team4028/Sentinel</p>
-    <button onclick="window.location.href='/'" title="Ctrl+Backspace">Return Home</button>
+    <button onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Return Home</button>
 
     <script>
         window.addEventListener("keydown", ev => {
             if ((ev.ctrlKey || ev.metaKey) && ev.key == "Backspace") {
                 ev.preventDefault();
-                window.location.href = "/";
+                window.location.href = "{{url_for('main')}}";
             }
         });
     </script>

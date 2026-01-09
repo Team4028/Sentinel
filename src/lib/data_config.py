@@ -157,8 +157,8 @@ BIOP_PRECEDENCE = {
     "|": 1,
 }
 
-def check_last_nowhitespace(s, i):
-    """ check the last character that wasn't whitespace """
+def get_last_nowhitespace(s, i):
+    """ get the last character that wasn't whitespace """
     j = i - 1
     while j >= 0 and s[j].isspace():
         j -= 1
@@ -224,7 +224,7 @@ def parse_equation(equation: str, df: pd.DataFrame):
         # if its an operator
         elif c in OPERATOR_STRINGS:
             # check if its unary (at beginning, right after other operator or beginning of {/[/(, or right after @xxx operator)
-            if i == 0 or check_last_nowhitespace(equation, i) in OPERATOR_STRINGS or equation[i - 1] in ["(", "[", "{"] or (i - 4 >= 0 and equation[i - 4] == "@"):
+            if i == 0 or get_last_nowhitespace(equation, i) in OPERATOR_STRINGS or equation[i - 1] in ["(", "[", "{"] or (i - 4 >= 0 and equation[i - 4] == "@"):
                 equation_tokens.append(Token(TOKENS.UNARY_OP, c))
             # turn < into <=, etc
             elif equation[i] in COMP_EXTEND:

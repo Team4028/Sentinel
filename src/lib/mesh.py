@@ -7,6 +7,7 @@ from meshtastic.serial_interface import serial
 # loosely sourced from https://github.com/brad28b/meshtastic-cli-receive-text/blob/main/read_messages_serial.py
 
 serial_port = '/dev/ttyUSB0'
+local = None
 
 def on_receive(packet, f):
     try:
@@ -30,7 +31,16 @@ def send_mesh_test(message: str):
     }
     pub.sendMessage("meshtastic.receive", packet=packet, interface=None) # 'recieve' the payload
 
+def send_message(m):
+    global local
+    if local:
+        local.sendText(m)
+    else:
+        send_mesh_test(m)
+
+
 def main(f):
+    global local # ahh yes
     def on_receive_wrapper(packet, interface):
         on_receive(packet, f)
 
@@ -41,7 +51,6 @@ def main(f):
     except Exception as e:
         print(f"Error opening port {serial_port}: {e}")
         print("This channel will remain open for testing purposes.")
-        
     try: # listen forever
         while True:
             sys.stdout.flush()

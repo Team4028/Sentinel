@@ -258,7 +258,7 @@
         const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
 
         async function tbaKeyCheckHealth() {
-            const res = await fetch(`{{test_tba_key}}/${tbakey.value.trim()}`, {
+            const res = await fetch(`{{url_for('main')}}test-tba-key/${tbakey.value.trim()}`, {
                 method: "POST",
                 headers: {
                     'X-CSRFToken': csrfToken
@@ -333,7 +333,7 @@
 
         async function saveCfg() {
             statusDiv.style.color = "#aaa";
-            statusDiv.innerText = "Setting TBA key..."
+            statusDiv.innerText = "Setting TBA key...";
             const tbares = await fetch("{{url_for('set_tba_key')}}", {
                 method: "POST",
                 headers: {
@@ -344,12 +344,13 @@
             });
 
             if (!tbares.ok) {
-                if (await tbares.text() == "Bad TBA key") {
+                const rtxt = await tbares.text();
+                if (rtxt == "Bad TBA key") {
                     tbakey.style.borderColor = "#a00";
                     return;
                 } else {
                     statusDiv.style.color = "#a00";
-                    statusDiv.innerHTML = `Update TBA Key Error: ${await tbares.text()}`;
+                    statusDiv.innerHTML = `Update TBA Key Error: ${rtxt}`;
                 }
                 return;
             } else {

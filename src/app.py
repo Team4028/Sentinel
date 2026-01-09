@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, jsonify, Response, send_file,
 from flask_login import login_user, login_required, logout_user
 from flask_cors import cross_origin
 from flask_wtf import CSRFProtect
-try:
+try: # janky import stuff: running src/app.py and running scouting_app.py via gunicorn lead to different import paths
     from lib.data_main import Processor
     import lib.mesh as mesh
     from lib.data_config import lex_config
@@ -31,6 +31,7 @@ def create_app(): # cursed but whatever
     app = Flask(__name__)
     # setup logging
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    # set up cross site request forgery protection because it's one line
     csrf = CSRFProtect(app)
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
@@ -39,9 +40,11 @@ def create_app(): # cursed but whatever
     CONFIG_FILE = os.path.join("config", "field-config.yaml")
 
     def render_template_style(template, **context):
+        """ Renders the input template with the given context and also the accent and text colors of the app """
         return render_template(template, accent=app.config["ACCENT_COLOR"], text=app.config["TEXT_COLOR"], **context)
 
     def render_template_pass_vapids(template, **context):
+        """ Renders the given template with the given context, the style, and the public vapid key """
         return render_template_style(template, pubkey=vapid_keys["public"], **context)
 
 # =======================================================
@@ -121,7 +124,7 @@ def create_app(): # cursed but whatever
         data = {
             "title": "Sentinel" if lines == None else "New Data",
             "body": "New changes avaliable to apply." if lines == None else "\n".join(lines),
-            "icon": url_for('static', filename='favicon.ico', _external=True),
+            "icon": "/static/favicon.ico",
         }
         data["actions"] = [ # makes a button that invokes the 'goto-changes' action in the service worker
             {
@@ -183,19 +186,22 @@ def create_app(): # cursed but whatever
         processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
         reload_js()
 
-    def append_lines_nofile(lines_to_write: list[str]):
+    def append_lines_nofile(lines_to_write: list[str], sending: bool = False):
         """ Appends `lines_to_write` to the input csv and reprocesses the data. <br>
             This will emit a notification if restrict append level is 1 """
         exists = os.path.exists(infile)
         with open(infile, 'a' if exists else 'w', encoding='utf-8') as append:
-            lines_to_write[-1] = lines_to_write[-1].strip() # yeet tailing newline
+            lines_to_write[-1] = lines_to_write[-1].strip() # yeet trailing newline
             if len(lines_to_write) > 0:
                 if exists: append.write("\n")
                 append.writelines(lines_to_write)
-                if app.config["RESTRICT_APPEND_LEVEL"] == 1:
+                if sending:
+                    for l in lines_to_write: mesh.send_message(l)
+                elif app.config["RESTRICT_APPEND_LEVEL"] == 1:
                     send_change_notification(lines_to_write)
-        processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
-        reload_js()
+        if not sending:
+            processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
+            reload_js()
 
     def save_photo(filestorage, team: str):
         """ saves the given filestorage to PHOTO_STORAGE/{team}.ext where ext is the extension of filestorage """
@@ -242,8 +248,14 @@ def create_app(): # cursed but whatever
     @login_required
     @require_admin
     def main():
+        csv_data = []
+        if os.path.exists(infile):
+            with open(infile, "r") as r:
+                for line in r.readlines():
+                    if "MN" not in line:
+                        csv_data.append(line.replace("\n", ""))
         """ Renders homepage html template, passes the public key to the client to bind the service worker  """
-        return render_template_pass_vapids("home.html")
+        return render_template_pass_vapids("home.html", headers=json.dumps(apputils.get_input_headers(infile)).replace("\uffef", ""), inp_data=json.dumps(csv_data).replace("\\", "\\\\"))
     
     # OPEN (need to log in before you can be logged in)
     @app.route("/login", methods=["GET", "POST"])
@@ -337,7 +349,6 @@ def create_app(): # cursed but whatever
     def upload_photo():
         """ Save a photo for the cooresponding team """
         try:
-            print(request.files)
             if ("photo" in request.files) and (team := request.headers.get("team")) != None:
                 photo = request.files["photo"]
                 if photo.filename != "":
@@ -391,10 +402,12 @@ def create_app(): # cursed but whatever
                 return jsonify(headers)
         return ""
     
+    # RESTRICTED (possibly sensitive data access)
     @app.get("/team-photo")
     @login_required
     @require_admin
     def get_team_pics():
+        """ Return the uploaded picture cooresponding to the team given in the ?team urlparam """
         if "team" in request.args:
             try:
                 files_match = list(Path(app.config["PHOTO_STORAGE"]).glob(f"{request.args.get("team", 0).strip()}.*"))
@@ -403,6 +416,7 @@ def create_app(): # cursed but whatever
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Error: invalid request", 400
+    
     # OPEN (grafana needs this)
     @app.get("/next-3")
     def n3():
@@ -432,7 +446,7 @@ def create_app(): # cursed but whatever
             Complies with the restrict append level. """
         try:
             exists = os.path.exists(infile)
-            if app.config["RESTRICT_APPEND_LEVEL"] == 2 and "data" in request.files:
+            if request.headers.get("sending", "false") == "false" and app.config["RESTRICT_APPEND_LEVEL"] == 2 and "data" in request.files:
                 d_file = request.files["data"]
                 # \/ readlines returns a buffer (so use decode) and also use "MN" (which doesn't change from year to year bc theres always matches), to filter out in case its a header
                 lines_to_write = [l.decode("utf-8").strip() + "\n" for l in d_file.readlines() if l and ((not exists) or (not "MN" in l.decode("utf-8")))]
@@ -443,7 +457,7 @@ def create_app(): # cursed but whatever
                 d_file = request.files["data"]
                 exists = os.path.exists(infile)
                 lines_to_write = [l.decode("utf-8").strip() + "\n" for l in d_file.readlines() if l and ((not exists) or (not "MN" in l.decode("utf-8")))] # dodge header if exists
-                append_lines_nofile(lines_to_write)
+                append_lines_nofile(lines_to_write, request.headers.get("sending", "false") == "true")
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -562,12 +576,7 @@ def create_app(): # cursed but whatever
                 return "Bad TBA key", 400
             apputils.set_auth_key(auth_key)
             processor._teamsAt, processor._sched = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key)
-            try:
-                processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
-                reload_js()
-                return "", 200
-            except Exception as e:
-                return apputils.exception_format(e), 500
+            return "", 200
         else:
             return "Invalid Request", 400
 
@@ -604,8 +613,9 @@ def create_app(): # cursed but whatever
                     json.dump(request.json, w, indent=4) # indent=4 auto-formats the json with \t = 4 spaces
                 app.config.from_file("config/app-config.json", load=json.load)
                 processor._teamsAt, processor._sched = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key) # event key may have changed
-                processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # upgated processor, so this
-                reload_js()
+                if apputils.data_in_exists(app):
+                    processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # upgated processor, so this
+                    reload_js()
                 ensure_configurable_dirs() # if either of the the upl/out dirs were changed, they may no longer exist
                 return "", 200
             except Exception as e:
@@ -643,7 +653,6 @@ def create_app(): # cursed but whatever
 # =======================================================
 # Initialize Meshtastic Listener
 # =======================================================
-
     Thread(target=mesh_listen, daemon=True).start() # peak multithreading
 
     return app

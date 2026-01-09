@@ -144,10 +144,19 @@ def set_auth_key(key: str):
     with open("./secrets/key.txt", 'w') as w:
         w.write(key.strip())
 
+def data_in_exists(app):
+    return os.path.exists(f"./{app.config["UPLOAD_DIR"]}/{app.config["INPUT_FILENAME"]}")
+
 def change_un_pwd(current_secret_key: str, newun: str, newpwd: str):
     os.makedirs("./secrets", exist_ok=True)
     with open("./secrets/admin.txt", 'w') as f:
         f.write('\n'.join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
+
+def get_input_headers(file):
+    if (os.path.exists(file)):
+        with open(file, encoding='utf-8', mode='r') as r:
+            return r.readline().strip().split(',')
+    return []
 
 def line_str_hash(row: str):
         """ Hashes a line of text with sha256 """

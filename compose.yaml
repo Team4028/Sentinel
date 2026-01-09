@@ -17,6 +17,8 @@ services:
     restart: unless-stopped
     container_name: sentinel
     profiles: [localbuild] # build it yourself
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
     ports:
       - "5000:5000"
     volumes:

@@ -26,7 +26,7 @@ class TeamStruct:
     def output_dict(self, config):
         """ Get all of the team data as a dictionary, unwrapping DataFields to get averages and such """
         data = {}
-        # the | operator for dicts in python combines dicts with different entries
+        # the | operator for dicts in python combines dicts with different entries (OR's them)
         for field in config["teams"]: data |= DataField(field["name"], self.data[field["name"]], field["filters"]).objectify()
         return data
 
@@ -50,7 +50,7 @@ class DataField:
         return max(self.data) if len(self.data) > 0 else "N/A"
     def filter(self):
         """ returns the average of the dataset, filtered by median += 2 * MAD """
-        return float(np.around(np.mean(Processor.mad_filter(np.array(self.data))), 2))
+        return float(np.around(np.mean(Processor.mad_filter(np.array(self.data))), 2)) # around is just round
     
     calc_map = {"avg": average, "max": max, "fil": filter}
         
@@ -121,7 +121,7 @@ class Processor:
         return data[diff <= (c * mad)]
     
     def get_percent_scouted(self):
-        """ self-expanatory """
+        """ gets the percentage of teams scouted in the current comp """
         return round(len([x for x in self._teams.keys() if x in self._teamsAt]) / len(self._teamsAt), 2)
 
     def output_teams(self, outfile):
@@ -139,7 +139,7 @@ class Processor:
             if int(key.removeprefix("frc")) in self._teams:
                 score.append(self._teams[ # use the TeamStruct -> dict to get the data
                     int(key.removeprefix("frc"))
-                ].output_dict(self.config_data)[self.config_data["p-metric"]["source"]]) # use p-metric source
+                ].output_dict(self.config_data)[self.config_data["p-metric"]["source"]]) # use prediction metric source
 
         return score
     
@@ -200,9 +200,10 @@ class Processor:
 
     def proccess_data(self, data_filepath: str, outname):
         """ Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files """
-        
+
         if self._teamsAt == None or self._sched == None:
             raise Exception("Error: Missing TBA Key: Please add one in settings")
+        
 
         # CANT believe i forgot this
         self._teams.clear()

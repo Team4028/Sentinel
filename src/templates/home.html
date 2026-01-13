@@ -295,7 +295,7 @@
         <button id="reload-btn" class="btn" title="Ctrl+A (a for again because Ctrl+R is important)">Reload</button>
         <button id="pic-btn" class="btn" title="Ctrl+P">Upload Picture</button>
         <button id="download-btn" class="btn" title="Ctrl+D">Download</button>
-        <button class="btn" onclick="window.location.href='{{url_for('edit_yaml')}}'" title="Ctrl+E">Edit
+        <button class="btn" onclick="window.location.href='{{url_for('edit_yaml')}}'" title="Ctrl+E" id="edit-cfg-btn">Edit
             Config</button>
         <div class="top-corner-div">
             <button class="btn logout-btn" id="mode-btn" style="width: 120px;" onclick="setSending(!isSending)"
@@ -358,9 +358,14 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': "application/json",
-                    "X-CSRFToken": csrfToken
+                    "X-CSRFToken": csrfToken,
+                    "sending": isSending
                 },
-                body: JSON.stringify({lines: [await sha256(fullStr.join(','))]})
+                body: JSON.stringify({
+                    lines: [await sha256(fullStr.join(','))],
+                    mn: row.getCell("mn").getValue(),
+                    tn: row.getCell("tn").getValue()
+                })
             }).then(res => {
                 if (res.status == 200) {
                     let idx = row.getPosition();
@@ -390,6 +395,7 @@
         const dialog = document.getElementById("surprise");
         const teamName = document.getElementById("team-name");
         const teamPic = document.getElementById("team-file");
+        const editCfgBtn = document.getElementById("edit-cfg-btn");
         const settingsButton = document.getElementById("settings");
         const logoutButton = document.getElementById("logout");
         const speedQr = document.getElementById("speedqr");
@@ -608,6 +614,7 @@
                 pictureButton.style.display = "none";
                 reloadButton.style.display = "none";
                 settingsButton.style.display = "none";
+                editCfgBtn.style.display = "none";
                 textInput.style.width = "95%";
                 modeBtn.innerText = "Stands Mode";
                 document.getElementById("the-box").style.width = "90%";
@@ -620,6 +627,7 @@
                 endpointSelect.style.display = "block";
                 pictureButton.style.display = "inline-block";
                 reloadButton.style.display = "inline-block";
+                editCfgBtn.style.display = "inline-block";
                 settingsButton.style.display = "flex";
                 textInput.style.width = "90%";
                 modeBtn.innerText = "Pit Mode";

@@ -1,7 +1,8 @@
 from flask import Flask, request, render_template, jsonify, Response, send_file, url_for, redirect
-from flask_login import login_user, login_required, logout_user
-from flask_cors import cross_origin
+from flask_login import login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
+from flask_cors import CORS
+from flask_wtf.csrf import generate_csrf
 try: # janky import stuff: running src/app.py and running scouting_app.py via gunicorn lead to different import paths
     from lib.data_main import Processor
     import lib.mesh as mesh
@@ -25,6 +26,8 @@ import tempfile
 import logging
 import sqlite3
 from pathlib import Path
+import argparse
+import shlex
 
 def create_app(): # cursed but whatever
     """ Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy """
@@ -33,11 +36,14 @@ def create_app(): # cursed but whatever
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     # set up cross site request forgery protection because it's one line
     csrf = CSRFProtect(app)
+    CORS(app, supports_credentials=True, origins=["https://team4028.github.io", "http://localhost:5173"])
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
     vapid_keys = {}
     admin_login = {}
     CONFIG_FILE = os.path.join("config", "field-config.yaml")
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SECURE'] = False
 
     def render_template_style(template, **context):
         """ Renders the input template with the given context and also the accent and text colors of the app """
@@ -210,10 +216,27 @@ def create_app(): # cursed but whatever
         file_save = os.path.join(app.config["PHOTO_STORAGE"], team + ext)
         filestorage.save(file_save)
     
-    def handle_mesh_line(message):
+    def handle_mesh_line(message: str):
         """ This function is a consumer for a meshtastic message (line of csv) and will append it to the csv much like /append """
         message = message.strip()
-        if app.config["RESTRICT_APPEND_LEVEL"] == 2:
+        if message.startswith("@app.cmd"):
+            message = message.removeprefix("@app.cmd").strip()
+            parser = argparse.ArgumentParser(prog="@app.cmd")
+            parser.add_argument("--pwd", type=str, default="")
+            parser.add_argument("expr", nargs=argparse.REMAINDER)
+            argv = shlex.split(message)
+            args = parser.parse_args(argv)
+            print(args.pwd)
+            if args.pwd == admin_login["pwd"]:
+                cmd, *rest = args.expr
+                rest = ''.join(rest)
+                match (cmd):
+                    case "rm":
+                        print(rest)
+                        Processor.delete_match_team(infile, *rest.split(','))
+                # room for more
+
+        elif app.config["RESTRICT_APPEND_LEVEL"] == 2:
             process_queue.append(message)
             send_change_notification()
         else:
@@ -270,6 +293,16 @@ def create_app(): # cursed but whatever
                 return "Invalid Credentials", 401
         return render_template_style("login.html", form=form)
     
+    @app.get("/我是谁")
+    def whoami():
+        if current_user.is_authenticated:
+            return jsonify({"logged_in": True, "username": current_user.id})
+        return jsonify({"logged_in": False})
+
+    @app.get("/csrf")
+    def gen_csrf():
+        return jsonify({ "csrf": generate_csrf() })
+    
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
     @app.route("/logout")
     @login_required
@@ -315,7 +348,6 @@ def create_app(): # cursed but whatever
     
     # OPEN + CORS OPEN (just health, literally returns a string)
     @app.route("/health")
-    @cross_origin(origins="*") # average cors experience
     def health():
         """ Health check, primarily so that QRScout can know its url is correct """
         return "Sentinel is watching", 200
@@ -402,10 +434,8 @@ def create_app(): # cursed but whatever
                 return jsonify(headers)
         return ""
     
-    # RESTRICTED (possibly sensitive data access)
+    # OPEN (grafana required)
     @app.get("/team-photo")
-    @login_required
-    @require_admin
     def get_team_pics():
         """ Return the uploaded picture cooresponding to the team given in the ?team urlparam """
         if "team" in request.args:
@@ -438,7 +468,7 @@ def create_app(): # cursed but whatever
         return jsonify(next_3)
 
     # RESTRICTED (edits input data = bad)
-    @app.route("/append", methods=["POST"])
+    @app.post("/append")
     @login_required
     @require_admin
     def append_lines():
@@ -484,7 +514,7 @@ def create_app(): # cursed but whatever
     def delete_change(idx):
         """ For restrict append level 2: drops the `idx`'th queued append """
         if idx != None:
-            process_queue.pop(idx) # rm it from the queue
+            process_queue.pop(idx) # rm it from the queue/
             return "", 200
         return "Invalid request", 400
     
@@ -494,6 +524,8 @@ def create_app(): # cursed but whatever
     @require_admin
     def delete_lines():
         """ For restrict append level 1: deletes the already applied append cooresponding to the input json's `lines` field using `rm_row_hash` """
+        if "sending" in request.headers and request.headers.get("sending", "false") == "true" and "tn" in request.json and "mn" in request.json:
+            mesh.send_command(f"rm {request.json["mn"]},{request.json["tn"]}", admin_login["pwd"])
         if request.json and request.json["lines"]:
             rm_row_hash(request.json["lines"])
             return "", 200
@@ -507,7 +539,9 @@ def create_app(): # cursed but whatever
         """ Renders the editing template for web editing the field-config.yaml file """
         with open(CONFIG_FILE, "r") as r: # load CONFIG_FILE into mem to pass into jinja2
             content = r.read()
-        return render_template_pass_vapids("edit.html", yaml_content=content)
+        with open(os.path.join("config", "schema.json"), 'r') as r:
+            schema = r.read()
+        return render_template_pass_vapids("edit.html", yaml_content=content, schema=schema)
     
     # RESTRICTED (overwrites field-config = bad)
     @app.post("/save")

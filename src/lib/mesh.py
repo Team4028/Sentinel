@@ -14,6 +14,8 @@ def on_receive(packet, f):
         if packet['decoded']['portnum'] == 'TEXT_MESSAGE_APP':
             message = packet['decoded']['payload'].decode('utf-8')
             f(message)
+            if not local:
+                print(message)
     except KeyError:
         pass
     except UnicodeDecodeError:
@@ -38,6 +40,9 @@ def send_message(m):
     else:
         send_mesh_test(m)
 
+def send_command(cmd, pw_sha):
+    send_message(f"@app.cmd --pwd {pw_sha} {cmd}")
+
 
 def main(f):
     global local # ahh yes
@@ -49,6 +54,7 @@ def main(f):
         local = SerialInterface(serial_port)
         print(f"SerialInterface setup for listening on port {serial_port}")
     except Exception as e:
+        local = None
         print(f"Error opening port {serial_port}: {e}")
         print("This channel will remain open for testing purposes.")
     try: # listen forever

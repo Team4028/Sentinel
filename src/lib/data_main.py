@@ -198,6 +198,12 @@ class Processor:
                 } | matTeam)
         pd.DataFrame(df).to_csv(outfile, index=False)
 
+    def delete_match_team(data_filepath: str, mn: str, tn: str):
+        df = pd.read_csv(data_filepath)
+        df[~((df["MN"] == int(mn)) & (df["TN"] == int(tn)))].to_csv(data_filepath, index=False)
+
+
+
     def proccess_data(self, data_filepath: str, outname):
         """ Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files """
 

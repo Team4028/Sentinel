@@ -92,8 +92,12 @@
                 value: ymlContent, // get content from jinja2 from flask
                 theme: 'vs-dark',
                 language: "yaml", // doesn't really exist but wtvr
+                tabSize: 4,
+                insertSpaces: true,
+                detectIndentation: false,
                 automaticLayout: true
             });
+
             window.editor.onDidChangeModelContent(() => {
                 const current = window.editor.getValue();
                 dirty = current !== lastSaved;

@@ -1,0 +1,426 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 3,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "marcusolsson-csv-datasource",
+        "uid": "df4if7k30fk74d"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 9,
+        "x": 8,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "alt_field": "",
+        "autofit": false,
+        "baseUrl": "http://host.docker.internal:5000/team-photo?team=",
+        "height": "75",
+        "icon_field": "Team",
+        "open_url": {
+          "base_url": "",
+          "enable": false,
+          "metric_field": "",
+          "open_in_tab": true,
+          "suffix": ""
+        },
+        "overlay": {
+          "bindings": {
+            "bindings": [],
+            "has_text": true,
+            "unbounded": "#66666620"
+          },
+          "field": "",
+          "height": {
+            "size": 5,
+            "unit": "%"
+          },
+          "position": "Top right",
+          "width": {
+            "size": 5,
+            "unit": "%"
+          }
+        },
+        "shared_cross_hair": {
+          "backgroundColor": "#FFFFFF10",
+          "borderColor": "#FFFFFF20"
+        },
+        "singleFill": true,
+        "slideshow": {
+          "duration": 5000,
+          "enable": false,
+          "infinite": true,
+          "pauseOnHover": true,
+          "transition": "Slide",
+          "transition_duration": 1000
+        },
+        "tooltip": false,
+        "tooltip_date_elapsed": false,
+        "tooltip_field": "",
+        "tooltip_include_date": false,
+        "tooltip_include_field": true,
+        "underline": {
+          "bindings": {
+            "bindings": [],
+            "has_text": true,
+            "unbounded": "#CCCCDCFF"
+          },
+          "bindings_field": "",
+          "field": "",
+          "text_align": "left",
+          "text_size": "14"
+        },
+        "width": "75"
+      },
+      "pluginVersion": "4.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "marcusolsson-csv-datasource",
+            "uid": "df4if7k30fk74d"
+          },
+          "header": true,
+          "refId": "A",
+          "schema": [
+            {
+              "name": "",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": "\\b${TeamSelector:regex}\\b"
+                  }
+                },
+                "fieldName": "Team"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "dalvany-image-panel"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-csv-datasource",
+        "uid": "df4if7k30fk74d"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 2,
+      "options": {
+        "barRadius": 0.2,
+        "barWidth": 0.87,
+        "fullHighlight": false,
+        "groupWidth": 1,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xField": "Team",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "header": true,
+          "refId": "A",
+          "schema": [
+            {
+              "name": "",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": "\\b${TeamSelector:regex}\\b"
+                  }
+                },
+                "fieldName": "Team"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Team"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Algae Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Algae Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Algae Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Algae Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Algae Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Algae Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Total Algae"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Coral Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Coral Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Coral Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Coral Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Coral Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Coral Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Total Coral"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Cycles Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Cycles Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Cycles Auton"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Cycles Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Cycles Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Cycles Teleop"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Total Cycles"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Shallow"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Deep"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Score"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Score"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Score"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Defensive Rating"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Defensive Rating"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Matches Playing Defense"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "422",
+          "value": "422"
+        },
+        "definition": "",
+        "name": "TeamSelector",
+        "options": [],
+        "query": {
+          "header": true,
+          "ignoreUnknown": true,
+          "schema": [
+            {
+              "name": "Team",
+              "type": "string"
+            }
+          ]
+        },
+        "allowCustomValue": false,
+        "sort": 3,
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Team View",
+  "uid": "adcj6r4",
+  "version": 14
+}

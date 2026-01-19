@@ -170,6 +170,14 @@
             CSV Parsing Chunk Size (bytes)
             <input type="number" id="chunksize">
         </label>
+        <label title="Which game to process data for">
+            Scouting Year
+            <select id="game-year">
+            {% for year in years %}
+                <option value="{{year}}">{{year}}</option>
+            {% endfor %}
+            </select>
+        </label>
         <label title="While type of moderation to use while adding data to the input csv file">
             Append Moderation Behavior
             <select id="restrict-level">
@@ -242,6 +250,7 @@
         const acolor = document.getElementById("acola");
         const tcolor = document.getElementById("tcolor");
         const chunkSize = document.getElementById("chunksize");
+        const year = document.getElementById("game-year");
         const restrictLevel = document.getElementById("restrict-level");
         const notifyStore = document.getElementById("notify-storage");
         const uploadDir = document.getElementById("upl-dir");
@@ -284,6 +293,7 @@
             acolor.value = json["ACCENT_COLOR"];
             tcolor.value = json["TEXT_COLOR"];
             chunkSize.value = json["CHUNK_SIZE"];
+            year.value = json["YEAR"];
             restrictLevel.value = json["RESTRICT_APPEND_LEVEL"];
             notifyStore.value = json["NOTIFY_SUB_STORAGE"];
             uploadDir.value = json["UPLOAD_DIR"];
@@ -362,6 +372,7 @@
                 "ACCENT_COLOR": acolor.value,
                 "TEXT_COLOR": tcolor.value,
                 "CHUNK_SIZE": parseInt(chunkSize.value),
+                "YEAR": year.value,
                 "RESTRICT_APPEND_LEVEL": parseInt(restrictLevel.value),
                 "NOTIFY_SUB_STORAGE": notifyStore.value,
                 "UPLOAD_DIR": uploadDir.value,

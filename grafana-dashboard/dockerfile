@@ -31,8 +31,8 @@ RUN mkdir -p "$GF_PATHS_PLUGINS" && \
 
 # change 1: copy the dashboard/datasource prefabs over to grafana while building it, so dashboard is there out of the box
 COPY grafana-dashboard/grafana-data-sources.yaml /etc/grafana/provisioning/datasources/datasources.yaml
-COPY grafana-dashboard/ScoutingDashboard.json /var/lib/grafana/dashboards/scoutingdash.json
-COPY grafana-dashboard/TeamView.json /var/lib/grafana/dashboards/teamview.json
+COPY grafana-dashboard/ScoutingDashboard.json /var/lib/grafana/dashboards/ScoutingDashboard.json
+COPY grafana-dashboard/TeamView.json /var/lib/grafana/dashboards/TeamView.json
 COPY grafana-dashboard/grafana-dash-sources.yaml /etc/grafana/provisioning/dashboards/scoutingdash.yaml
 
 USER grafana

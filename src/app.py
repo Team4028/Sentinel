@@ -28,6 +28,8 @@ import sqlite3
 from pathlib import Path
 import argparse
 import shlex
+import shutil
+from jinja2 import Environment, FileSystemLoader
 
 def create_app(): # cursed but whatever
     """ Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy """
@@ -39,11 +41,28 @@ def create_app(): # cursed but whatever
     CORS(app, supports_credentials=True, origins=["https://team4028.github.io", "http://localhost:5173"])
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
+    POSS_YEARS = [f.stem.split('-', 2)[-1] for f in Path("./config").glob("field-config-*.yaml")]
     vapid_keys = {}
     admin_login = {}
-    CONFIG_FILE = os.path.join("config", "field-config.yaml")
+    config_file = os.path.join("config", f"field-config-{app.config["YEAR"]}.yaml")
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_SECURE'] = False
+
+    # check docker
+    is_docker = False
+    if os.path.exists("/.dockerenv"):
+        is_docker = True
+    try:
+        with open("/proc/1/cgroup", 'rt') as f:
+            for line in f:
+                if 'docker' in line:
+                    is_docker = True
+    except Exception:
+        pass
+    if os.getenv("container", None) is not None:
+        is_docker = True
+
+    GRAFANA_BASE_URL = "http://localhost:3005/d/" if is_docker else "http://localhost:3000/d/"
 
     def render_template_style(template, **context):
         """ Renders the input template with the given context and also the accent and text colors of the app """
@@ -97,8 +116,7 @@ def create_app(): # cursed but whatever
 # Parse field config and setup processor
 # =======================================================
 
-    config_data = lex_config()
-    processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key), config_data) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
+    processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key), lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
     infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])
     js = None # load the json file into mem so we don't have to read it every time its requested
 
@@ -109,6 +127,27 @@ def create_app(): # cursed but whatever
 # =======================================================
 
     init_loginm_app(app)
+
+    def compile_scouting_dashboard():
+        env = Environment(loader=FileSystemLoader("."))
+        for path in Path("./src/templates").glob("*.ji"):
+            tmpl = env.get_template(path.relative_to('.').as_posix())
+            fname = path.name[:-3] # remove .ji
+            abbrs = [(title, "".join(w[0].lower() for w in title.split())) for title in processor.config_data["dash-panel"][fname].keys()]
+            template_vars = {}
+            for abbr in abbrs:
+                template_vars |= {abbr[1] + "_headers": processor.config_data["dash-panel"][fname][abbr[0]]}
+            out_path = path.relative_to('.').as_posix().rsplit(".", 2)[0] + ".json"
+            Path(out_path).write_text(tmpl.render(template_vars))
+            if os.name == "posix":
+                shutil.copy(out_path, "/var/lib/grafana/dashboards/")
+
+    compile_scouting_dashboard()
+    
+    DASHBOARD_UIDS = {}
+    for dash in ["ScoutingDashboard.json", "TeamView.json"]:
+        with open(f"/var/lib/grafana/dashboards/{dash}", 'r') as r:
+            DASHBOARD_UIDS |= {dash: json.load(r)["uid"]}
 
     def reload_js():
         """ Updates the copy of the 'other-metrics.json' file in memory (used for '/percent' endpoint) to use the newest file """
@@ -174,6 +213,10 @@ def create_app(): # cursed but whatever
             app.logger.info(f"Removed {len(expired_ids)} expired subscriptions")
         con.commit()
         con.close()
+
+    compile_scouting_dashboard()
+            
+            
 
     def rm_row_hash(hashes):
         """ Deletes rows of data from the input csv by matching their hashes with the ones provided and then reprocesses the data """
@@ -302,6 +345,10 @@ def create_app(): # cursed but whatever
     @app.get("/csrf")
     def gen_csrf():
         return jsonify({ "csrf": generate_csrf() })
+    
+    @app.get("/run_thing")
+    def run_thing():
+        return app.config["YEAR"]
     
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
     @app.route("/logout")
@@ -537,7 +584,7 @@ def create_app(): # cursed but whatever
     @require_admin
     def edit_yaml():
         """ Renders the editing template for web editing the field-config.yaml file """
-        with open(CONFIG_FILE, "r") as r: # load CONFIG_FILE into mem to pass into jinja2
+        with open(config_file, "r") as r: # load CONFIG_FILE into mem to pass into jinja2
             content = r.read()
         with open(os.path.join("config", "schema.json"), 'r') as r:
             schema = r.read()
@@ -552,9 +599,10 @@ def create_app(): # cursed but whatever
         data = html.unescape(request.json.get("code", ""))
         try:
             yaml.safe_load(data)
-            with open(CONFIG_FILE, 'w') as f: # save
+            with open(config_file, 'w') as f: # save
                 f.write(data)
-            processor.config_data = lex_config() # reload config data
+            processor.config_data = lex_config(app.config["YEAR"]) # reload config data
+            compile_scouting_dashboard()
             processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # reprocess
             reload_js()
             return jsonify({"ok": True, "message": "Saved"})
@@ -567,7 +615,7 @@ def create_app(): # cursed but whatever
     @require_admin
     def edit_app_conf_page():
         """ Returns a template for editing the app configuration """
-        return render_template_pass_vapids("appconfig.html")
+        return render_template_pass_vapids("appconfig.html", years=POSS_YEARS)
 
     # RESTRICTED (don't want to share app config because it has secrets)
     @app.get("/get-config")
@@ -609,7 +657,7 @@ def create_app(): # cursed but whatever
             if not apputils.test_tba_key(auth_key): # health check
                 return "Bad TBA key", 400
             apputils.set_auth_key(auth_key)
-            processor._teamsAt, processor._sched = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key)
+            processor._teamsAt, processor._sched, processor._ranks = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key)
             return "", 200
         else:
             return "Invalid Request", 400
@@ -635,6 +683,10 @@ def create_app(): # cursed but whatever
                 return apputils.exception_format(e), 500
         return "Invalid Request", 400
     
+    @app.get("/picklist")
+    def picklist():
+        return render_template_style("picklist.html", teams=sorted([int(x) for x in processor._teamsAt]), dashes=json.dumps(DASHBOARD_UIDS), grafana_base=GRAFANA_BASE_URL)
+    
     # RESTRICTED (overwrites app config = bad)
     @app.post("/save-app-config")
     @login_required
@@ -646,10 +698,15 @@ def create_app(): # cursed but whatever
                 with open(os.path.join(app.root_path, "config", "app-config.json"), 'w') as w:
                     json.dump(request.json, w, indent=4) # indent=4 auto-formats the json with \t = 4 spaces
                 app.config.from_file("config/app-config.json", load=json.load)
-                processor._teamsAt, processor._sched = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key) # event key may have changed
+                processor.config_data = lex_config(app.config["YEAR"])
+                compile_scouting_dashboard()
+                processor._teamsAt, processor._sched, processor._ranks = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key) # event key may have changed
                 if apputils.data_in_exists(app):
-                    processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # upgated processor, so this
-                    reload_js()
+                    try:
+                        processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # updated processor, so this
+                        reload_js()
+                    except:
+                        os.remove(infile) # remove data_in if it's not playing nice (ie. 2025 data in, switches to 2026)
                 ensure_configurable_dirs() # if either of the the upl/out dirs were changed, they may no longer exist
                 return "", 200
             except Exception as e:

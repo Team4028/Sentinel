@@ -8,10 +8,19 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "Name of the field and new csv header to generate"},
-                    "equation": {"type": "string", "description": "A beakscript (lol) string defining the process to calculate this field"} 
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the field and new csv header to generate"
+                    },
+                    "equation": {
+                        "type": "string",
+                        "description": "A beakscript (lol) string defining the process to calculate this field"
+                    }
                 },
-                "required": ["name", "equation"]
+                "required": [
+                    "name",
+                    "equation"
+                ]
             },
             "uniqueItems": true
         },
@@ -20,8 +29,14 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "Name of the field and csv header to generate in the teams csv"},
-                    "derive": {"type": "string", "description": "A beakscript string defining the process by which the elements of this set are obtained"},
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the field and csv header to generate in the teams csv"
+                    },
+                    "derive": {
+                        "type": "string",
+                        "description": "A beakscript string defining the process by which the elements of this set are obtained"
+                    },
                     "avg": {
                         "type": "null",
                         "description": "Creates a field that is the average of this field"
@@ -35,7 +50,10 @@
                         "description": "Creates a field that is the filtered average of this field"
                     }
                 },
-                "required": ["name", "derive"]
+                "required": [
+                    "name",
+                    "derive"
+                ]
             }
         },
         "match-fields": {
@@ -43,10 +61,30 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "Name of the field and csv header to generate in the teams csv"},
-                    "derive": {"type": "string", "description": "A beakscript string defining the process by which the elements of this set are obtained"}
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the field and csv header to generate in the teams csv"
+                    },
+                    "derive": {
+                        "type": "string",
+                        "description": "A beakscript string defining the process by which the elements of this set are obtained"
+                    },
+                    "static": {
+                        "type": ["object", "null"],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["list", "number"]
+                            }
+                        },
+                        "required": ["type"],
+                        "description": "Derive the field via a function of the data of all teams in the match as opposed to for each team."
+                    }
                 },
-                "required": ["name", "derive"]
+                "required": [
+                    "name",
+                    "derive"
+                ]
             }
         },
         "predict-metric": {
@@ -61,7 +99,10 @@
                     "description": "The header (defined earlier in the YAML or in data-in) name (NOT BKSCRIPT) to pull from to calculate team score (ie. Average vs. Filtered)"
                 }
             },
-            "required": ["name", "source"]
+            "required": [
+                "name",
+                "source"
+            ]
         },
         "depth-predict-fields": {
             "type": "array",
@@ -77,7 +118,10 @@
                         "description": "The particular header name (not beakscript so no '$') from which to source this field"
                     }
                 },
-                "required": ["name", "source"]
+                "required": [
+                    "name",
+                    "source"
+                ]
             }
         }
     }

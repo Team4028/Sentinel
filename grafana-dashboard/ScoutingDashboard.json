@@ -542,27 +542,7 @@
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Max Algae Auton"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Algae Auton"
-                  },
-                  {
-                    "destinationType": "number",
                     "targetField": "Average Algae Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Algae Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Algae Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Total Algae"
                   },
                   {
                     "destinationType": "number",
@@ -570,27 +550,7 @@
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Max Coral Auton"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Coral Auton"
-                  },
-                  {
-                    "destinationType": "number",
                     "targetField": "Average Coral Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Coral Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Coral Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Total Coral"
                   },
                   {
                     "destinationType": "number",
@@ -598,39 +558,7 @@
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Max Cycles Auton"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Cycles Auton"
-                  },
-                  {
-                    "destinationType": "number",
                     "targetField": "Average Cycles Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Cycles Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Cycles Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Total Cycles"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Average Score"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Score"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Score"
                   },
                   {
                     "destinationType": "number",
@@ -642,88 +570,86 @@
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Average Defense Rating"
+                    "targetField": "Average Score"
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Max Defense Rating"
+                    "targetField": "Average Defensive Rating"
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Matches Playing Defense"
+                    "targetField": "Max Algae Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Algae Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Total Algae"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Coral Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Coral Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Total Coral"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Cycles Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Cycles Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Total Cycles"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Score"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Defensive Rating"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Algae Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Algae Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Coral Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Coral Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Cycles Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Cycles Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Score"
                   }
                 ],
                 "fields": {}
-              }
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {},
-                "includeByName": {},
-                "indexByName": {
-                  "Average Algae Auton": 20,
-                  "Average Algae Teleop": 17,
-                  "Average Coral Auton": 14,
-                  "Average Coral Teleop": 10,
-                  "Average Cycles Auton": 6,
-                  "Average Cycles Teleop": 1,
-                  "Average Deep": 4,
-                  "Average Defense Rating": 5,
-                  "Average Score": 24,
-                  "Average Shallow": 27,
-                  "Filtered Algae Auton": 22,
-                  "Filtered Algae Teleop": 19,
-                  "Filtered Coral Auton": 16,
-                  "Filtered Coral Teleop": 12,
-                  "Filtered Cycles Auton": 8,
-                  "Filtered Cycles Teleop": 3,
-                  "Filtered Score": 26,
-                  "Matches Playing Defense": 29,
-                  "Max Algae Auton": 21,
-                  "Max Algae Teleop": 18,
-                  "Max Coral Auton": 15,
-                  "Max Coral Teleop": 11,
-                  "Max Cycles Auton": 7,
-                  "Max Cycles Teleop": 2,
-                  "Max Defense Rating": 28,
-                  "Max Score": 25,
-                  "Max Total Algae": 23,
-                  "Max Total Coral": 13,
-                  "Max Total Cycles": 9,
-                  "Team": 0
-                },
-                "renameByName": {
-                  "Average Algae Auton": "Avg Alg Auto",
-                  "Average Algae Teleop": "Avg Alg Tele",
-                  "Average Coral Auton": "Avg Coral Auto",
-                  "Average Coral Teleop": "Avg Coral Tele",
-                  "Average Cycles Auton": "Avg Auto Cycles",
-                  "Average Cycles Teleop": "Avg Tele Cycles",
-                  "Average Deep": "Avg Deep",
-                  "Average Defense Rating": "Avg Defense Rating",
-                  "Average Score": "Avg Score",
-                  "Average Shallow": "Avg Shallow",
-                  "Filtered Algae Auton": "Filter Alg Auto",
-                  "Filtered Algae Teleop": "Filter Alg Tele",
-                  "Filtered Coral Auton": "Filter Coral Auto",
-                  "Filtered Coral Teleop": "Filter Coral Tele",
-                  "Filtered Cycles Auton": "Filter Auto Cycles",
-                  "Filtered Cycles Teleop": "Filter Tele Cycles",
-                  "Filtered Score": "Filter Score",
-                  "Matches Playing Defense": "Matches Defending",
-                  "Max Algae Auton": "Max Alg Auto",
-                  "Max Algae Teleop": "Max Algae Tele",
-                  "Max Coral Auton": "Max Coral Auto",
-                  "Max Coral Teleop": "Max Coral Tele",
-                  "Max Cycles Auton": "Max Auto Cycles",
-                  "Max Cycles Teleop": "Max Tele Cycles",
-                  "Max Defense Rating": "Max Defense Rating",
-                  "Max Score": "Max Score",
-                  "Max Total Algae": "Max Total Alg",
-                  "Max Total Coral": "Max Total Coral",
-                  "Max Total Cycles": "Max Total Cycles"
-                }
               }
             },
             {
@@ -883,19 +809,19 @@
                 "conversions": [
                   {
                     "destinationType": "number",
-                    "targetField": "Total Algae Auton"
-                  },
-                  {
-                    "destinationType": "number",
                     "targetField": "Total Coral Auton"
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Total Algae Teleop"
+                    "targetField": "Total Coral Teleop"
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Total Coral Teleop"
+                    "targetField": "Total Algae Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Total Algae Teleop"
                   },
                   {
                     "destinationType": "number",
@@ -1069,15 +995,11 @@
                 "conversions": [
                   {
                     "destinationType": "number",
+                    "targetField": "Team"
+                  },
+                  {
+                    "destinationType": "number",
                     "targetField": "Average Algae Auton"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Algae Auton"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Algae Auton"
                   },
                   {
                     "destinationType": "number",
@@ -1085,27 +1007,7 @@
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Max Algae Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Algae Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Total Algae"
-                  },
-                  {
-                    "destinationType": "number",
                     "targetField": "Average Coral Auton"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Coral Auton"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Coral Auton"
                   },
                   {
                     "destinationType": "number",
@@ -1113,43 +1015,11 @@
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Max Coral Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Coral Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Total Coral"
-                  },
-                  {
-                    "destinationType": "number",
                     "targetField": "Average Cycles Auton"
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Max Cycles Auton"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Cycles Auton"
-                  },
-                  {
-                    "destinationType": "number",
                     "targetField": "Average Cycles Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Cycles Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Filtered Cycles Teleop"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Total Cycles"
                   },
                   {
                     "destinationType": "number",
@@ -1165,23 +1035,79 @@
                   },
                   {
                     "destinationType": "number",
+                    "targetField": "Average Defensive Rating"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Algae Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Algae Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Total Algae"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Coral Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Coral Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Total Coral"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Cycles Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Cycles Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Max Total Cycles"
+                  },
+                  {
+                    "destinationType": "number",
                     "targetField": "Max Score"
                   },
                   {
                     "destinationType": "number",
+                    "targetField": "Max Defensive Rating"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Algae Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Algae Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Coral Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Coral Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Cycles Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Filtered Cycles Teleop"
+                  },
+                  {
+                    "destinationType": "number",
                     "targetField": "Filtered Score"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Average Defense Rating"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Max Defense Rating"
-                  },
-                  {
-                    "destinationType": "number",
-                    "targetField": "Matches Playing Defense"
                   }
                 ],
                 "fields": {}

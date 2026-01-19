@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{csrf_token()}}">
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+
+            --text: {{text}};
+
+            --muted: #8b949e;
+            --green: #2ea043;
+            --green-bg: #033a16;
+            --green-hover: #0f5323;
+            --border: #30363d;
+        }
+
+        #ateam-cont:has(input:focus) select {
+            height: 100px;
+            scrollbar-width: auto;
+        }
+
+        select {
+            display: block;
+            pointer-events: auto;
+            background: var(--panel);
+            color: var(--text);
+            width: 75%;
+            height: 0px;
+            transition: height 0.2s ease;
+            border: none;
+            outline: none;
+            scrollbar-width: none;
+        }
+
+        select option {
+            cursor: cell;
+        }
+
+        body {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        a {
+            cursor: pointer;
+        }
+
+        h1,
+        h2 {
+            font-weight: 600;
+        }
+
+        input {
+            width: 75%;
+            padding: 8px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+        }
+
+        input::placeholder {
+            color: var(--muted);
+        }
+
+        button {
+            padding: 8px 12px;
+            margin-left: 8px;
+            background: var(--green);
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            padding: 6px 10px;
+            background: var(--green-bg);
+            border-left: 4px solid var(--green);
+            border-radius: 4px;
+            cursor: move;
+            transition: background 0.15s ease, transform 0.15s ease;
+            position: relative;
+            overflow: visible;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        span {
+            pointer-events: none;
+        }
+
+        li:hover {
+            background: var(--green-hover);
+            transform: translateX(2px);
+        }
+
+        li::before {
+            content: "+";
+            color: var(--green);
+            font-weight: bold;
+        }
+
+        .empty {
+            color: var(--muted);
+        }
+
+        .line-text {
+            flex: 1;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .delete-btn {
+            position: absolute;
+            right: 10px;
+            opacity: 0;
+            transform: translateX(10px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            color: #f85149;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        ul {
+            min-height: 40px;
+        }
+
+        .delete-btn:hover {
+            /* slide out */
+            background: rgba(248, 81, 73, 0.15);
+        }
+
+        li:hover .delete-btn {
+            opacity: 1;
+            transform: translateX(0px);
+        }
+    </style>
+</head>
+
+<body style="display: flex; flex-direction: row;">
+    <div style="display: inline-block;">
+        <div id="ateam-cont" style="position: relative;">
+            <input type="text" id="ateam-search" placeholder="Search...">
+            <select id="ateam" size="6">
+                {% for team in teams %}
+                <option>{{team}}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <ul id="queuelist">
+        </ul>
+        <div id="pick1" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
+            <label for="pick1list">Pick 1</label>
+            <ul id="pick1list">
+            </ul>
+        </div>
+        <br>
+        <div id="pick2" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
+            <label for="pick2list">Pick 2</label>
+            <ul id="pick2list">
+            </ul>
+        </div>
+        <br>
+        <div id="pick3" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
+            <label for="pick3list">Pick 3</label>
+            <ul id="pick3list">
+            </ul>
+        </div>
+    </div>
+    <iframe style="display: inline-block;"
+        width="100%" height="1000px" frameborder="0" id="data"></iframe>
+    <script>
+        const dashes = JSON.parse(`{{dashes | safe}}`);
+        document.getElementById("data").src = `{{grafana_base}}${dashes["ScoutingDashboard.json"]}/scouting-dashboard?orgId=1&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s&viewPanel=panel-10`
+        const search = document.getElementById("ateam-search");
+        const select = document.getElementById("ateam");
+        const listElement = document.getElementById("queuelist");
+        const lists = [listElement, document.getElementById("pick1list"), document.getElementById("pick2list"), document.getElementById("pick3list")];
+        let draggingLI = null;
+
+        document.addEventListener("dragstart", (e) => {
+            if (e.target.tagName !== "LI") return;
+            draggingLI = e.target;
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", "");
+            draggingLI.classList.add("dragging");
+        });
+
+        document.addEventListener("dragend", () => {
+            if (!draggingLI) return;
+            draggingLI.classList.remove("dragging");
+            draggingLI = null;
+        });
+
+        document.querySelectorAll("ul").forEach(ul => ul.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            if (!draggingLI) return;
+            const afterElement = getDragAfter(ul, e.clientY);
+            if (afterElement == null) {
+                ul.appendChild(draggingLI);
+            } else {
+                ul.insertBefore(draggingLI, afterElement);
+            }
+            certainIndexList();
+        }));
+
+        function getDragAfter(cont, y) {
+            const draggableElements = Array.from(cont.querySelectorAll("li:not(.dragging)"));
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        search.addEventListener("input", () => {
+            const q = search.value.toLowerCase();
+            for (const opt of select.options) {
+                opt.hidden = !opt.innerText.toLowerCase().startsWith(q);
+            }
+        });
+
+        function certainIndexList() {
+            for (const ul of document.querySelectorAll("ul"))
+                for (const li_remains of ul.querySelectorAll("li")) {
+                    li_remains.querySelector("span").innerText = `${Array.from(ul.querySelectorAll("li")).indexOf(li_remains) + 1}: `;
+                }
+            serializeToLocalStorage();
+        }
+
+        [...select.children].forEach(c => c.addEventListener("mousedown", (e) => {
+            const li = document.createElement("li");
+            li.innerHTML = `
+                <span></span><span class='line-text'>${e.target.text}</span>
+                <a class="delete-btn" title="Remove Team">✕</a>
+            `;
+
+            li.onclick = function (e) {
+                if (e.target === this) {
+                    const ifr = document.createElement("iframe");
+                    ifr.src = `{{grafana_base}}${dashes["TeamView.json"]}/team-view?orgId=1&var-TeamSelector=${li.querySelector(".line-text").innerText}&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s`;
+                    ifr.width = "300px";
+                    ifr.height = "300px";
+                    ifr.frameBorder = "0";
+                    ifr.style.position = "fixed";
+                    ifr.style.top = e.clientY.toString() + "px";
+                    ifr.style.left = e.clientX.toString() + "px";
+                    ifr.addEventListener("mouseleave", () => ifr.remove());
+                    document.body.appendChild(ifr);
+                }
+            };
+
+            e.target.style.display = 'none';
+            li.querySelector("a").addEventListener("click", (e) => {
+                Array.from(select.options).find(opt => opt.textContent === li.querySelector(".line-text").innerText).style.display = "block";
+                li.remove();
+                certainIndexList();
+            });
+            li.draggable = true;
+            listElement.appendChild(li);
+            certainIndexList();
+        }));
+
+        function serializeToLocalStorage() {
+            const teams = Object.fromEntries(lists.map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)]));
+            localStorage.setItem("Picklist", JSON.stringify(teams));
+        }
+
+        function deserializeFromLocalStorage() {
+            const data = JSON.parse(localStorage.getItem("Picklist") ?? "{}");
+            for (const ul of lists) {
+                if (data[ul.id]) for (const team of data[ul.id]) {
+                    const rm = [...document.querySelectorAll("li")].find(li => li.querySelector(".line-text").innerText === team);
+                    if (rm) rm.remove();
+                    const li = document.createElement("li");
+                    li.innerHTML = `
+                        <span></span><span class='line-text'>${team}</span>
+                        <a class='delete-btn' title="Remove Team">✕</a>
+                    `;
+                    li.onclick = function (e) {
+                        if (e.target === this) {
+                            const ifr = document.createElement("iframe");
+                            ifr.src = `{{grafana_base}}${dashes["TeamView.json"]}/team-view?orgId=1&var-TeamSelector=${team}&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s`;
+                            ifr.width = "300px";
+                            ifr.height = "300px";
+                            ifr.frameBorder = "0";
+                            ifr.style.position = "fixed";
+                            ifr.style.top = e.clientY.toString() + "px";
+                            ifr.style.left = e.clientX.toString() + "px";
+                            ifr.addEventListener("mouseleave", () => ifr.remove());
+                            document.body.appendChild(ifr);
+                        }
+                    };
+
+                    [...select.options].find(opt => opt.textContent === team).style.display = "none";
+
+                    li.querySelector("a").addEventListener("click", () => {
+                        Array.from(select.options).find(opt => opt.textContent === team).style.display = 'block';
+                        li.remove();
+                        certainIndexList();
+                    });
+                    li.draggable = true;
+                    ul.appendChild(li);
+                    certainIndexList();
+                }
+            }
+        }
+        deserializeFromLocalStorage();
+    </script>
+</body>
+
+</html>

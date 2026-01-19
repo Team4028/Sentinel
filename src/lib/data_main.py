@@ -4,10 +4,11 @@ import json
 import numpy as np
 import warnings
 try: 
-    from lib.data_config import eval_beakscript
+    from lib.data_config import eval_beakscript, FANCY_FIL
 except ModuleNotFoundError:
-    from src.lib.data_config import eval_beakscript
+    from src.lib.data_config import eval_beakscript, FANCY_FIL
 from collections import defaultdict
+from collections.abc import Iterable
 
 class TeamStruct:
     def __init__(self):
@@ -25,13 +26,10 @@ class TeamStruct:
 
     def output_dict(self, config):
         """ Get all of the team data as a dictionary, unwrapping DataFields to get averages and such """
-        data = {}
+        data = {"Rank": self.data["Rank"][0], "Average RP": self.data["Average RP"][0]}
         # the | operator for dicts in python combines dicts with different entries (OR's them)
         for field in config["teams"]: data |= DataField(field["name"], self.data[field["name"]], field["filters"]).objectify()
         return data
-
-# more human readable names for the yaml filters
-FANCY_FIL = {"avg": "Average", "max": "Max", "fil": "Filtered"}
     
 class DataField:
     filters = []
@@ -86,31 +84,15 @@ class MatchStruct:
 
 class Processor:
     """ Main class of data calculation, handles all calculation basically """
-    CORAL_COLUMNS_A = [
-        "AL1",
-        "AL2",
-        "AL3",
-        "AL4",
-    ]
-    CORAL_COLUMNS_T = [
-        "TL1",
-        "TL2",
-        "TL3",
-        "TL4",
-    ]
-    ALGAE_COLUMNS_A = ["ATP", "ATB"]
-    ALGAE_COLUMNS_T = ["AP", "AB"]
-    CORAL_VALS_A = [3, 4, 6, 7]
-    CORAL_VALS_T = [2, 3, 4, 5]
-    ALGAE_VALS = [2, 4]
 
-    def __init__(self, outpath, chunk_size, teams, sched, config_data):
+    def __init__(self, outpath, chunk_size, teams, sched, ranks, config_data):
         self.chunk_size = chunk_size
         self.outpath = outpath
         self._teamsAt = teams
         self._sched = sched
         self._teams: dict[str, TeamStruct] = {}
         self._matches = {}
+        self._ranks = ranks
         self.config_data = config_data
 
     def mad_filter(data, c=2): #https://real-statistics.com/sampling-distributions/identifying-outliers-missing-data
@@ -233,6 +215,10 @@ class Processor:
                     chunk[comp["name"]] = eval_beakscript(comp["eq"], chunk)
                 for team in chunk["TN"].unique(): # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
                     team_data = {}
+                    if int(team) in self._ranks.keys():
+                        team_data["Rank"], team_data["Average RP"] = self._ranks[int(team)]
+                    else:
+                        team_data["Rank"], team_data["Average RP"] = (None, None)
                     for field in self.config_data["teams"]:
                         # call the beakscript functions for the derived fields where the TN == team
                         val = eval_beakscript(field["derive"], chunk.loc[chunk["TN"] == team])
@@ -241,15 +227,29 @@ class Processor:
                         team_data[field["name"]] = val # write the field to the csv
                     self._teams.setdefault(int(team), TeamStruct()).extend_data(team_data) # add the data to the appropriate team struct
                 for match in chunk["MN"].unique(): # same thing as teams
-                    for team in chunk.loc[chunk["MN"] == match, "TN"].unique(): # the .unique is uneccesary but safe
-                        row = chunk.loc[(chunk["TN"] == team) & (chunk["MN"] == match)]
+                    row = chunk.loc[chunk["MN"] == match]
+                    static_fields = {}
+                    for field in self.config_data["matches"]:
+                        if "static" in field.keys():
+                            val = eval_beakscript(field["derive"], row)
+                            if type(val) == pd.Series:
+                                val = val.tolist()
+
+                            static_fields |= {field["name"]: val}
+                    for i, team in enumerate(chunk.loc[chunk["MN"] == match, "TN"].unique()): # the .unique is uneccesary but safe
                         data = {}
                         for field in self.config_data["matches"]:
+                            row = chunk.loc[(chunk["TN"] == team) & (chunk["MN"] == match)]
+                            if "static" in field.keys(): continue
                             # get derived fields for matches
                             val = eval_beakscript(field["derive"], row.iloc[0])
                             if type(val) == pd.Series:
                                 val = val.tolist()
                             data[field["name"]] = val
+                        for f, fv in static_fields.items():
+                            if isinstance(fv, Iterable) and not isinstance(fv, (str, bytes)):
+                                data[f] = fv[i]
+                            else: data[f] = fv
                         self._matches.setdefault(match, MatchStruct()).add_team_data(
                             int(team),
                             data

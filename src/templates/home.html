@@ -297,6 +297,7 @@
         <button id="download-btn" class="btn" title="Ctrl+D">Download</button>
         <button class="btn" onclick="window.location.href='{{url_for('edit_yaml')}}'" title="Ctrl+E" id="edit-cfg-btn">Edit
             Config</button>
+        <button id="picklist-btn" class="btn" title="Ctrl+Q" style="width: 120px;" onclick="window.location.href='{{url_for('picklist')}}'">Picklist</button>
         <div class="top-corner-div">
             <button class="btn logout-btn" id="mode-btn" style="width: 120px;" onclick="setSending(!isSending)"
                 title="Ctrl+M">Pit Mode</button>
@@ -532,6 +533,9 @@
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "l") {
                 ev.preventDefault();
                 window.location.href = "{{url_for('logout')}}";
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "q") {
+                ev.preventDefault();
+                window.location.href = "{{url_for('picklist')}}";
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "u") {
                 ev.preventDefault();
                 if (!uploadBtn.disabled)

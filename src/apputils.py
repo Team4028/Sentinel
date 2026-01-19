@@ -70,11 +70,22 @@ def test_tba_key(key: str):
         return True
     raise Exception(f"Error testing tba key: unexpected reseponse {response.status_code}: {response.text}")
 
+def get_tba_ranks(event_key, api_key, teams):
+    if api_key == None or api_key.strip() == "":
+        return None
+
+    ranks = requests.get(
+            f"https://www.thebluealliance.com/api/v3/event/{event_key}/rankings",
+            headers={"X-TBA-Auth-Key": api_key},
+    ).json()
+    
+    return dict(map(lambda x: (x, [(t["rank"], t["sort_orders"][0]) for t in ranks["rankings"] if t["team_key"] == f"frc{x}"][0]), teams))
+
 def load_tba_data(event_key, api_key):
     """ Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule) """
 
     if api_key == None or api_key.strip() == "":
-        return (None, None) # the propogation
+        return (None, None, None) # the propogation
 
     teams = [
         x["team_number"]
@@ -111,7 +122,7 @@ def load_tba_data(event_key, api_key):
         ).json()
     ], key=sched_sorter)
 
-    return (teams, schedule)
+    return (teams, schedule, get_tba_ranks(event_key, api_key, teams))
 
 def read_secrets():
     """ Reads the different secrets of the repo: vapid keys, admin creds, flask secret key, and tba auth key in that order """

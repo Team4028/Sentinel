@@ -1,0 +1,124 @@
+compute-fields:
+  - name: Total ACoral
+    equation: $AL1,AL2,AL3,AL4
+  - name: Total TCoral
+    equation: $TL1,TL2,TL3,TL4
+  - name: Total AAlgae
+    equation: $ATP,ATB
+  - name: Total TAlgae
+    equation: $AP,AB
+  - name: Total ACycles
+    equation: $Total ACoral,Total AAlgae
+  - name: Total TCycles
+    equation: $Total TCoral,Total TAlgae
+  - name: Total Score
+    # explanation of formula for example usage of this scripting pseudolang:
+    
+    # when dealing with sets in the form {a,b}, basic operaters are element wise (ex. {2, 3} + {2, 4} = {4, 7})
+    # as such, finding the total score works as follows:
+    # STEP 1 (line 1): calculate the total coral score in auton: multiply the set of coral cycles on each level by their respective point values,
+    #   and then use the @sum set operator to calculate the sum of each entry
+    # STEP 2 (line 2): calculate the total coral score in teleop: same method as the auton coral score, but with different weights for tele
+    # STEP 3 (line 3): algae score: this is simpler because there is no auton bonus for algae. Tou can add up the algae cycles for the processer and
+    #   the barge respectively inside the list delcaration and then multiply it by the weights, summing the result
+    # STEP 4 (line 4): Finally, you calculate mobility and endgame scores using an identical method to above
+    # Summing the result of these steps allows you to find the total score by a robot in a match
+    equation: >-
+      @sum({$AL1, $AL2, $AL3, $AL4} * {3, 4, 6, 7}) +
+      @sum({$TL1, $TL2, $TL3, $TL4} * {2, 3, 4, 5}) +
+      @sum({$ATP + $AP, $ATB + $AB} * {2, 4}) +
+      @sum({$M, $CP, $CS, $CD} * {3, 2, 6, 12})
+
+team-fields:
+  - name: Algae Auton
+    derive: $Total AAlgae
+    avg:
+    max:
+    fil:
+  - name: Algae Teleop
+    derive: $Total TAlgae
+    avg:
+    max:
+    fil:
+  - name: Total Algae
+    derive: $Total AAlgae,Total TAlgae
+    max:
+  - name: Coral Auton
+    derive: $Total ACoral
+    avg:
+    max:
+    fil:
+  - name: Coral Teleop
+    derive: $Total TCoral
+    avg:
+    max:
+    fil:
+  - name: Total Coral
+    derive: $Total ACoral,Total TCoral
+    max:
+  - name: Cycles Auton
+    derive: $Total ACycles
+    avg:
+    max:
+    fil:
+  - name: Cycles Teleop
+    derive: $Total TCycles
+    avg:
+    max:
+    fil:
+  - name: Total Cycles
+    derive: $Total ACycles,Total TCycles
+    max:
+  - name: Shallow
+    derive: $CS
+    avg:
+  - name: Deep
+    derive: $CD
+    avg:
+  - name: Score
+    derive: $Total Score
+    avg:
+    max:
+    fil:
+  - name: Defensive Rating
+    derive: $DR[$D = 1]
+    avg:
+    max:
+  - name: Matches Playing Defense
+    derive: "@len$DR[$D = 1]"
+match-fields:
+  - name: Total Coral Auton
+    derive: $Total ACoral
+  - name: Total Coral Teleop
+    derive: $Total TCoral
+  - name: Total Algae Auton
+    derive: $Total AAlgae
+  - name: Total Algae Teleop
+    derive: $Total TAlgae
+  - name: Total Cycles Auton
+    derive: $Total ACycles
+  - name: Total Cycles Teleop
+    derive: $Total TCycles
+  - name: Score
+    derive: $Total Score
+  - name: Park
+    derive: $CP
+  - name: Shallow Climb
+    derive: $CS
+  - name: Deep Climb
+    derive: $CD
+
+predict-metric:
+  name: Score
+  source: Filtered Score
+depth-predict-fields:
+  - name: Shallow Climb
+    source: Average Shallow
+  - name: Deep Climb
+    source: Average Deep
+  - name: Auto Cycles
+    source: Average Cycles Auton
+  - name: Teleop Cycles
+    source: Average Cycles Teleop
+  - name: Def
+    source: Average Defensive Rating

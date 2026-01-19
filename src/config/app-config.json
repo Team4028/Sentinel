@@ -3,6 +3,7 @@
     "ACCENT_COLOR": "#8307b0",
     "TEXT_COLOR": "#ffffff",
     "CHUNK_SIZE": 10000,
+    "YEAR": "2025",
     "RESTRICT_APPEND_LEVEL": 1,
     "NOTIFY_SUB_STORAGE": "./storage/subs.db",
     "UPLOAD_DIR": "datain",

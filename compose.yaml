@@ -8,6 +8,7 @@ services:
       - "5000:5000"
     volumes:
       - appdata:/app # save all of the files to the volume
+      - "grafana_storage:/var/lib/grafana"
 
   backend-buildsource:
     build:
@@ -23,6 +24,7 @@ services:
       - "5000:5000"
     volumes:
       - appdata:/app # save all of the files to the volume
+      - "grafana_storage:/var/lib/grafana"
 
   grafana:
     image: grafana-scouting:latest

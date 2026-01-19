@@ -42,7 +42,7 @@ jobs:
                 cp ./compose.yaml scouting-app
                 cp ./compose/docker-compose-runner.env scouting-app/.env
                 cp ./compose/docker-compose-runner.sh scouting-app/run.sh
-                cp ./compose/win-wsl-mount-usb.sh scouting-app/mount.sh
+                cp ./compose/win-wsl-mount-usb.bat scouting-app/mount.sh
                 chmod +x scouting-app/run.sh
                 cp ./compose/docker-compose-runner.bat scouting-app/run.bat
                 cp ./grafana-dashboard/grafana.ini scouting-app/grafana-dashboard/grafana.ini

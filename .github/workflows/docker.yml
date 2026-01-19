@@ -40,11 +40,11 @@ jobs:
               # copy all of the necessary files from the repo to the runner 
               run: |
                 cp ./compose.yaml scouting-app
-                cp ./compose/docker-compose-runner.env scouting-app/.env
-                cp ./compose/docker-compose-runner.sh scouting-app/run.sh
-                cp ./compose/win-wsl-mount-usb.bat scouting-app/mount.sh
+                cp ./compose/.env scouting-app/.env
+                cp ./compose/run.sh scouting-app/run.sh
+                cp ./compose/mount.bat scouting-app/mount.bat
                 chmod +x scouting-app/run.sh
-                cp ./compose/docker-compose-runner.bat scouting-app/run.bat
+                cp ./compose/run.bat scouting-app/run.bat
                 cp ./grafana-dashboard/grafana.ini scouting-app/grafana-dashboard/grafana.ini
 
               # zip up and export all of the things

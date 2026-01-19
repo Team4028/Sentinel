@@ -6,9 +6,12 @@ services:
     profiles: [prod] # already exists
     ports:
       - "5000:5000"
+    device_cgroup_rules:
+      - 'c 188:* rmw'
     volumes:
       - appdata:/app # save all of the files to the volume
       - "grafana_storage:/var/lib/grafana"
+      - /dev:/dev # allows to access usb w/o error if not plugged in
 
   backend-buildsource:
     build:
@@ -18,13 +21,14 @@ services:
     restart: unless-stopped
     container_name: sentinel
     profiles: [localbuild] # build it yourself
-    devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
     ports:
       - "5000:5000"
+    device_cgroup_rules:
+      - 'c 188:* rmw'
     volumes:
       - appdata:/app # save all of the files to the volume
       - "grafana_storage:/var/lib/grafana"
+      - /dev:/dev
 
   grafana:
     image: grafana-scouting:latest

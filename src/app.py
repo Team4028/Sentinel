@@ -118,6 +118,7 @@ def create_app(): # cursed but whatever
     try:
         processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key), lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
     except Exception:
+        app.logger.error("Error collecting tba data")
         processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], None, None, None, lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
 
     infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])

@@ -137,7 +137,7 @@ def create_app(): # cursed but whatever
             template_vars = {}
             for abbr in abbrs:
                 template_vars |= {abbr[1] + "_headers": processor.config_data["dash-panel"][fname][abbr[0]]}
-            out_path = path.relative_to('.').as_posix().rsplit(".", 2)[0] + ".json"
+            out_path = "./grafana-dashboard/" + path.relative_to('.').as_posix().rsplit(".", 2)[0].rsplit("/")[-1] + ".json"
             Path(out_path).write_text(tmpl.render(template_vars))
             if os.name == "posix":
                 shutil.copy(out_path, "/var/lib/grafana/dashboards/")
@@ -146,7 +146,7 @@ def create_app(): # cursed but whatever
     
     DASHBOARD_UIDS = {}
     for dash in ["ScoutingDashboard.json", "TeamView.json"]:
-        with open(f"/var/lib/grafana/dashboards/{dash}", 'r') as r:
+        with open(f"/var/lib/grafana/dashboards/{dash}" if is_docker else f"./grafana-dashboard/{dash}", 'r') as r:
             DASHBOARD_UIDS |= {dash: json.load(r)["uid"]}
 
     def reload_js():

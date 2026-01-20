@@ -9,6 +9,7 @@ import base64
 import traceback
 import requests
 import re
+import json
 import time
 
 def generate_keys():
@@ -55,9 +56,28 @@ def safer_replace(src, dest):
 
     os.remove(src)
 
+def add_jsons_to_cache(js: dict):
+    if os.path.exists('config/tba-cache.json'):
+        with open('config/tba-cache.json', 'r') as r:
+            js_tmp = json.load(r)
+    else: js_tmp = {}
+    for key in js.keys():
+        js_tmp[key] = js[key]
+    with open('config/tba-cache.json', 'w') as w:
+        json.dump(js_tmp, w, indent=4)
+
+def tba_health():
+    try:
+        res = requests.get("https://www.thebluealliance.com", timeout=10)
+    except Exception:
+        return False
+    return res.status_code == 200
+
 def test_tba_key(key: str):
     if key == None or key.strip() == "": # dont bother testing an empty key
         return False
+    if not tba_health():
+        raise Exception("Error testing tba key: no wifi")
     # use time.time to force a refresh of the server and prevent caches from accepting junk keys
     response = requests.get(f"https://www.thebluealliance.com/api/v3/event/2025iri?_={int(time.time()*1_000)}", headers={
         "X-TBA-Auth-Key": key,
@@ -71,29 +91,46 @@ def test_tba_key(key: str):
     raise Exception(f"Error testing tba key: unexpected reseponse {response.status_code}: {response.text}")
 
 def get_tba_ranks(event_key, api_key, teams):
-    if api_key == None or api_key.strip() == "":
-        return None
-
-    ranks = requests.get(
-            f"https://www.thebluealliance.com/api/v3/event/{event_key}/rankings",
-            headers={"X-TBA-Auth-Key": api_key},
-    ).json()
+    
+    if tba_health() and not (api_key == None or api_key.strip() == ""):
+        ranks = requests.get(
+                f"https://www.thebluealliance.com/api/v3/event/{event_key}/rankings",
+                headers={"X-TBA-Auth-Key": api_key},
+        ).json()
+        add_jsons_to_cache({"ranks": ranks})
+    elif os.path.exists("config/tba-cache.json"):
+        with open('config/tba-cache.json', 'r') as r:
+            ranks = json.load(r)['ranks']
+    else:
+        raise Exception("Error: no wifi or tba cache")
     
     return dict(map(lambda x: (x, [(t["rank"], t["sort_orders"][0]) for t in ranks["rankings"] if t["team_key"] == f"frc{x}"][0]), teams))
 
 def load_tba_data(event_key, api_key):
     """ Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule) """
 
-    if api_key == None or api_key.strip() == "":
-        return (None, None, None) # the propogation
-
-    teams = [
-        x["team_number"]
-        for x in requests.get(
-            f"https://www.thebluealliance.com/api/v3/event/{event_key}/teams",
+    if not tba_health() or api_key == None or api_key.strip() == "":
+        if os.path.exists('config/tba-cache.json'):
+            with open('config/tba-cache.json', 'r') as r:
+                js = json.load(r)
+                teams = [x["team_number"] for x in js["teams"]]
+                schedJson = js["matches"]
+        else:
+            raise Exception("Error: no wifi or tba cache")
+    else:
+        teamJSON = requests.get(
+                f"https://www.thebluealliance.com/api/v3/event/{event_key}/teams",
+                headers={"X-TBA-Auth-Key": api_key},
+            ).json()
+        teams = [
+            x["team_number"]
+            for x in teamJSON
+        ]
+        schedJson = requests.get(
+            f"https://www.thebluealliance.com/api/v3/event/{event_key}/matches",
             headers={"X-TBA-Auth-Key": api_key},
         ).json()
-    ]
+        add_jsons_to_cache({"teams": teamJSON, "matches": schedJson})
 
     def sched_sorter(match): # sorting function
         key = match["k"].removeprefix(event_key + "_")
@@ -116,10 +153,7 @@ def load_tba_data(event_key, api_key):
             "r": x["alliances"]["red"]["team_keys"],
             "b": x["alliances"]["blue"]["team_keys"],
         }
-        for x in requests.get(
-            f"https://www.thebluealliance.com/api/v3/event/{event_key}/matches",
-            headers={"X-TBA-Auth-Key": api_key},
-        ).json()
+        for x in schedJson
     ], key=sched_sorter)
 
     return (teams, schedule, get_tba_ranks(event_key, api_key, teams))

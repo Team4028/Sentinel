@@ -9,4 +9,4 @@ if %errorlevel% NEQ 0 (
 
 for /f "tokens=1" %%a in ('usbipd list ^| findstr /C:"USB to UART Bridge"') do set USBID=%%a
 usbipd bind -b %USBID%
-usbipd attach -w -a -b %USBID%
+usbipd attach -w -b %USBID%

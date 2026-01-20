@@ -141,6 +141,7 @@ def create_app(): # cursed but whatever
             template_vars = {}
             for abbr in abbrs:
                 template_vars |= {abbr[1] + "_headers": processor.config_data["dash-panel"][fname][abbr[0]]}
+            os.makedirs("./grafana-dashboard", exist_ok=True)
             out_path = "./grafana-dashboard/" + path.relative_to('.').as_posix().rsplit(".", 2)[0].rsplit("/")[-1] + ".json"
             Path(out_path).write_text(tmpl.render(template_vars))
             if os.name == "posix":

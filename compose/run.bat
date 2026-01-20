@@ -8,7 +8,7 @@ for %%f in (*.tar) do (
 
 wsl -l >nul 2>&1
 if %errorlevel%==0 (
-    .\mount.bat
+    call .\mount.bat
 ) else (
     echo "Error: No WSL2 distro detected: please install to pass USB devices to Docker"
     exit 1

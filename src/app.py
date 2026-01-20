@@ -115,8 +115,11 @@ def create_app(): # cursed but whatever
 # =======================================================
 # Parse field config and setup processor
 # =======================================================
+    try:
+        processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key), lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
+    except Exception:
+        processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], None, None, None, lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
 
-    processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key), lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
     infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])
     js = None # load the json file into mem so we don't have to read it every time its requested
 
@@ -652,15 +655,18 @@ def create_app(): # cursed but whatever
     def set_tba_key():
         """ verifies the inputted api key sent via json["key"], applies it and writes it to key.txt, and reprocesses data """
         nonlocal auth_key
-        if request.json and request.json["key"]:
-            auth_key = request.json["key"].strip()
-            if not apputils.test_tba_key(auth_key): # health check
-                return "Bad TBA key", 400
-            apputils.set_auth_key(auth_key)
-            processor._teamsAt, processor._sched, processor._ranks = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key)
-            return "", 200
-        else:
-            return "Invalid Request", 400
+        try:
+            if request.json and request.json["key"]:
+                auth_key = request.json["key"].strip()
+                if not apputils.test_tba_key(auth_key): # health check
+                    return "Bad TBA key", 400
+                apputils.set_auth_key(auth_key)
+                processor._teamsAt, processor._sched, processor._ranks = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key)
+                return "", 200
+            else:
+                return "Invalid Request", 400
+        except Exception as e:
+            return apputils.exception_format(e), 500
 
     # RESTRICTED (overwrites un/pwd = bad)
     @app.post("/set-admin-creds")

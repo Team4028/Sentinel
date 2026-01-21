@@ -186,10 +186,6 @@
                 <option value="2">Active</option>
             </select>
         </label>
-        <label title="The database file in which the sqlite database for webpush subscriptions is stored">
-            Notification Subscription Storage Location
-            <input type="text" id="notify-storage">
-        </label>
         <label title="The directory in which the input csv file is stored">
             Upload Directory
             <input type="text" id="upl-dir">
@@ -252,7 +248,6 @@
         const chunkSize = document.getElementById("chunksize");
         const year = document.getElementById("game-year");
         const restrictLevel = document.getElementById("restrict-level");
-        const notifyStore = document.getElementById("notify-storage");
         const uploadDir = document.getElementById("upl-dir");
         const uplName = document.getElementById("inp-file");
         const outDir = document.getElementById("out-dir");
@@ -295,7 +290,6 @@
             chunkSize.value = json["CHUNK_SIZE"];
             year.value = json["YEAR"];
             restrictLevel.value = json["RESTRICT_APPEND_LEVEL"];
-            notifyStore.value = json["NOTIFY_SUB_STORAGE"];
             uploadDir.value = json["UPLOAD_DIR"];
             uplName.value = json["INPUT_FILENAME"];
             outDir.value = json["OUT_DIR"];
@@ -374,7 +368,6 @@
                 "CHUNK_SIZE": parseInt(chunkSize.value),
                 "YEAR": year.value,
                 "RESTRICT_APPEND_LEVEL": parseInt(restrictLevel.value),
-                "NOTIFY_SUB_STORAGE": notifyStore.value,
                 "UPLOAD_DIR": uploadDir.value,
                 "INPUT_FILENAME": uplName.value,
                 "OUT_DIR": outDir.value,

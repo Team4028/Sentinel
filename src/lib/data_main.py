@@ -254,6 +254,7 @@ class Processor:
                             int(team),
                             data
                         )
+                print("Writing chunk...")
                 # write the main csv
                 chunk.to_csv(
                     os.path.join(self.outpath, outname),
@@ -262,8 +263,14 @@ class Processor:
                 )
                 first = False
         # write all the other files
+        print("Writing teams...")
         self.output_teams(os.path.join(self.outpath, outname + "-teams.csv"))
+        print("Writing matches...")
         self.output_matches(os.path.join(self.outpath, outname + "-matches.csv"))
+        print("Writing predictions...")
         self.predict_matches(os.path.join(self.outpath, outname + "-predict.csv"))
+        print("Writing deep predictions...")
         self.match_predict_depth(os.path.join(self.outpath, outname + "-morepredict.csv"))
+        print("Writing other metrics...")
         self.write_other_metrics(os.path.join(self.outpath, "other-metrics.json"))
+        print("Done!!!!")

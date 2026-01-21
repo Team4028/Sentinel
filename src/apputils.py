@@ -1,5 +1,4 @@
 import os
-from pywebpush import Vapid
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 import hashlib
@@ -11,21 +10,6 @@ import requests
 import re
 import json
 import time
-
-def generate_keys():
-    """ Generates a pair (pub/priv) of vapid keys for webpush notification, prints them out, and saves them to the ./secrets/vapid-keys.txt dir """
-    os.makedirs("secrets", exist_ok=True) # we will write here, make sure it exsists
-    v = Vapid()
-    v.generate_keys()
-    public_key_o = load_pem_public_key(v.public_pem())
-    pub_bytes = public_key_o.public_bytes(encoding=serialization.Encoding.X962, format=serialization.PublicFormat.UncompressedPoint) # this is apparently right
-    pub_b64 = base64.urlsafe_b64encode(pub_bytes).rstrip(b'=').decode('utf-8') # the public key needs to be in B64URL
-    private = v.private_pem().decode('utf-8').strip().replace("\n", "").removeprefix("-----BEGIN PRIVATE KEY-----").removesuffix("-----END PRIVATE KEY-----")
-    print(f"Public Vapid Key: {pub_b64}")
-    print(f"Private Vapid Key: {private}")
-    with open("./secrets/vapid-keys.txt", 'w') as w:
-        w.writelines([pub_b64 + "\n", private])
-    return (pub_b64, private)
 
 def generate_admin():
     """ Generates admin credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt """
@@ -65,6 +49,13 @@ def add_jsons_to_cache(js: dict):
         js_tmp[key] = js[key]
     with open('config/tba-cache.json', 'w') as w:
         json.dump(js_tmp, w, indent=4)
+
+def has_internet():
+    try:
+        res = requests.get("https://8.8.8.8", timeout=10)
+    except Exception:
+        return False
+    return res.ok
 
 def tba_health():
     try:
@@ -158,15 +149,8 @@ def load_tba_data(event_key, api_key):
     return (teams, schedule, get_tba_ranks(event_key, api_key, teams))
 
 def read_secrets():
-    """ Reads the different secrets of the repo: vapid keys, admin creds, flask secret key, and tba auth key in that order """
-    vapid_keys = {}
+    """ Reads the different secrets of the repo: admin creds, flask secret key, and tba auth key in that order """
     admin_login = {}
-    if (os.path.exists('./secrets/vapid-keys.txt')):
-        with open("./secrets/vapid-keys.txt", 'r') as f:
-            vapid_keys["public"] = f.readline().strip()
-            vapid_keys["private"] = f.readline().strip()
-    else:
-        vapid_keys["public"], vapid_keys["private"] = generate_keys()
 
     if (os.path.exists('./secrets/admin.txt')):
         with open("./secrets/admin.txt", 'r') as r:
@@ -182,7 +166,7 @@ def read_secrets():
     else:
         auth_key = ""
 
-    return (vapid_keys, admin_login, key, auth_key)
+    return (admin_login, key, auth_key)
 
 def set_auth_key(key: str):
     with open("./secrets/key.txt", 'w') as w:

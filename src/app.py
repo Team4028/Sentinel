@@ -20,7 +20,6 @@ import json
 from threading import Thread
 import html
 import yaml
-from pywebpush import webpush, WebPushException
 import sys
 import tempfile
 import logging
@@ -42,11 +41,12 @@ def create_app(): # cursed but whatever
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
     POSS_YEARS = [f.stem.split('-', 2)[-1] for f in Path("./config").glob("field-config-*.yaml")]
-    vapid_keys = {}
     admin_login = {}
     config_file = os.path.join("config", f"field-config-{app.config["YEAR"]}.yaml")
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_SECURE'] = False
+
+    notification_queue = []
 
     # check docker
     is_docker = False
@@ -68,29 +68,6 @@ def create_app(): # cursed but whatever
         """ Renders the input template with the given context and also the accent and text colors of the app """
         return render_template(template, accent=app.config["ACCENT_COLOR"], text=app.config["TEXT_COLOR"], **context)
 
-    def render_template_pass_vapids(template, **context):
-        """ Renders the given template with the given context, the style, and the public vapid key """
-        return render_template_style(template, pubkey=vapid_keys["public"], **context)
-
-# =======================================================
-# Initialize sqlite database for storing notification subscriptions
-# =======================================================
-    
-    os.makedirs(os.path.dirname(app.config["NOTIFY_SUB_STORAGE"]), exist_ok=True)
-    conn = sqlite3.connect(app.config["NOTIFY_SUB_STORAGE"])
-    c = conn.cursor()
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS subs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        endpoint TEXT UNIQUE,
-        p256dh TEXT,
-        auth TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-    conn.commit()
-    conn.close()
-
 # =======================================================
 # Ensure directories on gitignore are present
 # =======================================================
@@ -99,14 +76,14 @@ def create_app(): # cursed but whatever
             It is wrapped in a function because these directories can change at runtime. """
         os.makedirs(app.config["UPLOAD_DIR"], exist_ok=True)
         os.makedirs(app.config["OUT_DIR"], exist_ok=True)
+        os.makedirs("secrets", exist_ok=True) # make sure secrets exists because we will soon open some files
     ensure_configurable_dirs()
-    os.makedirs("secrets", exist_ok=True) # make sure secrets exists because we will soon open some files
 
 # =======================================================
 # Load Auth Keys
 # =======================================================
 
-    vapid_keys, admin_login, app.config["SECRET_KEY"], auth_key = apputils.read_secrets()
+    admin_login, app.config["SECRET_KEY"], auth_key = apputils.read_secrets()
 
 # =======================================================
 # Load TBA Schedule from event key for match predictor
@@ -166,7 +143,7 @@ def create_app(): # cursed but whatever
     reload_js()
 
     def send_change_notification(lines: str | None = None):
-        """ Sends a notification to all subscribers. <br>
+        """ Sends a notification. <br>
             If 'lines' is None, this will send a notification letting the user know that
                 new changes are avaliable (restrict append level is 2) with a link to /changes.<br>
             If 'lines' is not None, restrict append level is assumed to be 1 and a new notification that's body has 'lines'
@@ -191,33 +168,7 @@ def create_app(): # cursed but whatever
             data["data"] = {
                 "line-hashes": json.dumps([apputils.line_str_hash(x) for x in lines])
             }
-        con = sqlite3.connect(app.config["NOTIFY_SUB_STORAGE"])
-        c = con.cursor()
-        c.execute("SELECT id, endpoint, p256dh, auth FROM subs")
-        rows = c.fetchall()
-        expired_ids = []
-        for row in rows:
-            sub_id, endp, p256, auth = row # 
-            try:
-                webpush(subscription_info={"endpoint": endp, "keys": { "p256dh": p256, "auth": auth }},
-                        data=json.dumps(data),
-                        vapid_private_key=vapid_keys["private"], # PEM form
-                        vapid_claims={"sub": "https://beaksquad.dev"}) # <- who sent it
-            except WebPushException as we:
-                if we.response and we.response.status_code in (404, 410): # sw expired
-                    app.logger.warning(f"Subscription {sub_id} expired.")
-                    expired_ids.append(sub_id)
-                elif we.response and we.response.json():
-                    extra = we.response.json()
-                    app.logger.warning("Remote replied with a {}:{}, {}",
-                        extra.code,
-                        extra.errno,
-                        extra.message)
-        if expired_ids:
-            c.executemany("DELETE FROM subs WHERE id = ?", [(i,) for i in expired_ids])
-            app.logger.info(f"Removed {len(expired_ids)} expired subscriptions")
-        con.commit()
-        con.close()
+        notification_queue.append(data)
 
     compile_scouting_dashboard()
             
@@ -238,6 +189,7 @@ def create_app(): # cursed but whatever
                     firstLine = False
         apputils.safer_replace(temp_path, infile)
         processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
+        app.logger.info("Finished processing data.")
         reload_js()
 
     def append_lines_nofile(lines_to_write: list[str], sending: bool = False):
@@ -255,6 +207,7 @@ def create_app(): # cursed but whatever
                     send_change_notification(lines_to_write)
         if not sending:
             processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
+            app.logger.info("Finished processing data.")
             reload_js()
 
     def save_photo(filestorage, team: str):
@@ -302,7 +255,10 @@ def create_app(): # cursed but whatever
 
     @app.before_request
     def log_request():
-        app.logger.info(f"{request.method} {request.path}")
+        if not "/notifyq" in request.path:
+            app.logger.info(f"{request.method} {request.path}")
+        else:
+            app.logger.info(f"Service worker polled queue")
 
     @app.errorhandler(Exception)
     def handle_exception(e):
@@ -313,6 +269,15 @@ def create_app(): # cursed but whatever
     def handle_404(e):
         app.logger.warning(f"Tried to access nonexistant page: {e}")
         return render_template_style("404.html")
+    
+    @app.route("/notifyq")
+    @login_required
+    @require_admin
+    def notify_q():
+        if len(notification_queue) <= 0:
+            return jsonify({})
+        else: return jsonify(notification_queue.pop())
+
 
     # RESTRICTED (can download and edit things and such, though not directly so ig it could be open)
     @app.route("/")
@@ -326,7 +291,7 @@ def create_app(): # cursed but whatever
                     if "MN" not in line:
                         csv_data.append(line.replace("\n", ""))
         """ Renders homepage html template, passes the public key to the client to bind the service worker  """
-        return render_template_pass_vapids("home.html", headers=json.dumps(apputils.get_input_headers(infile)).replace("\uffef", ""), inp_data=json.dumps(csv_data).replace("\\", "\\\\"))
+        return render_template_style("home.html", headers=json.dumps(apputils.get_input_headers(infile)).replace("\uffef", ""), inp_data=json.dumps(csv_data).replace("\\", "\\\\"))
     
     # OPEN (need to log in before you can be logged in)
     @app.route("/login", methods=["GET", "POST"])
@@ -374,29 +339,7 @@ def create_app(): # cursed but whatever
     @require_admin
     def changes():
         """ Renders page listing changes to apply for restrict append level 2 """
-        return render_template_pass_vapids("change.html", append_queue=process_queue)
-    
-    # RESTRICTED (edits db = bad)
-    @app.post('/subscribe')
-    @login_required
-    @require_admin
-    def push_sub():
-        """ Consumes subscription data from a service worker and stores it in the db """
-        json_data = request.get_json() # comes from the service worker
-        sub = json.loads(json_data["subscription_json"])
-        endp = sub["endpoint"]
-        keys = sub.get("keys", {})
-        p256dh = keys.get("p256dh")
-        auth = keys.get("auth")
-        con = sqlite3.connect(app.config["NOTIFY_SUB_STORAGE"])
-        c = con.cursor()
-        c.execute("""
-            INSERT OR IGNORE INTO subs (endpoint, p256dh, auth)
-            VALUES (?, ?, ?)
-        """, (endp, p256dh, auth))
-        con.commit()
-        con.close()
-        return "", 200
+        return render_template_style("change.html", append_queue=process_queue)
     
     # OPEN + CORS OPEN (just health, literally returns a string)
     @app.route("/health")
@@ -422,6 +365,7 @@ def create_app(): # cursed but whatever
                 if d_file.filename != "":
                     d_file.save(infile) # saves the file
                     processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
+                    app.logger.info("Finished processing data.")
                     reload_js()
             return "", 200
         except Exception as e:
@@ -458,6 +402,7 @@ def create_app(): # cursed but whatever
         """ Reprocesses the data with no additional inputs; for testing or manual csv changes """
         try: 
             processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
+            app.logger.info("Finished processing data.")
             reload_js()
             return "Data reloaded."
         except Exception as e:
@@ -593,7 +538,7 @@ def create_app(): # cursed but whatever
             content = r.read()
         with open(os.path.join("config", "schema.json"), 'r') as r:
             schema = r.read()
-        return render_template_pass_vapids("edit.html", yaml_content=content, schema=schema)
+        return render_template_style("edit.html", yaml_content=content, schema=schema)
     
     # RESTRICTED (overwrites field-config = bad)
     @app.post("/save")
@@ -609,6 +554,7 @@ def create_app(): # cursed but whatever
             processor.config_data = lex_config(app.config["YEAR"]) # reload config data
             compile_scouting_dashboard()
             processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # reprocess
+            app.logger.info("Finished processing data.")
             reload_js()
             return jsonify({"ok": True, "message": "Saved"})
         except yaml.YAMLError as e:
@@ -620,7 +566,7 @@ def create_app(): # cursed but whatever
     @require_admin
     def edit_app_conf_page():
         """ Returns a template for editing the app configuration """
-        return render_template_pass_vapids("appconfig.html", years=POSS_YEARS)
+        return render_template_style("appconfig.html", years=POSS_YEARS)
 
     # RESTRICTED (don't want to share app config because it has secrets)
     @app.get("/get-config")
@@ -712,6 +658,7 @@ def create_app(): # cursed but whatever
                 if apputils.data_in_exists(app):
                     try:
                         processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # updated processor, so this
+                        app.logger.info("Finished processing data.")
                         reload_js()
                     except:
                         os.remove(infile) # remove data_in if it's not playing nice (ie. 2025 data in, switches to 2026)

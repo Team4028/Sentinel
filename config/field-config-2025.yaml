@@ -1,3 +1,65 @@
+headers:
+  - name: MN
+    desc: Match Number
+  - name: TN
+    desc: Team Number
+  - name: TC
+    desc: Team Color
+  - name: SI
+    desc: Scouter Initials
+  - name: M
+    desc: Auton Mobility
+  - name: AL1
+    desc: Auton L1 coral scored
+  - name: AL2
+    desc: Auton L2 coral scored
+  - name: AL3
+    desc: Auton L3 coral scored
+  - name: AL4
+    desc: Auton L4 coral scored
+  - name: ATP
+    desc: Auton algae in the processer
+  - name: ATB
+    desc: Auton algae in the barge
+  - name: TL1
+    desc: Teleop L1 coral scored
+  - name: TL2
+    desc: Teleop L2 coral scored
+  - name: TL3
+    desc: Teleop L3 coral scored
+  - name: TL4
+    desc: Teleop L4 coral scored
+  - name: AT
+    desc: Disloged Algae
+  - name: AB
+    desc: Teleop algae in the barge
+  - name: AP
+    desc: Teleop algae in the processer
+  - name: CP
+    desc: Parked in endgame
+  - name: CS
+    desc: Shallow climb in endgame
+  - name: CD
+    desc: Deep climb in endgame
+  - name: Disabled?
+    desc: Whether the robot disabled
+  - name: Beached?
+    desc: Whether the robot beached during the match
+  - name: SR
+    desc: Sturdiness/Robustness
+  - name: DTS
+    desc: Drive team proficiency
+  - name: D
+    desc: Played defense?
+  - name: DR
+    desc: Defensive rating
+  - name: ORG
+    desc: Overall robot grade
+  - name: Comments
+    desc: Comments (self explanatory)
+  - name: EID
+    desc: Event TBA ID key
+
 compute-fields:
   - name: Total ACoral
     equation: $AL1,AL2,AL3,AL4

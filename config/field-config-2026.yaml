@@ -1,3 +1,49 @@
+headers:
+  - name: MN
+    desc: Match Number
+  - name: TN
+    desc: Team Number
+  - name: TC
+    desc: Team Color
+  - name: SI
+    desc: Scouter Initials
+  - name: NZ
+    desc: Went into Neutral Zone in auton
+  - name: ASS
+    desc: Auton time spent scoring
+  - name: AMIS
+    desc: Scoring misses in auton
+  - name: ASP
+    desc: Auton time spent passing (shuttling), also a type of snake
+  - name: ACL
+    desc: Climbed in auton?
+  - name: TSS
+    desc: Teleop time spent scoring
+  - name: TMIS
+    desc: Scoring misses in teleop
+  - name: TSP
+    desc: Teleop time spent passing/shuttling
+  - name: TCL
+    desc: Teleop Climb
+  - name: FR
+    desc: Flow Rate
+  - name: DIS
+    desc: Disabled?
+  - name: ROB
+    desc: Robustness
+  - name: DT
+    desc: Drive team aptitude
+  - name: D
+    desc: Played Defense?
+  - name: DR
+    desc: Defensive Rating
+  - name: ORG
+    desc: Overall robot grade
+  - name: COM
+    desc: Comments
+  - name: EID
+    desc: Event ID
+
 compute-fields:
   - name: Auton Shots
     equation: $FR * $ASS

@@ -27,7 +27,7 @@ class GrafanaDataPreset(Enum):
         [x["name"] for x in data["match-fields"]],
         ["number" for _ in data["match-fields"]],
     )
-    TEAM = lambda data: [("Team", "number")] + list(zip(
+    TEAM = lambda data: [("Rank", "number"), ("Average RP", "number"), ("OPR", "number")] + list(zip(
         [
             FANCY_FIL[f] + " " + x["name"]
             for f in FILTERS
@@ -69,17 +69,20 @@ def lex_config(year: str):
     data = read_config(year)
     config = {
         "compute": [],
+        "headers": [],
         "teams": [],
         "matches": [],
         "predict-metric": "",
+        "dash-panel": {},
         "deep-predict": [],
     }
     if data:
-        config["dash-panel"] = {}
         for k, v in GRAFANA_DATA_PANELS.items():
             config["dash-panel"][k] = {}
             for ki, vi in v.items():  # (i for inner)
                 config["dash-panel"][k][ki] = vi(data)
+        for field in data["headers"]:
+            config["headers"].append(field["name"])
         for field in data["compute-fields"]:
             config["compute"].append({"name": field["name"], "eq": field["equation"]})
         for field in data["team-fields"]:

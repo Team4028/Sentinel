@@ -3,6 +3,23 @@
     "title": "Sentinel Configuration",
     "type": "object",
     "properties": {
+        "headers": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the header; this will show up in the CSV and is what is used referenced in the below fields."
+                    },
+                    "desc": {
+                        "type": "string",
+                        "description": "Optional description parameter just for documentation."
+                    }
+                },
+                "required": ["name"]
+            }
+        },
         "compute-fields": {
             "type": "array",
             "items": {
@@ -124,5 +141,6 @@
                 ]
             }
         }
-    }
+    },
+    "required": ["headers", "compute-fields", "team-fields", "match-fields", "predict-metric", "depth-predict-fields"]
 }

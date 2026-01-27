@@ -1,11 +1,15 @@
 'use strict';
 
 let csrfToken = null;
+let cid = null;
 
 self.addEventListener("message", event => {
     if (event.data.type == "SET_CSRF") {
-        csrfToken = event.data.token;
-        console.log("Service Worker recieved CSRF");
+        if (!csrfToken || !cid) {
+            csrfToken = event.data.token;
+            cid = event.data.cid;
+            console.log("Service Worker recieved CSRF + Client ID");
+        }
     }
 });
 
@@ -69,16 +73,18 @@ setInterval(() => {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
+            'X-CSRFToken': csrfToken,
+            'X-Cid': cid
         }
     }).then(res => {
-        if (res.ok)
+        if (res.ok && res.status === 200) // do nothing if 204
             res.json().then(json => {
+                console.log(`SEND ${JSON.stringify(json)}`);
                 if ("title" in json) {
                     const title = json["title"];
                     delete json.title;
                     self.registration.showNotification(title, json);
                 }
             });
-    });
+    }).catch(() => {});
 }, 1000);

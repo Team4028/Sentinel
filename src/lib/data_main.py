@@ -5,8 +5,10 @@ import numpy as np
 import warnings
 try: 
     from lib.data_config import eval_beakscript, FANCY_FIL
+    from apputils import get_tba_opr
 except ModuleNotFoundError:
     from src.lib.data_config import eval_beakscript, FANCY_FIL
+    from src.apputils import get_tba_opr
 from collections import defaultdict
 from collections.abc import Iterable
 
@@ -24,9 +26,9 @@ class TeamStruct:
                     merged[k].append(v)
         self.data = dict(merged)
 
-    def output_dict(self, config):
+    def output_dict(self, config, _opr):
         """ Get all of the team data as a dictionary, unwrapping DataFields to get averages and such """
-        data = {"Rank": self.data["Rank"][0], "Average RP": self.data["Average RP"][0]}
+        data = {"Rank": self.data["Rank"][0], "Average RP": self.data["Average RP"][0], "OPR": _opr}
         # the | operator for dicts in python combines dicts with different entries (OR's them)
         for field in config["teams"]: data |= DataField(field["name"], self.data[field["name"]], field["filters"]).objectify()
         return data
@@ -85,7 +87,7 @@ class MatchStruct:
 class Processor:
     """ Main class of data calculation, handles all calculation basically """
 
-    def __init__(self, outpath, chunk_size, teams, sched, ranks, config_data):
+    def __init__(self, outpath, chunk_size, teams, sched, ranks, oprs, config_data):
         self.chunk_size = chunk_size
         self.outpath = outpath
         self._teamsAt = teams
@@ -93,6 +95,7 @@ class Processor:
         self._teams: dict[str, TeamStruct] = {}
         self._matches = {}
         self._ranks = ranks
+        self._oprs = oprs
         self.config_data = config_data
 
     def mad_filter(data, c=2): #https://real-statistics.com/sampling-distributions/identifying-outliers-missing-data
@@ -111,7 +114,7 @@ class Processor:
         df = []
         for k, v in self._teams.items(): # _teams is a dict with team: TeamStruct (ex. {422: TeamData()})
             # bind each team to the dict serialization of its cooresponding struct
-            df.append({"Team": k} | v.output_dict(self.config_data))
+            df.append({"Team": k} | v.output_dict(self.config_data, self._oprs[str(k)]))
         pd.DataFrame(df).to_csv(outfile, index=False)
 
     def get_match_pred_score(self, match, c):
@@ -121,8 +124,8 @@ class Processor:
             if int(key.removeprefix("frc")) in self._teams:
                 score.append(self._teams[ # use the TeamStruct -> dict to get the data
                     int(key.removeprefix("frc"))
-                ].output_dict(self.config_data)[self.config_data["p-metric"]["source"]]) # use prediction metric source
-
+                ].output_dict(self.config_data, self._oprs[key.removeprefix("frc")])[self.config_data["p-metric"]["source"]]) # use prediction metric source
+            else: score.append(0)
         return score
     
     def match_predict_depth(self, outfile):
@@ -132,14 +135,18 @@ class Processor:
             for color in ['b', 'r']:
                 for i in range(3):
                     team = match[color][i].removeprefix("frc")
-                    teamO = self._teams[int(team)].output_dict(self.config_data)
                     dat = {
-                        "Match": match['k'],
-                        "Color": color,
-                        "Team": team,
-                    }
-                    for field in self.config_data["deep-predict"]:
-                        dat |= {field["name"]: teamO[field["source"]]} # append the relevant datas
+                            "Match": match['k'],
+                            "Color": color,
+                            "Team": team,
+                        }
+                    if int(team) in self._teams:
+                        teamO = self._teams[int(team)].output_dict(self.config_data, self._oprs[team])
+                        for field in self.config_data["deep-predict"]:
+                            dat |= {field["name"]: teamO[field["source"]]} # append the relevant datas
+                    else:
+                        for field in self.config_data["deep-predict"]:
+                            dat |= {field["name"]: 0}
                     df.append(dat)
         pd.DataFrame(df).to_csv(outfile, index=False)
 
@@ -215,7 +222,7 @@ class Processor:
                     chunk[comp["name"]] = eval_beakscript(comp["eq"], chunk)
                 for team in chunk["TN"].unique(): # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
                     team_data = {}
-                    if int(team) in self._ranks.keys():
+                    if int(team) in self._ranks:
                         team_data["Rank"], team_data["Average RP"] = self._ranks[int(team)]
                     else:
                         team_data["Rank"], team_data["Average RP"] = (None, None)
@@ -230,7 +237,7 @@ class Processor:
                     row = chunk.loc[chunk["MN"] == match]
                     static_fields = {}
                     for field in self.config_data["matches"]:
-                        if "static" in field.keys():
+                        if "static" in field:
                             val = eval_beakscript(field["derive"], row)
                             if type(val) == pd.Series:
                                 val = val.tolist()
@@ -240,7 +247,7 @@ class Processor:
                         data = {}
                         for field in self.config_data["matches"]:
                             row = chunk.loc[(chunk["TN"] == team) & (chunk["MN"] == match)]
-                            if "static" in field.keys(): continue
+                            if "static" in field: continue
                             # get derived fields for matches
                             val = eval_beakscript(field["derive"], row.iloc[0])
                             if type(val) == pd.Series:

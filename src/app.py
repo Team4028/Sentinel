@@ -1,3 +1,4 @@
+import time
 from flask import Flask, request, render_template, jsonify, Response, send_file, url_for, redirect
 from flask_login import login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
@@ -23,7 +24,6 @@ import yaml
 import sys
 import tempfile
 import logging
-import sqlite3
 from pathlib import Path
 import argparse
 import shlex
@@ -62,7 +62,7 @@ def create_app(): # cursed but whatever
     if os.getenv("container", None) is not None:
         is_docker = True
 
-    GRAFANA_BASE_URL = "http://localhost:3005/d/" if is_docker else "http://localhost:3000/d/"
+    GRAFANA_BASE_URL = "http://localhost:3005/d/" if is_docker else "http://localhost:3000/d/" # local testing
 
     def render_template_style(template, **context):
         """ Renders the input template with the given context and also the accent and text colors of the app """
@@ -86,17 +86,13 @@ def create_app(): # cursed but whatever
     admin_login, app.config["SECRET_KEY"], auth_key = apputils.read_secrets()
 
 # =======================================================
-# Load TBA Schedule from event key for match predictor
-# =======================================================
-
-# =======================================================
 # Parse field config and setup processor
 # =======================================================
     try:
-        processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key), lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
+        processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key, app.config["YEAR"]), lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (it's just the unpack operator)
     except Exception:
-        app.logger.error("Error collecting tba data")
-        processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], None, None, None, lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (its just the unpack operator)
+        app.logger.error("Error collecting tba data") # assume that the load_tba_data is what failed because lex_config has seperate error handling
+        processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], None, None, None, lex_config(app.config["YEAR"]))
 
     infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])
     js = None # load the json file into mem so we don't have to read it every time its requested
@@ -107,9 +103,11 @@ def create_app(): # cursed but whatever
 # Helper functions
 # =======================================================
 
+    # set up the login manager
     init_loginm_app(app)
 
     def compile_scouting_dashboard():
+        """ Uses jinja templating to create dashboard jsons for provisioning that cast all of the number fields to numbers """
         env = Environment(loader=FileSystemLoader("."))
         for path in Path("./src/templates").glob("*.ji"):
             tmpl = env.get_template(path.relative_to('.').as_posix())
@@ -168,11 +166,7 @@ def create_app(): # cursed but whatever
             data["data"] = {
                 "line-hashes": json.dumps([apputils.line_str_hash(x) for x in lines])
             }
-        notification_queue.append(data)
-
-    compile_scouting_dashboard()
-            
-            
+        notification_queue.append((data, time.time() + 300, [])) # gone is the toilsome webpush shenanigens (ik i spelled that wrong)
 
     def rm_row_hash(hashes):
         """ Deletes rows of data from the input csv by matching their hashes with the ones provided and then reprocesses the data """
@@ -200,6 +194,8 @@ def create_app(): # cursed but whatever
             lines_to_write[-1] = lines_to_write[-1].strip() # yeet trailing newline
             if len(lines_to_write) > 0:
                 if exists: append.write("\n")
+                else:
+                    append.write(",".join(processor.config_data["headers"]) + "\n")
                 append.writelines(lines_to_write)
                 if sending:
                     for l in lines_to_write: mesh.send_message(l)
@@ -221,19 +217,18 @@ def create_app(): # cursed but whatever
         """ This function is a consumer for a meshtastic message (line of csv) and will append it to the csv much like /append """
         message = message.strip()
         if message.startswith("@app.cmd"):
+            # execute command
             message = message.removeprefix("@app.cmd").strip()
             parser = argparse.ArgumentParser(prog="@app.cmd")
             parser.add_argument("--pwd", type=str, default="")
             parser.add_argument("expr", nargs=argparse.REMAINDER)
             argv = shlex.split(message)
             args = parser.parse_args(argv)
-            print(args.pwd)
             if args.pwd == admin_login["pwd"]:
                 cmd, *rest = args.expr
                 rest = ''.join(rest)
                 match (cmd):
                     case "rm":
-                        print(rest)
                         Processor.delete_match_team(infile, *rest.split(','))
                 # room for more
 
@@ -255,28 +250,42 @@ def create_app(): # cursed but whatever
 
     @app.before_request
     def log_request():
-        if not "/notifyq" in request.path:
+        """ logs the method and path of the request """
+        if not "/notifyq" in request.path: # that spam is annoying
             app.logger.info(f"{request.method} {request.path}")
         else:
             app.logger.info(f"Service worker polled queue")
 
     @app.errorhandler(Exception)
     def handle_exception(e):
+        """ Dampens the app's explosion """
         app.logger.exception(f"Unhandled Exception: {apputils.exception_format(e)}")
         return "Internal server error", 500
     
     @app.errorhandler(404)
     def handle_404(e):
+        """ Custom 404 handler """
         app.logger.warning(f"Tried to access nonexistant page: {e}")
         return render_template_style("404.html")
     
+    # RESTRICTED (can pop the entire queue by spamming the endpoint)
     @app.route("/notifyq")
     @login_required
     @require_admin
     def notify_q():
-        if len(notification_queue) <= 0:
-            return jsonify({})
-        else: return jsonify(notification_queue.pop())
+        """ pop the queue of notifications for frontend to consume and notify the user """
+        if not ("X-Cid" in request.headers) or request.headers.get('X-Cid') == None:
+            cid = None
+        else: cid = request.headers.get("X-Cid")
+        if cid == "null": cid = None
+        for n in reversed(notification_queue):
+            if n[1] <= time.time():
+                notification_queue.remove(n)
+            elif not (cid in n[2]) and cid != None:
+                n[2].append(cid)
+                return jsonify(n[0])
+        if cid == None: return "Error, invalid cid", 400
+        return "No notifications in queue", 204 # 204 => no content
 
 
     # RESTRICTED (can download and edit things and such, though not directly so ig it could be open)
@@ -284,14 +293,14 @@ def create_app(): # cursed but whatever
     @login_required
     @require_admin
     def main():
+        """ Renders homepage html template, passes the public key to the client to bind the service worker  """
         csv_data = []
         if os.path.exists(infile):
             with open(infile, "r") as r:
                 for line in r.readlines():
                     if "MN" not in line:
                         csv_data.append(line.replace("\n", ""))
-        """ Renders homepage html template, passes the public key to the client to bind the service worker  """
-        return render_template_style("home.html", headers=json.dumps(apputils.get_input_headers(infile)).replace("\uffef", ""), inp_data=json.dumps(csv_data).replace("\\", "\\\\"))
+        return render_template_style("home.html", headers=json.dumps(processor.config_data["headers"]).replace("\uffef", ""), inp_data=json.dumps(csv_data).replace("\\", "\\\\"), graf_url=GRAFANA_BASE_URL.removesuffix("/d/"))
     
     # OPEN (need to log in before you can be logged in)
     @app.route("/login", methods=["GET", "POST"])
@@ -472,18 +481,16 @@ def create_app(): # cursed but whatever
         """ Appends a series of csv lines to the input data based off of the file sent via request.files.<br>
             Complies with the restrict append level. """
         try:
-            exists = os.path.exists(infile)
             if request.headers.get("sending", "false") == "false" and app.config["RESTRICT_APPEND_LEVEL"] == 2 and "data" in request.files:
                 d_file = request.files["data"]
                 # \/ readlines returns a buffer (so use decode) and also use "MN" (which doesn't change from year to year bc theres always matches), to filter out in case its a header
-                lines_to_write = [l.decode("utf-8").strip() + "\n" for l in d_file.readlines() if l and ((not exists) or (not "MN" in l.decode("utf-8")))]
+                lines_to_write = [l.decode("utf-8").strip() + "\n" for l in d_file.readlines() if l and (not "MN" in l.decode("utf-8"))]
                 for line in lines_to_write:
                     process_queue.append(line)
                     send_change_notification()
             elif "data" in request.files:
                 d_file = request.files["data"]
-                exists = os.path.exists(infile)
-                lines_to_write = [l.decode("utf-8").strip() + "\n" for l in d_file.readlines() if l and ((not exists) or (not "MN" in l.decode("utf-8")))] # dodge header if exists
+                lines_to_write = [l.decode("utf-8").strip() + "\n" for l in d_file.readlines() if l and (not "MN" in l.decode("utf-8"))] # dodge header if exists
                 append_lines_nofile(lines_to_write, request.headers.get("sending", "false") == "true")
             return "", 200
         except Exception as e:
@@ -558,7 +565,7 @@ def create_app(): # cursed but whatever
             reload_js()
             return jsonify({"ok": True, "message": "Saved"})
         except yaml.YAMLError as e:
-            return jsonify({"ok": False, "message": str(e)}), 400
+            return jsonify({"ok": False, "message": str(e)})
         
     # RESTRICTED (technically doesn't write to app config but still bad)
     @app.get("/edit-app-conf")
@@ -585,6 +592,17 @@ def create_app(): # cursed but whatever
     def get_tba_key():
         """ returns the current TBA api key and whether or not it is good """
         return jsonify({"key": auth_key, "good": apputils.test_tba_key(auth_key)})
+    
+    @app.get("/test-notification")
+    @login_required
+    @require_admin
+    def test_notification():
+        notification_queue.append(({
+            "title": "Test",
+            "body": "this is a test notification",
+            "icon": "/static/favicon.ico"
+        }, time.time() + 10, []))
+        return "Sent", 200
 
     # RESTRICTED (may as well, not used by grafana)
     @app.post("/test-tba-key/", defaults={"key": ""})
@@ -609,7 +627,7 @@ def create_app(): # cursed but whatever
                 if not apputils.test_tba_key(auth_key): # health check
                     return "Bad TBA key", 400
                 apputils.set_auth_key(auth_key)
-                processor._teamsAt, processor._sched, processor._ranks = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key)
+                processor._teamsAt, processor._sched, processor._ranks, processor._oprs = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key, app.config["YEAR"])
                 return "", 200
             else:
                 return "Invalid Request", 400
@@ -651,10 +669,13 @@ def create_app(): # cursed but whatever
             try:
                 with open(os.path.join(app.root_path, "config", "app-config.json"), 'w') as w:
                     json.dump(request.json, w, indent=4) # indent=4 auto-formats the json with \t = 4 spaces
+                last_year, last_id = app.config["YEAR"], app.config["EVENT_KEY"]
                 app.config.from_file("config/app-config.json", load=json.load)
                 processor.config_data = lex_config(app.config["YEAR"])
                 compile_scouting_dashboard()
-                processor._teamsAt, processor._sched, processor._ranks = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key) # event key may have changed
+                if (app.config["YEAR"] != last_year or app.config["EVENT_KEY"] != last_id):
+                    apputils.clear_tba_cache()
+                processor._teamsAt, processor._sched, processor._ranks, processor._oprs = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key, app.config["YEAR"]) # event key may have changed
                 if apputils.data_in_exists(app):
                     try:
                         processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # updated processor, so this

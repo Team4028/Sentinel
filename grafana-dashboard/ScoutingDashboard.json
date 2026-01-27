@@ -407,7 +407,26 @@
           "id": "convertFieldType",
           "options": {
             "conversions": [
-              
+              {
+                "destinationType": "number",
+                "targetField": "Shallow Climb"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Deep Climb"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Auto Cycles"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Teleop Cycles"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Def"
+              }
             ],
             "fields": {}
           }
@@ -515,7 +534,15 @@
                 "conversions": [
                   {
                     "destinationType": "number",
-                    "targetField": "Team"
+                    "targetField": "Rank"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Average RP"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "OPR"
                   },
                   {
                     "destinationType": "number",
@@ -788,7 +815,46 @@
               "id": "convertFieldType",
               "options": {
                 "conversions": [
-                  
+                  {
+                    "destinationType": "number",
+                    "targetField": "Total Coral Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Total Coral Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Total Algae Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Total Algae Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Total Cycles Auton"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Total Cycles Teleop"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Score"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Park"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Shallow Climb"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Deep Climb"
+                  }
                 ],
                 "fields": {}
               }
@@ -937,7 +1003,15 @@
                 "conversions": [
                   {
                     "destinationType": "number",
-                    "targetField": "Team"
+                    "targetField": "Rank"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Average RP"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "OPR"
                   },
                   {
                     "destinationType": "number",

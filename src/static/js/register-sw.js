@@ -1,3 +1,9 @@
+let cid = localStorage.getItem("client_id");
+if (!cid) {
+    cid = crypto.randomUUID();
+    localStorage.setItem("client_id", cid);
+}
+
 function registerServiceWorker(serviceWorkerUrl) {
     let swRegistration = null;
     if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -8,7 +14,8 @@ function registerServiceWorker(serviceWorkerUrl) {
             console.log('Service Worker is registered', swReg);
             swReg.active.postMessage({
                 type: "SET_CSRF",
-                token: csrfToken
+                token: csrfToken,
+                cid: cid
             });
             swRegistration = swReg;
         })

@@ -256,7 +256,15 @@
             "conversions": [
               {
                 "destinationType": "number",
-                "targetField": "Team"
+                "targetField": "Rank"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average RP"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "OPR"
               },
               {
                 "destinationType": "number",

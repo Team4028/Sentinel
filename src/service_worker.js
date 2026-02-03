@@ -4,7 +4,7 @@ let csrfToken = null;
 let cid = null;
 
 self.addEventListener("message", event => {
-    if (event.data.type == "SET_CSRF") {
+    if (event.data.type === "SET_CSRF") {
         if (!csrfToken || !cid) {
             csrfToken = event.data.token;
             cid = event.data.cid;
@@ -48,15 +48,15 @@ self.addEventListener("notificationclick", event => {
             },
             "body": JSON.stringify({ lines: JSON.parse(event.notification.data["line-hashes"]) }) // parse and then unparse the json string
         }).then(res => {
-            if (res.status == 400) { // assume that malformed request is due to csrf because the request json is guarenteed bc we're sending it 
+            if (res.status === 400) { // assume that malformed request is due to csrf because the request json is guarenteed bc we're sending it 
                 self.registration.showNotification("Error", {
                     body: "CSRF invalid, please reload page",
                 });
-            } else if (res.status == 401 || res.status == 403) {
+            } else if (res.status === 401 || res.status === 403) {
                 self.registration.showNotification("Error", {
                     body: "Authentication error: are you logged in?"
                 });
-            } else if (res.status == 500) {
+            } else if (res.status === 500) {
                 res.text().then(txt => {
                     self.registration.showNotification("Error", {
                         body: `Internal Server error: ${txt}`

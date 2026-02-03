@@ -1,17 +1,16 @@
 import os
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
 import hashlib
 import secrets
 import shutil
 import traceback
+from typing import Any, Generator
 import requests
 from datetime import date
 import re
 import json
 import time
 
-def generate_admin():
+def generate_admin() -> tuple[str, str, str]:
     """ Generates admin credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt """
     os.makedirs("secrets", exist_ok=True) # ensure secrets directory exists
     un = input("Enter username: ")
@@ -21,7 +20,7 @@ def generate_admin():
         f.write(un + '\n' + pwd + '\n' + sec) # save
     return (un, pwd, sec)
 
-def generate_default_admin():
+def generate_default_admin() -> tuple[str, str, str]:
     """ Generates default admin credentials so as not to rely on input() """
     os.makedirs("secrets", exist_ok=True)
     pwd = line_str_hash("admin")
@@ -30,10 +29,10 @@ def generate_default_admin():
         f.write("admin" + '\n' + pwd + '\n' + sec)
     return ("admin", pwd, sec)
 
-def get_expire_time(secs: float):
+def get_expire_time(secs: float) -> float:
     return time.time() + secs
 
-def safer_replace(src, dest):
+def safer_replace(src, dest) -> None:
     """ os.replace dies sometimes """
     with open(src, 'rb') as fsrc, open(dest, 'wb') as fdest:
         shutil.copyfileobj(fsrc, fdest)
@@ -42,7 +41,7 @@ def safer_replace(src, dest):
 
     os.remove(src)
 
-def add_jsons_to_cache(js: dict):
+def add_jsons_to_cache(js: dict) -> None:
     """ adds each key in js to the tba cache """
     if os.path.exists('config/tba-cache.json'):
         with open('config/tba-cache.json', 'r') as r:
@@ -56,7 +55,7 @@ def add_jsons_to_cache(js: dict):
     with open('config/tba-cache.json', 'w') as w:
         json.dump(js_tmp, w, indent=4)
 
-def has_internet():
+def has_internet() -> bool:
     """ pings google for 10 seconds and returns whether it's okay """
     try:
         res = requests.get("https://8.8.8.8", timeout=10) # ping google
@@ -64,7 +63,7 @@ def has_internet():
         return False
     return res.ok
 
-def tba_health():
+def tba_health() -> bool:
     """ pings tba for 10 seconds and returns whether it's okay """
     try:
         res = requests.get("https://www.thebluealliance.com", timeout=10) # ping tba
@@ -72,7 +71,7 @@ def tba_health():
         return False
     return res.ok
 
-def test_tba_key(key: str):
+def test_tba_key(key: str) -> bool:
     """ pings tba/api/v3/status with the key given to see if the key is good """
     if key == None or key.strip() == "": # dont bother testing an empty key
         return False
@@ -90,10 +89,33 @@ def test_tba_key(key: str):
         return True
     raise Exception(f"Error testing tba key: unexpected reseponse {response.status_code}: {response.text}")
 
-def clear_tba_cache():
+def clear_tba_cache() -> None:
     """ clears the cache of all tba fetches """
     if os.path.exists("config/tba-cache.json"):
         os.remove("config/tba-cache.json")
+
+def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
+    """  """
+    oprs = {}
+    if tba_health() and not (api_key == None or api_key.strip() == ""):
+        print(f"Fetch https://www.thebluealliance.com/api/v3/event/{event_key}/oprs")
+        fetch_oprs = requests.get(f"https://www.thebluealliance.com/api/v3/event/{event_key}/oprs", {
+            "X-TBA-Auth-Key": api_key
+        }).json()
+        for x, y in fetch_oprs["oprs"].items():
+            oprs |= {x.removeprefix('frc'): y} 
+        add_jsons_to_cache({"curr_oprs": oprs})
+    else:
+        if os.path.exists("config/tba-cache.json"):
+            with open('config/tba-cache.json') as r:
+                js = json.load(r)
+                if "curr_oprs" in js:
+                    oprs = js["curr_oprs"]
+                else:
+                    raise Exception("Error: no wifi or tba cache or invalid api key")
+        else:
+            raise Exception("Error: no wifi or tba cache or invalid api key")
+    return oprs
 
 def get_tba_opr(event_key, api_key, year, teams):
     """ returns a dictionary of each team to their cooresponding opr at their last competition """
@@ -163,7 +185,7 @@ def load_tba_data(event_key, api_key, year):
                 schedJson = js["matches"]
                 didnt_read = False
     elif didnt_read:
-        if not tba_health() or (api_key == None or api_key.strip() == ""):
+        if (not tba_health()) or (api_key == None or api_key.strip() == ""):
             raise Exception("Error: no wifi or tba cache or invalid api key")
         print(f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/teams")
         teamJSON = requests.get(
@@ -205,7 +227,7 @@ def load_tba_data(event_key, api_key, year):
         for x in schedJson
     ], key=sched_sorter)
 
-    return (teams, schedule, get_tba_ranks(event_key, api_key, teams), get_tba_opr(event_key, api_key, year, teams))
+    return (teams, schedule, get_tba_ranks(event_key, api_key, teams), get_tba_opr(event_key, api_key, year, teams), get_event_team_oprs(event_key, api_key))
 
 def read_secrets():
     """ Reads the different secrets of the repo: admin creds, flask secret key, and tba auth key in that order """
@@ -227,32 +249,32 @@ def read_secrets():
 
     return (admin_login, key, auth_key)
 
-def set_auth_key(key: str):
+def set_auth_key(key: str) -> None:
     """ sets the tba key to `key` """
     with open("./secrets/key.txt", 'w') as w:
         w.write(key.strip())
 
-def data_in_exists(app):
+def data_in_exists(app) -> bool:
     """ checks whether the data_in file exists for `app` based on its config """
     return os.path.exists(f"./{app.config["UPLOAD_DIR"]}/{app.config["INPUT_FILENAME"]}")
 
-def change_un_pwd(current_secret_key: str, newun: str, newpwd: str):
+def change_un_pwd(current_secret_key: str, newun: str, newpwd: str) -> None:
     """ updates the username and password """
     os.makedirs("./secrets", exist_ok=True)
     with open("./secrets/admin.txt", 'w') as f:
         f.write('\n'.join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
 
-def line_str_hash(row: str):
+def line_str_hash(row: str) -> str:
         """ Hashes a line of text with sha256 """
         return hashlib.sha256(row.encode("utf-8")).hexdigest()
 
-def stream(file):
+def stream(file) -> Generator[bytes, Any, None]:
         """ Return a stream which reads a file in chunks; used for downloading in case files get big """
         with open(file, 'rb') as r:
             while chunk := r.read(8192):
                 yield chunk
 
-def exception_format(e: Exception): # bruh
+def exception_format(e: Exception) -> str: # bruh
         """Gets the stack frame where the exception ACTUALLY occured (deepest frame not in a dependecy)"""
         tb = traceback.extract_tb(e.__traceback__)
         return f"{type(e).__name__}: {tb.format_frame_summary(tb[-1])}"

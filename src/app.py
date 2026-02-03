@@ -90,9 +90,9 @@ def create_app(): # cursed but whatever
 # =======================================================
     try:
         processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], *apputils.load_tba_data(app.config["EVENT_KEY"], auth_key, app.config["YEAR"]), lex_config(app.config["YEAR"])) # what's wrong with my copy of python why are their pointers (it's just the unpack operator)
-    except Exception:
-        app.logger.error("Error collecting tba data") # assume that the load_tba_data is what failed because lex_config has seperate error handling
-        processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], None, None, None, lex_config(app.config["YEAR"]))
+    except Exception as e:
+        app.logger.error(f"Error collecting tba data: {apputils.exception_format(e)}") # assume that the load_tba_data is what failed because lex_config has seperate error handling
+        processor = Processor(app.config["OUT_DIR"], app.config["CHUNK_SIZE"], None, None, None, None, None, lex_config(app.config["YEAR"]))
 
     infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])
     js = None # load the json file into mem so we don't have to read it every time its requested
@@ -627,7 +627,7 @@ def create_app(): # cursed but whatever
                 if not apputils.test_tba_key(auth_key): # health check
                     return "Bad TBA key", 400
                 apputils.set_auth_key(auth_key)
-                processor._teamsAt, processor._sched, processor._ranks, processor._oprs = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key, app.config["YEAR"])
+                processor._teamsAt, processor._sched, processor._ranks, processor._oprs, processor._curr_oprs = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key, app.config["YEAR"])
                 return "", 200
             else:
                 return "Invalid Request", 400
@@ -675,7 +675,7 @@ def create_app(): # cursed but whatever
                 compile_scouting_dashboard()
                 if (app.config["YEAR"] != last_year or app.config["EVENT_KEY"] != last_id):
                     apputils.clear_tba_cache()
-                processor._teamsAt, processor._sched, processor._ranks, processor._oprs = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key, app.config["YEAR"]) # event key may have changed
+                processor._teamsAt, processor._sched, processor._ranks, processor._oprs, processor._curr_oprs = apputils.load_tba_data(app.config["EVENT_KEY"], auth_key, app.config["YEAR"]) # event key may have changed
                 if apputils.data_in_exists(app):
                     try:
                         processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"]) # updated processor, so this

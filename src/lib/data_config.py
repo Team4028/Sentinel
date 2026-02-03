@@ -27,7 +27,7 @@ class GrafanaDataPreset(Enum):
         [x["name"] for x in data["match-fields"]],
         ["number" for _ in data["match-fields"]],
     )
-    TEAM = lambda data: [("Rank", "number"), ("Average RP", "number"), ("OPR", "number")] + list(zip(
+    TEAM = lambda data: [("Rank", "number"), ("Average RP", "number"), ("OPR", "number"), ("Last OPR", "number")] + list(zip(
         [
             FANCY_FIL[f] + " " + x["name"]
             for f in FILTERS

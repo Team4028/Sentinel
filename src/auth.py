@@ -30,7 +30,7 @@ class LoginForm(FlaskForm):
 login_manager = LoginManager()
 login_manager.login_view = "login"
 
-def init_loginm_app(app: Flask):
+def init_loginm_app(app: Flask) -> None:
     """ Registers a login manager for admin to the flask app """
     login_manager.init_app(app)
 

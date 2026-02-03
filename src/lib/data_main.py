@@ -5,17 +5,15 @@ import numpy as np
 import warnings
 try: 
     from lib.data_config import eval_beakscript, FANCY_FIL
-    from apputils import get_tba_opr
 except ModuleNotFoundError:
     from src.lib.data_config import eval_beakscript, FANCY_FIL
-    from src.apputils import get_tba_opr
 from collections import defaultdict
 from collections.abc import Iterable
 
 class TeamStruct:
-    def __init__(self):
+    def __init__(self) -> None:
         self.data = {}
-    def extend_data(self, data):
+    def extend_data(self, data) -> None:
         """ Append a match of data to the team. Everything is procedural because of field-config """
         merged = defaultdict(list)
         for d in [self.data, data]:
@@ -26,9 +24,9 @@ class TeamStruct:
                     merged[k].append(v)
         self.data = dict(merged)
 
-    def output_dict(self, config, _opr):
+    def output_dict(self, config, _opr, _curr_opr):
         """ Get all of the team data as a dictionary, unwrapping DataFields to get averages and such """
-        data = {"Rank": self.data["Rank"][0], "Average RP": self.data["Average RP"][0], "OPR": _opr}
+        data = {"Rank": self.data["Rank"][0], "Average RP": self.data["Average RP"][0], "OPR": _curr_opr, "Last OPR": _opr}
         # the | operator for dicts in python combines dicts with different entries (OR's them)
         for field in config["teams"]: data |= DataField(field["name"], self.data[field["name"]], field["filters"]).objectify()
         return data
@@ -37,18 +35,18 @@ class DataField:
     filters = []
     data = []
     name = ""
-    def __init__(self, name, data, filters):
+    def __init__(self, name, data, filters) -> None:
         self.name = name
         self.filters = filters
         self.data = data
 
-    def average(self):
+    def average(self) -> float | str:
         """ returns the average of the dataset """
         return round(sum(self.data) / len(self.data), 2) if len(self.data) > 0 else "N/A"
     def max(self):
         """ returns the max of the dataset """
         return max(self.data) if len(self.data) > 0 else "N/A"
-    def filter(self):
+    def filter(self) -> float:
         """ returns the average of the dataset, filtered by median += 2 * MAD """
         return float(np.around(np.mean(Processor.mad_filter(np.array(self.data))), 2)) # around is just round
     
@@ -66,10 +64,10 @@ class DataField:
         return data
 
 class MatchStruct:
-    def __init__(self):
+    def __init__(self) -> None:
         self.teams = {}
 
-    def add_team_data(self, team, data):
+    def add_team_data(self, team, data) -> None:
         """ add data from a team for this match """
         self.teams.setdefault(team, data) # use setdefault to create the team if it DNE
 
@@ -87,7 +85,7 @@ class MatchStruct:
 class Processor:
     """ Main class of data calculation, handles all calculation basically """
 
-    def __init__(self, outpath, chunk_size, teams, sched, ranks, oprs, config_data):
+    def __init__(self, outpath, chunk_size, teams, sched, ranks, oprs, curr_oprs, config_data) -> None:
         self.chunk_size = chunk_size
         self.outpath = outpath
         self._teamsAt = teams
@@ -96,6 +94,7 @@ class Processor:
         self._matches = {}
         self._ranks = ranks
         self._oprs = oprs
+        self._curr_oprs = curr_oprs
         self.config_data = config_data
 
     def mad_filter(data, c=2): #https://real-statistics.com/sampling-distributions/identifying-outliers-missing-data
@@ -105,16 +104,16 @@ class Processor:
         mad = np.median(diff)
         return data[diff <= (c * mad)]
     
-    def get_percent_scouted(self):
+    def get_percent_scouted(self) -> float:
         """ gets the percentage of teams scouted in the current comp """
         return round(len([x for x in self._teams.keys() if x in self._teamsAt]) / len(self._teamsAt), 2)
 
-    def output_teams(self, outfile):
+    def output_teams(self, outfile) -> None:
         """ writes all of the calculated team data (averages, etc.) to the outfile """
         df = []
         for k, v in self._teams.items(): # _teams is a dict with team: TeamStruct (ex. {422: TeamData()})
             # bind each team to the dict serialization of its cooresponding struct
-            df.append({"Team": k} | v.output_dict(self.config_data, self._oprs[str(k)]))
+            df.append({"Team": k} | v.output_dict(self.config_data, self._oprs[str(k)], self._curr_oprs[str(k)]))
         pd.DataFrame(df).to_csv(outfile, index=False)
 
     def get_match_pred_score(self, match, c):
@@ -124,11 +123,11 @@ class Processor:
             if int(key.removeprefix("frc")) in self._teams:
                 score.append(self._teams[ # use the TeamStruct -> dict to get the data
                     int(key.removeprefix("frc"))
-                ].output_dict(self.config_data, self._oprs[key.removeprefix("frc")])[self.config_data["p-metric"]["source"]]) # use prediction metric source
+                ].output_dict(self.config_data, self._oprs[key.removeprefix("frc")], self._curr_oprs[key.removeprefix('frc')])[self.config_data["p-metric"]["source"]]) # use prediction metric source
             else: score.append(0)
         return score
     
-    def match_predict_depth(self, outfile):
+    def match_predict_depth(self, outfile) -> None:
         """ Write in-depth match prediction (things like deep climb and cycles, info about the teams playing) to outfile """
         df = []
         for match in self._sched:
@@ -141,7 +140,7 @@ class Processor:
                             "Team": team,
                         }
                     if int(team) in self._teams:
-                        teamO = self._teams[int(team)].output_dict(self.config_data, self._oprs[team])
+                        teamO = self._teams[int(team)].output_dict(self.config_data, self._oprs[team], self._curr_oprs[team])
                         for field in self.config_data["deep-predict"]:
                             dat |= {field["name"]: teamO[field["source"]]} # append the relevant datas
                     else:
@@ -150,7 +149,7 @@ class Processor:
                     df.append(dat)
         pd.DataFrame(df).to_csv(outfile, index=False)
 
-    def predict_matches(self, outfile):
+    def predict_matches(self, outfile) -> None:
         """ Predicts the score contributions, overall score, and winner of each match, writing to outfile """
         df = []
         for match in self._sched:
@@ -169,14 +168,14 @@ class Processor:
                 })
         pd.DataFrame(df).to_csv(outfile, index=False)
 
-    def write_other_metrics(self, outfile):
+    def write_other_metrics(self, outfile) -> None:
         """ writes the json other metrics (right now only percent teams scouted) to the outfile """
         with open(outfile, "w") as w:
             json.dump({
                 "Percent Teams Scouted": self.get_percent_scouted()
             }, w, indent=4)
 
-    def output_matches(self, outfile):
+    def output_matches(self, outfile) -> None:
         """ outputs the match data (what each team in each match did) to the outfile """
         df = []
         for k, v in self._matches.items():
@@ -187,13 +186,13 @@ class Processor:
                 } | matTeam)
         pd.DataFrame(df).to_csv(outfile, index=False)
 
-    def delete_match_team(data_filepath: str, mn: str, tn: str):
+    def delete_match_team(data_filepath: str, mn: str, tn: str) -> None:
         df = pd.read_csv(data_filepath)
         df[~((df["MN"] == int(mn)) & (df["TN"] == int(tn)))].to_csv(data_filepath, index=False)
 
 
 
-    def proccess_data(self, data_filepath: str, outname):
+    def proccess_data(self, data_filepath: str, outname) -> None:
         """ Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files """
 
         if self._teamsAt == None or self._sched == None:

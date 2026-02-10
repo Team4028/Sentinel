@@ -546,6 +546,10 @@
                   },
                   {
                     "destinationType": "number",
+                    "targetField": "Last OPR"
+                  },
+                  {
+                    "destinationType": "number",
                     "targetField": "Average Algae Auton"
                   },
                   {
@@ -1012,6 +1016,10 @@
                   {
                     "destinationType": "number",
                     "targetField": "OPR"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Last OPR"
                   },
                   {
                     "destinationType": "number",

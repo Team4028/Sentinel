@@ -123,6 +123,12 @@ def create_app(): # cursed but whatever
                 shutil.copy(out_path, "/var/lib/grafana/dashboards/")
 
     compile_scouting_dashboard()
+
+    try:
+        processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
+        app.logger.info("inital processing success")
+    except Exception as e:
+        app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
     
     DASHBOARD_UIDS = {}
     for dash in ["ScoutingDashboard.json", "TeamView.json"]:
@@ -655,9 +661,33 @@ def create_app(): # cursed but whatever
                 return apputils.exception_format(e), 500
         return "Invalid Request", 400
     
+    @app.get("/calc-team-score")
+    @login_required
+    @require_admin
+    def calc_team_score():
+        teams = ["4028"]
+        if "pick1" in request.args:
+            teams.append(request.args.get('pick1'))
+        if "pick2" in request.args:
+            teams.append(request.args.get('pick2'))
+        if "pick3" in request.args:
+            teams.append(request.args.get('pick3'))
+        sum = 0
+        for team in teams:
+            if int(team) in processor._teams:
+                sum += processor._teams[int(team)] \
+                    .output_dict(
+                        processor.config_data,
+                        processor._oprs[team],
+                        processor._curr_oprs[team]
+                    )[
+                        processor.config_data["p-metric"]["source"]
+                    ]
+        return jsonify({"score": round(sum)})
+
     @app.get("/picklist")
     def picklist():
-        return render_template_style("picklist.html", teams=sorted([int(x) for x in processor._teamsAt]), dashes=json.dumps(DASHBOARD_UIDS), grafana_base=GRAFANA_BASE_URL)
+        return render_template_style("picklist.html", teams=filter(lambda x: x != 4028, sorted([int(x) for x in processor._teamsAt])), dashes=json.dumps(DASHBOARD_UIDS), grafana_base=GRAFANA_BASE_URL)
     
     # RESTRICTED (overwrites app config = bad)
     @app.post("/save-app-config")

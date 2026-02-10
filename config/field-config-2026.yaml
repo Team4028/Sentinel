@@ -1,152 +1,152 @@
 headers:
-  - name: MN
-    desc: Match Number
-  - name: TN
-    desc: Team Number
-  - name: TC
-    desc: Team Color
-  - name: SI
-    desc: Scouter Initials
-  - name: NZ
-    desc: Went into Neutral Zone in auton
-  - name: ASS
-    desc: Auton time spent scoring
-  - name: AMIS
-    desc: Scoring misses in auton
-  - name: ASP
-    desc: Auton time spent passing (shuttling), also a type of snake
-  - name: ACL
-    desc: Climbed in auton?
-  - name: TSS
-    desc: Teleop time spent scoring
-  - name: TMIS
-    desc: Scoring misses in teleop
-  - name: TSP
-    desc: Teleop time spent passing/shuttling
-  - name: TCL
-    desc: Teleop Climb
-  - name: FR
-    desc: Flow Rate
-  - name: DIS
-    desc: Disabled?
-  - name: ROB
-    desc: Robustness
-  - name: DT
-    desc: Drive team aptitude
-  - name: D
-    desc: Played Defense?
-  - name: DR
-    desc: Defensive Rating
-  - name: ORG
-    desc: Overall robot grade
-  - name: COM
-    desc: Comments
-  - name: EID
-    desc: Event ID
+    - name: MN
+      desc: Match Number
+    - name: TN
+      desc: Team Number
+    - name: TC
+      desc: Team Color
+    - name: SI
+      desc: Scouter Initials
+    - name: NZ
+      desc: Went into Neutral Zone in auton
+    - name: ASS
+      desc: Auton time spent scoring
+    - name: AMIS
+      desc: Scoring misses in auton
+    - name: ASP
+      desc: Auton time spent passing (shuttling), also a type of snake
+    - name: ACL
+      desc: Climbed in auton?
+    - name: TSS
+      desc: Teleop time spent scoring
+    - name: TMIS
+      desc: Scoring misses in teleop
+    - name: TSP
+      desc: Teleop time spent passing/shuttling
+    - name: TCL
+      desc: Teleop Climb
+    - name: FR
+      desc: Flow Rate
+    - name: DIS
+      desc: Disabled?
+    - name: ROB
+      desc: Robustness
+    - name: DT
+      desc: Drive team aptitude
+    - name: D
+      desc: Played Defense?
+    - name: DR
+      desc: Defensive Rating
+    - name: ORG
+      desc: Overall robot grade
+    - name: COM
+      desc: Comments
+    - name: EID
+      desc: Event ID
 
 compute-fields:
-  - name: Auton Shots
-    equation: $FR * $ASS
-  - name: Teleop Shots
-    equation: $FR * $TSS
-  - name: Auton Scores
-    equation: $Auton Shots - $AMIS
-  - name: Teleop Scores
-    equation: $Teleop Shots - $TMIS
-  - name: Auton Accuracy
-    equation: $Auton Scores / $Auton Shots
-  - name: Teleop Accuracy
-    equation: $Teleop Scores / $Teleop Shots
-  - name: Accuracy
-    equation: >-
-      @avg{$Auton Accuracy, $Teleop Accuracy}
-  - name: Total Score
-    equation: >-
-      $Auton Scores + $Teleop Scores + 15 * $ACL + 10 * $TCL
+    - name: Auton Shots
+      equation: $FR * $ASS
+    - name: Teleop Shots
+      equation: $FR * $TSS
+    - name: Auton Scores
+      equation: $Auton Shots - $AMIS
+    - name: Teleop Scores
+      equation: $Teleop Shots - $TMIS
+    - name: Auton Accuracy
+      equation: $Auton Scores / $Auton Shots
+    - name: Teleop Accuracy
+      equation: $Teleop Scores / $Teleop Shots
+    - name: Accuracy
+      equation: >-
+          @avg{$Auton Accuracy, $Teleop Accuracy}
+    - name: Total Score
+      equation: >-
+          $Auton Scores + $Teleop Scores + 15 * $ACL + 10 * $TCL
 
 team-fields:
-  - name: Auton Shots
-    derive: $Auton Shots
-    avg:
-    max:
-    fil:
-  - name: Teleop Shots
-    derive: $Teleop Shots
-    avg:
-    max:
-    fil:
-  - name: Auton Scores
-    derive: $Auton Scores
-    max:
-  - name: Teleop Scores
-    derive: $Teleop Scores
-    avg:
-    max:
-    fil:
-  - name: Accuracy
-    derive: $Accuracy
-    avg:
-    max:
-    fil:
-  - name: Flow Rate
-    derive: $FR
-    avg:
-    max:
-    fil:
-  - name: Total Shots
-    derive: $Auton Shots,Teleop Shots
-    max:
-  - name: Total Scores
-    derive: $Auton Scores,Teleop Scores
-    max:
-  - name: Auton Climb
-    derive: $ACL
-    avg:
-  - name: Teleop Climb
-    derive: $TCL
-    avg:
-  - name: Score
-    derive: $Total Score
-    avg:
-    max:
-    fil:
-  - name: Defensive Rating
-    derive: $DR[$D = 1]
-    avg:
-    max:
-  - name: Matches Playing Defense
-    derive: "@len$DR[$D = 1]"
+    - name: Auton Shots
+      derive: $Auton Shots
+      avg:
+      max:
+      fil:
+    - name: Teleop Shots
+      derive: $Teleop Shots
+      avg:
+      max:
+      fil:
+    - name: Auton Scores
+      derive: $Auton Scores
+      max:
+    - name: Teleop Scores
+      derive: $Teleop Scores
+      avg:
+      max:
+      fil:
+    - name: Accuracy
+      derive: $Accuracy
+      avg:
+      max:
+      fil:
+    - name: Flow Rate
+      derive: $FR
+      avg:
+      max:
+      fil:
+    - name: Total Shots
+      derive: $Auton Shots,Teleop Shots
+      max:
+    - name: Total Scores
+      derive: $Auton Scores,Teleop Scores
+      max:
+    - name: Auton Climb
+      derive: $ACL
+      avg:
+    - name: Teleop Climb
+      derive: $TCL
+      avg:
+    - name: Score
+      derive: $Total Score
+      avg:
+      max:
+      fil:
+    - name: Defensive Rating
+      derive: $DR[$D = 1]
+      avg:
+      max:
+    - name: Matches Playing Defense
+      derive: "@len$DR[$D = 1]"
 
 match-fields:
-  - name: Auton Shots
-    derive: $Auton Shots
-  - name: Auton Scores
-    derive: Auton Scores
-  - name: Teleop Shots
-    derive: $Teleop Shots
-  - name: Teleop Scores
-    derive: $Teleop Scores
-  - name: Total Score
-    derive: $Total Score
-  - name: Auton Climb
-    derive: $ACL
-  - name: Teleop Climb
-    derive: $TCL
+    - name: Auton Shots
+      derive: $Auton Shots
+    - name: Auton Scores
+      derive: Auton Scores
+    - name: Teleop Shots
+      derive: $Teleop Shots
+    - name: Teleop Scores
+      derive: $Teleop Scores
+    - name: Total Score
+      derive: $Total Score
+    - name: Auton Climb
+      derive: $ACL
+    - name: Teleop Climb
+      derive: $TCL
 
 predict-metric:
-  name: Score
-  source: Filtered Score
+    name: Score
+    source: Filtered Score
 
 depth-predict-fields:
-  - name: Auton Climb
-    source: Average Auton Climb
-  - name: Teleop Climb
-    source: Average Teleop Climb
-  - name: Flow Rate
-    source: Average Flow Rate
-  - name: Auton Scores
-    source: Average Auton Scores
-  - name: Teleop Scores
-    source: Average Teleop Scores
-  - name: Accuracy
-    source: Average Accuracy
+    - name: Auton Climb
+      source: Average Auton Climb
+    - name: Teleop Climb
+      source: Average Teleop Climb
+    - name: Flow Rate
+      source: Average Flow Rate
+    - name: Auton Scores
+      source: Average Auton Scores
+    - name: Teleop Scores
+      source: Average Teleop Scores
+    - name: Accuracy
+      source: Average Accuracy

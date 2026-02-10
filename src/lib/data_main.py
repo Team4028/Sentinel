@@ -55,7 +55,7 @@ class DataField:
     def objectify(self):
         """ calculates the applicable filters to serialize the data in this field into a dict """
         data = {}
-        if (len(self.filters) > 0):
+        if len(self.filters) > 0:
             for fil in self.filters:
                 data[FANCY_FIL[fil] + " " + self.name] = self.calc_map[fil](self) # call the cooresponding function to apply the filter
         elif type(self.data) == list and len(self.data) == 1: # if no filters, passthrough
@@ -215,6 +215,12 @@ class Processor:
                     print(chunk[dupes][["MN", "TN"]].drop_duplicates())
                     print("Filtering out...")
                 chunk = chunk.drop_duplicates(subset=["MN", "TN"], keep="first") # remove the duplicates
+                chunk["filter-keep"] = True
+                for i in range(len(self.config_data["tests"])):
+                    print(f"Performing test: {self.config_data["tests"][i]["name"]} ["
+                          + ('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1))) + ']')
+                    chunk["filter-keep"] = (chunk["filter-keep"]) & (eval_beakscript(self.config_data["tests"][i]["expr"], chunk))
+                chunk = chunk.loc[chunk["filter-keep"] == True]
                 for comp in self.config_data["compute"]:
                     # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
                     # this works because beakscript fully supports pd.DataFrame's, of which chunk is one

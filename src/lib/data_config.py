@@ -75,6 +75,7 @@ def lex_config(year: str):
         "predict-metric": "",
         "dash-panel": {},
         "deep-predict": [],
+        "tests": [],
     }
     if data:
         for k, v in GRAFANA_DATA_PANELS.items():
@@ -93,6 +94,11 @@ def lex_config(year: str):
                     "derive": field["derive"],
                 }
             )
+        for test in data["data-tests"]:
+            config["tests"].append({
+                "name": test["name"],
+                "expr": test["expression"],
+            })
         for field in data["match-fields"]:
             config["matches"].append(
                 {
@@ -326,6 +332,8 @@ def parse_equation(equation: str, df: pd.DataFrame):
 # === TYPE COERCION ===
 def floatize_if_str(x):
     """converts x to a float if it's a string and it can"""
+    if type(x) == str and  "'" in x:
+        return x.replace("'", "")
     try:
         return float(x) if type(x) == str else x
     except ValueError:

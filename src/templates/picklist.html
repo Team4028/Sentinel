@@ -176,6 +176,8 @@
         </div>
         <ul id="queuelist">
         </ul>
+        <h2 id="score"></h2>
+        <li id="4028team"><span class='line-text'>4028</li>
         <div id="pick1" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
             <label for="pick1list">Pick 1</label>
             <ul id="pick1list">
@@ -194,16 +196,36 @@
             </ul>
         </div>
     </div>
-    <iframe style="display: inline-block;"
-        width="100%" height="1000px" frameborder="0" id="data"></iframe>
+    <iframe style="display: inline-block;" width="100%" height="1000px" frameborder="0" id="data"></iframe>
     <script>
         const dashes = JSON.parse(`{{dashes | safe}}`);
+        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+        const h2 = document.getElementById("score");
         document.getElementById("data").src = `{{grafana_base}}${dashes["ScoutingDashboard.json"]}/scouting-dashboard?orgId=1&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s&viewPanel=panel-10`
         const search = document.getElementById("ateam-search");
         const select = document.getElementById("ateam");
         const listElement = document.getElementById("queuelist");
         const lists = [listElement, document.getElementById("pick1list"), document.getElementById("pick2list"), document.getElementById("pick3list")];
         let draggingLI = null;
+        let lastPicks = null;
+
+        Array.prototype.equals = function (array) {
+            if (!array) return false;
+            if (array === this) return true;
+            if (this.length != array.length)
+                return false;
+
+            for (var i = 0, l = this.length; i < l; i++) {
+                if (this[i] instanceof Array && array[i] instanceof Array) {
+                    if (!this[i].equals(array[i]))
+                        return false;
+                }
+                else if (this[i] != array[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
 
         document.addEventListener("dragstart", (e) => {
             if (e.target.tagName !== "LI") return;
@@ -228,6 +250,7 @@
             } else {
                 ul.insertBefore(draggingLI, afterElement);
             }
+            calculatePredictedScore();
             certainIndexList();
         }));
 
@@ -251,11 +274,27 @@
             }
         });
 
+        document.getElementById('4028team').onclick = function (e) {
+            if (e.target === this) {
+                const ifr = document.createElement("iframe");
+                ifr.src = `{{grafana_base}}${dashes["TeamView.json"]}/team-view?orgId=1&var-TeamSelector=4028&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s`;
+                ifr.width = "300px";
+                ifr.height = "300px";
+                ifr.frameBorder = "0";
+                ifr.style.position = "fixed";
+                ifr.style.top = e.clientY.toString() + "px";
+                ifr.style.left = e.clientX.toString() + "px";
+                ifr.addEventListener("mouseleave", () => ifr.remove());
+                document.body.appendChild(ifr);
+            }
+        };
+
         function certainIndexList() {
             for (const ul of document.querySelectorAll("ul"))
                 for (const li_remains of ul.querySelectorAll("li")) {
                     li_remains.querySelector("span").innerText = `${Array.from(ul.querySelectorAll("li")).indexOf(li_remains) + 1}: `;
                 }
+            calculatePredictedScore();
             serializeToLocalStorage();
         }
 
@@ -295,6 +334,32 @@
         function serializeToLocalStorage() {
             const teams = Object.fromEntries(lists.map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)]));
             localStorage.setItem("Picklist", JSON.stringify(teams));
+        }
+
+        function calculatePredictedScore() {
+            let picks = [];
+            for (const listi of lists.slice(1))
+                if (listi.children.length > 0)
+                    picks.push(listi.children[0].querySelector(".line-text").innerText);
+
+            for (var i = 0; i < picks.length; i++)
+                picks[i] = `pick${i + 1}=${picks[i]}`;
+            if (picks.equals(lastPicks)) {
+                return;
+            } else lastPicks = picks;
+            console.log(picks.join('&'));
+            fetch(`/calc-team-score?${picks.join("&")}`, {
+                method: "GET",
+                credentials: "include",
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            }).then(res => {
+                if (res.ok)
+                    res.json().then(j => {
+                        h2.innerText = "Score: " + j["score"];
+                    });
+            }).catch(() => { });
         }
 
         function deserializeFromLocalStorage() {
@@ -337,6 +402,7 @@
             }
         }
         deserializeFromLocalStorage();
+        calculatePredictedScore();
     </script>
 </body>
 

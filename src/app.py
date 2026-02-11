@@ -176,7 +176,7 @@ def create_app(): # cursed but whatever
 
     def rm_row_hash(hashes):
         """ Deletes rows of data from the input csv by matching their hashes with the ones provided and then reprocesses the data """
-        speedy_hashes = set(hashes) # set is O(1) trust
+        hasty_hashes = set(hashes) # set is O(1) trust
         temp_fd, temp_path = tempfile.mkstemp()
         firstLine = True
         os.close(temp_fd)
@@ -184,7 +184,7 @@ def create_app(): # cursed but whatever
              open(temp_path, 'w', newline='', encoding='utf-8') as outf:
             
             for line in inf:
-                if apputils.line_str_hash(line.strip()) not in speedy_hashes:
+                if apputils.line_str_hash(line.strip()) not in hasty_hashes:
                     outf.write(("" if firstLine else "\n") + line.strip())
                     firstLine = False
         apputils.safer_replace(temp_path, infile)
@@ -206,6 +206,7 @@ def create_app(): # cursed but whatever
                 if sending:
                     for l in lines_to_write: mesh.send_message(l)
                 elif app.config["RESTRICT_APPEND_LEVEL"] == 1:
+                    app.logger.info(f"Adding notification for data {lines_to_write}")
                     send_change_notification(lines_to_write)
         if not sending:
             processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])

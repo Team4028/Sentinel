@@ -217,8 +217,7 @@ class Processor:
                 chunk = chunk.drop_duplicates(subset=["MN", "TN"], keep="first") # remove the duplicates
                 chunk["filter-keep"] = True
                 for i in range(len(self.config_data["tests"])):
-                    print(f"Performing test: {self.config_data["tests"][i]["name"]} ["
-                          + ('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1))) + ']')
+                    print(f"Performing test: {self.config_data["tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1)))}]")
                     chunk["filter-keep"] = (chunk["filter-keep"]) & (eval_beakscript(self.config_data["tests"][i]["expr"], chunk))
                 chunk = chunk.loc[chunk["filter-keep"] == True]
                 for comp in self.config_data["compute"]:

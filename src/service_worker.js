@@ -5,11 +5,17 @@ let cid = null;
 
 self.addEventListener("message", event => {
     if (event.data.type === "SET_CSRF") {
-        if (!csrfToken || !cid) {
-            csrfToken = event.data.token;
-            cid = event.data.cid;
-            console.log("Service Worker recieved CSRF + Client ID");
-        }
+        csrfToken = event.data.token;
+        cid = event.data.cid;
+        console.log("Service Worker recieved CSRF + Client ID");
+        event.waitUntil(
+            (async () => {
+                if (!event.source) return;
+                event.source.postMessage({
+                    type: "RECIEVED_CSRF"
+                });
+            })()
+        );
     }
 });
 
@@ -27,7 +33,6 @@ self.addEventListener("notificationclick", event => {
         event.waitUntil(
             clients.matchAll({ type: "window" }).then(cList => {
                 for (const client of cList) {
-                    console.log(client);
                     // if /changes is already open, go to that page and reload it
                     if (client.url === new URL('/changes', self.location.href).toString() && "focus" in client) {
                         client.navigate(client.url);
@@ -85,6 +90,6 @@ setInterval(() => {
                     delete json.title;
                     self.registration.showNotification(title, json);
                 }
-            });
-    }).catch(() => {});
+            }).catch(() => {});
+    }).catch((e) => { console.log(`Error: ${e}`) });
 }, 1000);

@@ -713,7 +713,7 @@ def eval_beakscript(equation: str, df: pd.DataFrame, equation_label = ""):
     except Exception as e:
         if isinstance(e, BeakscriptInterpretError): raise
         tb = traceback.extract_tb(e.__traceback__)
-        raise BeakscriptInterpretError(f"Unexpected error occured during step '{prog_steps[prog_ctr]}' ({prog_ctr + 1}/{len(prog_steps)}) of evaluation of equation\n{type(e).__name__}: {tb.format_frame_summary(tb[-1])}") from None
+        raise BeakscriptInterpretError(f"Unexpected error occured during step '{prog_steps[prog_ctr]}' ({prog_ctr + 1}/{len(prog_steps)}) of evaluation of equation\n{tb.format_frame_summary(tb[-1])}\n{type(e).__name__}: {e}") from None
 
 class TestBeakscript(unittest.TestCase):
     """ One must imagine `OK`"""
@@ -801,31 +801,3 @@ class TestBeakscript(unittest.TestCase):
 if __name__ == "__main__":
     # test beakscript
     unittest.main()
-    # print(eval_beakscript("{1, *$_A, 3}", pd.DataFrame({
-    #     "T1A": [1, 2], "T2A": [3, 4], "T3B": [5, 6]
-    # })))
-    # print(
-    #     eval_beakscript(
-    #         "@sum$TN,MN[$TC == R | $TC = Y]",
-    #         pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
-    #     )
-    # )
-
-    # print(
-    #     eval_beakscript(
-    #         "{($TN,MN), $TN - $MN}",
-    #         pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
-    #     )
-    # )
-
-    # print(
-    #     eval_beakscript(
-    #         "$TN[$TC != Y]",
-    #         pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
-    #     )
-    # )
-
-    # print(eval_beakscript("@len{2, 3, 5, 6}", {}))
-    # # had to keep this one around because I was impressed that it worked
-    # # it works because n is a literal, so @lenn = len(n) = 1, and 1 - {2, 3, 5, 6} becomes {1, 1, 1, 1} - {2, 3, 5, 6}, which becomes {-1, -2, -4, -5}
-    # print(eval_beakscript("@lenn-{2, 3, 5, 6}", {}))

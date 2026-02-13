@@ -2,13 +2,15 @@ import pandas as pd
 import os
 import json
 import numpy as np
-import warnings
 try: 
     from lib.data_config import eval_beakscript, FANCY_FIL
 except ModuleNotFoundError:
     from src.lib.data_config import eval_beakscript, FANCY_FIL
 from collections import defaultdict
 from collections.abc import Iterable
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TeamStruct:
     def __init__(self) -> None:
@@ -32,9 +34,6 @@ class TeamStruct:
         return data
     
 class DataField:
-    filters = []
-    data = []
-    name = ""
     def __init__(self, name, data, filters) -> None:
         self.name = name
         self.filters = filters
@@ -58,7 +57,7 @@ class DataField:
         if len(self.filters) > 0:
             for fil in self.filters:
                 data[FANCY_FIL[fil] + " " + self.name] = self.calc_map[fil](self) # call the cooresponding function to apply the filter
-        elif type(self.data) == list and len(self.data) == 1: # if no filters, passthrough
+        elif isinstance(self.data, list) and len(self.data) == 1: # if no filters, passthrough
             data[self.name] = self.data[0]
         else: data[self.name] = self.data # if the data is just a float, use it
         return data
@@ -209,21 +208,38 @@ class Processor:
             first = True
             for chunk in reader: # read in chunks in case big
                 # if MN and TN are the same, there are two instances of the same team in the same match, so it's a duplicate row
+                if len(self.config_data["preproc"]) > 0:
+                    def apply_preproc_row(row: pd.Series, prep) -> list[pd.Series]:
+                        new_rho = eval_beakscript(prep["op"], row, "Preprocessor Function " + prep["name"])
+                        if isinstance(new_rho, pd.Series):
+                            if len(new_rho) > 0 and isinstance(new_rho.iloc[0], pd.Series):
+                                return list(new_rho)
+                            return [new_rho]
+                        if isinstance(new_rho, (list, tuple)):
+                            return list(new_rho)
+                        raise TypeError(f"Error: unsupported return type for preproc function {prep["name"]}: {type(new_rho)}")
+                    for i in range(len(self.config_data["preproc"])):
+                        last_cols = chunk.columns
+                        logger.info(f"Performing preprocess operation: {self.config_data["preproc"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["preproc"]) - (i + 1)))}]")
+                        exp = (chunk.apply(lambda row: apply_preproc_row(row, self.config_data["preproc"][i]), axis=1).explode().reset_index(drop=True))
+                        chunk = pd.DataFrame(exp.tolist())
+                        if "new-headers" in self.config_data["preproc"][i]:
+                            chunk.columns = self.config_data["preproc"][i]["new-headers"]
+                        else: chunk.columns = last_cols
                 dupes = chunk.duplicated(subset=["MN", "TN"], keep=False)
                 if dupes.any():
-                    warnings.warn("Warning: duplicate teams for the following matches:")
-                    print(chunk[dupes][["MN", "TN"]].drop_duplicates())
-                    print("Filtering out...")
+                    logger.warning("Warning: duplicate teams for the following matches:\n\t" + "\n\t".join(str(chunk[dupes][["MN", "TN"]].drop_duplicates()).split('\n')))
+                    logger.info("Filtering out...")
                 chunk = chunk.drop_duplicates(subset=["MN", "TN"], keep="first") # remove the duplicates
                 chunk["filter-keep"] = True
                 for i in range(len(self.config_data["tests"])):
-                    print(f"Performing test: {self.config_data["tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1)))}]")
-                    chunk["filter-keep"] = (chunk["filter-keep"]) & (eval_beakscript(self.config_data["tests"][i]["expr"], chunk))
+                    logger.info(f"Performing test: {self.config_data["tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1)))}]")
+                    chunk["filter-keep"] = (chunk["filter-keep"]) & (eval_beakscript(self.config_data["tests"][i]["expr"], chunk, "Data Test " + self.config_data["tests"][i]["name"]))
                 chunk = chunk.loc[chunk["filter-keep"] == True]
                 for comp in self.config_data["compute"]:
                     # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
                     # this works because beakscript fully supports pd.DataFrame's, of which chunk is one
-                    chunk[comp["name"]] = eval_beakscript(comp["eq"], chunk)
+                    chunk[comp["name"]] = eval_beakscript(comp["eq"], chunk, "Compute Field " + comp["name"])
                 for team in chunk["TN"].unique(): # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
                     team_data = {}
                     if int(team) in self._ranks:
@@ -232,8 +248,8 @@ class Processor:
                         team_data["Rank"], team_data["Average RP"] = (None, None)
                     for field in self.config_data["teams"]:
                         # call the beakscript functions for the derived fields where the TN == team
-                        val = eval_beakscript(field["derive"], chunk.loc[chunk["TN"] == team])
-                        if type(val) == pd.Series:
+                        val = eval_beakscript(field["derive"], chunk.loc[chunk["TN"] == team], "Team Field " + field["name"])
+                        if isinstance(val, pd.Series):
                             val = val.tolist() # pythonify the pandas datatypes
                         team_data[field["name"]] = val # write the field to the csv
                     self._teams.setdefault(int(team), TeamStruct()).extend_data(team_data) # add the data to the appropriate team struct
@@ -242,8 +258,8 @@ class Processor:
                     static_fields = {}
                     for field in self.config_data["matches"]:
                         if "static" in field:
-                            val = eval_beakscript(field["derive"], row)
-                            if type(val) == pd.Series:
+                            val = eval_beakscript(field["derive"], row, "Static Match Field" + field["name"])
+                            if isinstance(val, pd.Series):
                                 val = val.tolist()
 
                             static_fields |= {field["name"]: val}
@@ -253,8 +269,8 @@ class Processor:
                             row = chunk.loc[(chunk["TN"] == team) & (chunk["MN"] == match)]
                             if "static" in field: continue
                             # get derived fields for matches
-                            val = eval_beakscript(field["derive"], row.iloc[0])
-                            if type(val) == pd.Series:
+                            val = eval_beakscript(field["derive"], row.iloc[0], "Match Field" + field["name"])
+                            if isinstance(val, pd.Series):
                                 val = val.tolist()
                             data[field["name"]] = val
                         for f, fv in static_fields.items():
@@ -265,7 +281,7 @@ class Processor:
                             int(team),
                             data
                         )
-                print("Writing chunk...")
+                logger.info("Writing chunk...")
                 # write the main csv
                 chunk.to_csv(
                     os.path.join(self.outpath, outname),
@@ -274,14 +290,14 @@ class Processor:
                 )
                 first = False
         # write all the other files
-        print("Writing teams...")
+        logger.info("Writing teams...")
         self.output_teams(os.path.join(self.outpath, outname + "-teams.csv"))
-        print("Writing matches...")
+        logger.info("Writing matches...")
         self.output_matches(os.path.join(self.outpath, outname + "-matches.csv"))
-        print("Writing predictions...")
+        logger.info("Writing predictions...")
         self.predict_matches(os.path.join(self.outpath, outname + "-predict.csv"))
-        print("Writing deep predictions...")
+        logger.info("Writing deep predictions...")
         self.match_predict_depth(os.path.join(self.outpath, outname + "-morepredict.csv"))
-        print("Writing other metrics...")
+        logger.info("Writing other metrics...")
         self.write_other_metrics(os.path.join(self.outpath, "other-metrics.json"))
-        print("Done!!!!")
+        logger.info("Done!!!!")

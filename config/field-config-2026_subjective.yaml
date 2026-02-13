@@ -1,0 +1,41 @@
+headers:
+  - name: MN
+    desc: Match Number
+  - name: AC
+    desc: Alliance Color
+  - name: SI
+    desc: Scouter Initials
+  - name: T1
+    desc: Team 1 Number
+  - name: HCT1
+    desc: Hopper 1 Capacity
+  - name: DST1
+    desc: Driver Skill Rating 1
+  - name: T2
+    desc: Team 2 Number
+  - name: HCT2
+    desc: Hopper 2 Capacity
+  - name: DST2
+    desc: Driver Skill Rating 2
+  - name: T3
+    desc: Team 3 Number
+  - name: HCT3
+    desc: Hopper 3 Capacity
+  - name: DST3
+    desc: Driver Skill Rating 3
+  - name: EID
+    desc: Event ID
+
+preproc-operations:
+  - name: Split Team Row
+    new-headers: [MN, AC, SI, TN, HC, DS, EID]
+    operation: "{{$MN, $AC, $SI, *$_T1, $EID}, {$MN, $AC, $SI, *$_T2, $EID}, {$MN, $AC, $SI, *$_T3, $EID}}"
+
+compute-fields: []
+team-fields: []
+match-fields: []
+data-tests: []
+depth-predict-fields: []
+predict-metric:
+  name: Score
+  source: Score

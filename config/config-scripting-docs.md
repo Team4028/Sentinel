@@ -2,6 +2,10 @@
 
 ⚠️ In the below documentation, I may use header/column/field interchangably. In this case, their meaning is identical to represent a column labelled via a header in the csv data. The deviation stems from the fact that the label is called a header, the labelled column is called a column (believe it or not), and in the grafana frontend, these labelled columns are called fields. ⚠️
 
+## Recency
+Docs currently up to date? `NO`
+- need to add unpack and wildcard headers 
+
 ## Basic Operations
 Basic operations are supported, identical to common programming languages and mathematics
 - In the below notation, (=>) is used to denote the result of the expression, and is not part of the expression itself
@@ -50,3 +54,7 @@ Operator precedence defines the order in which operators are evalutated (order o
 - `|`: finally, or is the last operator evaluated
 
 It is also important to note that parenthesis can be used to short-circut order of operations, even on the `[]` operator (ex. `($TN * $MN)[$TC = R1]`)
+
+## Testing
+There are a number of unit tests defined for beakscript in the `TestBeakscript` class.
+These can be run via `python src/lib/data_config.py -v` (or without `-v`) or via unittest with `python -m unittest src.lib.data_config.TestBeakscript -v` (or no `-v`)

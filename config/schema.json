@@ -20,6 +20,27 @@
                 "required": ["name"]
             }
         },
+        "preproc-operations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the operation"
+                    },
+                    "new-headers": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    },
+                    "operation": {
+                        "type": "string",
+                        "description": "A consumer that takes in a row as a pd.Series and outputs one or more resolved series"
+                    }
+                },
+                "required": ["name", "operation"]
+            }
+        },
         "compute-fields": {
             "type": "array",
             "items": {

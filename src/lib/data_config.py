@@ -1,8 +1,13 @@
 import yaml
 from enum import Enum
-from typing import List
 import pandas as pd
+from pandas.testing import assert_series_equal
+import traceback
+import re
+import unittest
+import logging
 
+logger = logging.getLogger(__name__)
 
 def read_config(year: str):
     """Reads the configuration YAML file into memory"""
@@ -11,9 +16,9 @@ def read_config(year: str):
             data = yaml.safe_load(f)
         return data
     except FileNotFoundError:
-        print("Error: File not found at path")
+        logger.error("Error: File not found at path")
     except yaml.YAMLError as e:
-        print(f"YAML Parser encountered an error: {e}")
+        logger.error(f"YAML Parser encountered an error: {e}")
 
 
 FILTERS = ["avg", "max", "fil"]
@@ -73,6 +78,7 @@ def lex_config(year: str):
         "teams": [],
         "matches": [],
         "predict-metric": "",
+        "preproc": [],
         "dash-panel": {},
         "deep-predict": [],
         "tests": [],
@@ -84,6 +90,11 @@ def lex_config(year: str):
                 config["dash-panel"][k][ki] = vi(data)
         for field in data["headers"]:
             config["headers"].append(field["name"])
+        if "preproc-operations" in data:
+            for field in data["preproc-operations"]:
+                _data = {"name": field["name"], "op": field["operation"]}
+                if "new-headers" in field: _data |= {"new-headers": field["new-headers"]}
+                config["preproc"].append(_data)
         for field in data["compute-fields"]:
             config["compute"].append({"name": field["name"], "eq": field["equation"]})
         for field in data["team-fields"]:
@@ -94,11 +105,12 @@ def lex_config(year: str):
                     "derive": field["derive"],
                 }
             )
-        for test in data["data-tests"]:
-            config["tests"].append({
-                "name": test["name"],
-                "expr": test["expression"],
-            })
+        if "data-tests" in data:
+            for test in data["data-tests"]:
+                config["tests"].append({
+                    "name": test["name"],
+                    "expr": test["expression"],
+                })
         for field in data["match-fields"]:
             config["matches"].append(
                 {
@@ -127,24 +139,40 @@ class TOKENS(Enum):  # different types of expressions there are
 
 
 class Token:  # represents a thing that the lexer can match to
-    token: TOKENS
-    symbol: str | pd.DataFrame
-
-    def __init__(self, token, symbol):
+    def __init__(self, token, symbol, column = 0):
         self.token = token
         self.symbol = symbol
+        self.column = column
 
     def __str__(self):
-        return f"{self.token.name}: {self.symbol}"
+        return f"<{self.token.name}: {self.symbol}, col={self.column}>"
 
     def __repr__(self):
-        return f"{self.token.name}: {self.symbol}"
+        return f"<{self.token.name}: {self.symbol}, col={self.column}>"
+    
+class BeakscriptInterpretError(RuntimeError):
+    curr_equation: str = ""
+    curr_eq_name: str = ""
 
+    def __str__(self):
+        return f"[{BeakscriptInterpretError.curr_eq_name}] {super().__str__()}"
+    ...
+
+
+class UnpackList(list): ...
+
+def float_or_int(x):
+    fx = float(x)
+    if fx % 1 == 0:
+        return int(fx)
+    return fx
 
 # all unary operators
 UNOPS = [
+    "*",
     "-",
-    "!" "@avg",
+    "!",
+    "@avg",
     "@max",
     "@min",
     "@sum",
@@ -165,6 +193,7 @@ LIST_LITERALS = ["{", "}"]
 
 # unary operator precedence list (precedence = which goes first)
 UNOP_PRECEDENCE = {
+    "*": 7,
     "-": 7,
     "!": 7,
     "@sum": 7,
@@ -218,19 +247,21 @@ def parse_equation(equation: str, df: pd.DataFrame):
         # if @, read next three letters for unop
         if c == "@":
             if i + 3 < len(equation):
+                if "".join(equation[i + j] for j in range(4)) not in UNOPS:
+                    raise BeakscriptInterpretError(f"Error at column {i + 1}: invalid unary operator expression after '@'\n{equation}\n{' ' * i + '^'}")
                 equation_tokens.append(
-                    Token(TOKENS.UNARY_OP, "".join(equation[i + j] for j in range(4)))
+                    Token(TOKENS.UNARY_OP, "".join(equation[i + j] for j in range(4)), i + 1)
                 )
                 i += 4
             else:
-                i += 1
+                raise BeakscriptInterpretError(f"Error at column {i + 1}: not enough characters after '@' unary operator declaration\n{equation}\n{' ' * i + '^'}")
             continue
         # if paren, read paren
         if c in PARENS:
-            equation_tokens.append(Token(TOKENS.PAREN, c))
+            equation_tokens.append(Token(TOKENS.PAREN, c, i + 1))
         # if bracket, read bracket
         elif c == "[" or c == "]":
-            equation_tokens.append(Token(TOKENS.HEADER_COND, c))
+            equation_tokens.append(Token(TOKENS.HEADER_COND, c, i + 1))
         # if list (too hard to read list and do elsewhere), read each list index and evaluate the inside
         elif c == "{":
             i += 1
@@ -265,10 +296,10 @@ def parse_equation(equation: str, df: pd.DataFrame):
                     curr += c  # add to current entry
                 i += 1
             literal_list = [
-                eval_beakscript(item, df) for item in list_tokens
+                _ for item in list_tokens for res in (eval_beakscript(item, df),) for _ in (res if isinstance(res, UnpackList) else (res,))
             ]  # evaluate entries
             # make the list into a pd.Series list so it can be filtered
-            equation_tokens.append(Token(TOKENS.LITERAL, pd.Series(literal_list)))
+            equation_tokens.append(Token(TOKENS.LITERAL, pd.Series(literal_list), i + 1))
         # if its an operator
         elif c in OPERATOR_STRINGS:
             # check if its unary (at beginning, right after other operator or beginning of {/[/(, or right after @xxx operator)
@@ -278,17 +309,21 @@ def parse_equation(equation: str, df: pd.DataFrame):
                 or equation[i - 1] in ["(", "[", "{"]
                 or (i - 4 >= 0 and equation[i - 4] == "@")
             ):
-                equation_tokens.append(Token(TOKENS.UNARY_OP, c))
+                if c not in UNOPS:
+                    raise BeakscriptInterpretError(f"Error at column {i + 1}: invalid use of {c} as an unary operator\n{equation}\n{' ' * i + '^'}")
+                equation_tokens.append(Token(TOKENS.UNARY_OP, c, i + 1))
             # turn < into <=, etc
             elif equation[i] in COMP_EXTEND:
                 if i + 1 < len(equation) and equation[i + 1] == "=":
-                    equation_tokens.append(Token(TOKENS.BINARY_OP, c + "="))
+                    equation_tokens.append(Token(TOKENS.BINARY_OP, c + "=", i + 1))
                     i += 1
                 else:
-                    equation_tokens.append(Token(TOKENS.BINARY_OP, c))
+                    equation_tokens.append(Token(TOKENS.BINARY_OP, c, i + 1))
             # otherwise just add it
             else:
-                equation_tokens.append(Token(TOKENS.BINARY_OP, c))
+                if c not in BIOP_PRECEDENCE:
+                    raise BeakscriptInterpretError(f"Error at column {i + 1}: invalid use of {c} as an binary operator\n{equation}\n{' ' * i + '^'}")
+                equation_tokens.append(Token(TOKENS.BINARY_OP, c, i + 1))
         # its a header!
         elif c == "$":
             if i < len(equation):
@@ -306,7 +341,7 @@ def parse_equation(equation: str, df: pd.DataFrame):
             ):
                 ref_name += equation[i]  # read the header
                 i += 1
-            equation_tokens.append(Token(TOKENS.HEADER, ref_name.strip()))
+            equation_tokens.append(Token(TOKENS.HEADER, ref_name.strip(), i + 1))
             continue
         # its a literal
         else:
@@ -323,7 +358,7 @@ def parse_equation(equation: str, df: pd.DataFrame):
             ):
                 literal_value += equation[i]  # read the literal
                 i += 1
-            equation_tokens.append(Token(TOKENS.LITERAL, literal_value.strip()))
+            equation_tokens.append(Token(TOKENS.LITERAL, literal_value.strip(), i + 1))
             continue
         i += 1
     return equation_tokens
@@ -332,10 +367,10 @@ def parse_equation(equation: str, df: pd.DataFrame):
 # === TYPE COERCION ===
 def floatize_if_str(x):
     """converts x to a float if it's a string and it can"""
-    if type(x) == str and  "'" in x:
+    if isinstance(x, str) and  "'" in x:
         return x.replace("'", "")
     try:
-        return float(x) if type(x) == str else x
+        return float_or_int(x) if isinstance(x, str) else x
     except ValueError:
         return x
 
@@ -343,14 +378,14 @@ def floatize_if_str(x):
 def strize_if_float(x):
     """converts x to a string if it's a float and it can"""
     try:
-        return str(x) if type(x) == float else x
+        return str(x) if isinstance(x, float) else x
     except ValueError:
         return x
 
 
 def strfloatize_if_bool(x):
     """converts a bool to a '1' for true and a '0' for false, a string representation of a float-compatible encoding of the boolean"""
-    if type(x) == bool:
+    if isinstance(x, bool):
         return "1" if x else "0"
     return x
 
@@ -380,13 +415,17 @@ def df_safe_or(a, b):
 # =====================
 
 
-def evaluate_unary_operator(x, op):
+def evaluate_unary_operator(x, op, index):
     """evaluates `op` on `x`, trying its best to return a string"""
     match (op):
+        case "*":
+            if isinstance(x, pd.Series):
+                return UnpackList(x.tolist())
+            return x
         case "-":
             return strize_if_float(-x)
         case "!":
-            if type(x) == pd.Series:
+            if isinstance(x, pd.Series):
                 return ~x
             return strfloatize_if_bool(not x)
         case "@avg":
@@ -426,11 +465,10 @@ def evaluate_unary_operator(x, op):
                 return strize_if_float(len(x))
             except:
                 strize_if_float(x)
-    print(f"Parser Error: Unknown unary operation: {op}")
-    return "nan"
+    raise BeakscriptInterpretError(f"Parser Error: Unknown unary operation: {op}\n{BeakscriptInterpretError.curr_equation}\n{' ' * index + '^'}")
 
 
-def evaluate_binary_operator(lhs, rhs, op):
+def evaluate_binary_operator(lhs, rhs, op, index):
     """evalutaes `lhs op rhs`, trying its best to return a string"""
     match (op):
         case "+":
@@ -465,11 +503,10 @@ def evaluate_binary_operator(lhs, rhs, op):
             return strfloatize_if_bool(df_safe_or(lhs, rhs))
         case "[]":
             return lhs.loc[rhs]
-    print(f"Parser error: Unexpected binary operator: {op}")
-    return "nan"
+    raise BeakscriptInterpretError(f"Parser error: Unexpected binary operator: {op}\n{BeakscriptInterpretError.curr_equation}\n{' ' * index + '^'}")
 
 
-def preproc_implicit_ops(tokens: List[Token]):
+def preproc_implicit_ops(tokens: list[Token]):
     """Convert HEADER_COND tokens <h[expr]> into binary operators h [] (expr) to make rpn easier"""
     output = []
     i = 0
@@ -504,7 +541,7 @@ def preproc_implicit_ops(tokens: List[Token]):
         elif (
             t.token == TOKENS.HEADER_COND
             and i > 0
-            and (type(tokens[i - 1].symbol) == pd.Series or tokens[i - 1].symbol == ")")
+            and (isinstance(tokens[i - 1].symbol, pd.Series) or tokens[i - 1].symbol == ")")
         ):
             i += 1
             inner = []
@@ -531,10 +568,10 @@ def preproc_implicit_ops(tokens: List[Token]):
     return output
 
 
-def rpn(tokens: List[Token]):
+def rpn(tokens: list[Token]):
     """Converts `tokens` into a list of reverse polish notation tokens to make parsing much easier"""
     output = []
-    ops: List[Token] = []
+    ops: list[Token] = []
 
     for token in tokens:
         if token.token == TOKENS.LITERAL:
@@ -591,7 +628,7 @@ def rpn(tokens: List[Token]):
     return list(output)
 
 
-def solve_rpn(rpn_tokens: List[Token], df: pd.DataFrame):
+def solve_rpn(rpn_tokens: list[Token], df: pd.DataFrame):
     """parses `rpn_tokens`, using `df` to evaluate the headers"""
     stack_overflow = []  # the stack
     for t in rpn_tokens:
@@ -599,12 +636,22 @@ def solve_rpn(rpn_tokens: List[Token], df: pd.DataFrame):
         sym = t.symbol
 
         if tok == TOKENS.HEADER:
-            if "," in sym:  # multi-header = sum
-                stack_overflow.append(
-                    df[[s.strip() for s in sym.split(",")]].sum(axis=1)
-                )
-            else:
-                stack_overflow.append(df[sym])
+            try:
+                if "," in sym:  # multi-header = sum
+                    stack_overflow.append(
+                        df[[s.strip() for s in sym.split(",")]].sum(axis=1)
+                    )
+                else:
+                    if "_" in sym:
+                        simr = re.compile('^' + re.escape(sym).replace("_", ".*"))
+                        if isinstance(df, pd.DataFrame):
+                            stack_overflow.append(df.filter(regex=simr).iloc[0].reset_index(drop=True))
+                        else:
+                            stack_overflow.append(df.filter(regex=simr).reset_index(drop=True))
+                    else:
+                        stack_overflow.append(df[sym])
+            except KeyError:
+                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): header not present in dataframe\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}") from None
             continue
 
         if tok == TOKENS.LITERAL:
@@ -612,18 +659,28 @@ def solve_rpn(rpn_tokens: List[Token], df: pd.DataFrame):
             continue
 
         if tok == TOKENS.UNARY_OP:
+            if len(stack_overflow) < 1:
+                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): not enough operands\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}")
             val = floatize_if_str(
                 stack_overflow.pop()
             )  # pop closest value to apply unop to
-            stack_overflow.append(evaluate_unary_operator(val, sym))
+            try:
+                stack_overflow.append(evaluate_unary_operator(val, sym, t.column))
+            except TypeError:
+                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): invalid operand type for unary operation: <operand: {type(val).__name__}>\n{BeakscriptInterpretError.equation}\n{' ' * (t.column - 1) + '^'}") from None
             continue
 
         if tok == TOKENS.BINARY_OP:
+            if len(stack_overflow) < 2:
+                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): not enough operands\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}")
             rhs = floatize_if_str(stack_overflow.pop())
             lhs = floatize_if_str(
                 stack_overflow.pop()
             )  # pop operands (rhs first bc rpn notation) to apply biop to
-            stack_overflow.append(evaluate_binary_operator(lhs, rhs, sym))
+            try:
+                stack_overflow.append(evaluate_binary_operator(lhs, rhs, sym, t.column))
+            except TypeError:
+                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): invalid operand types for binary operation: <lhs: {type(lhs).__name__}, rhs: {type(rhs).__name__}>\n{BeakscriptInterpretError.equation}\n{' ' * (t.column - 1) + '^'}") from None
             continue
 
     if len(stack_overflow) != 1:
@@ -631,45 +688,144 @@ def solve_rpn(rpn_tokens: List[Token], df: pd.DataFrame):
     ret = stack_overflow[0]
     try:
         if (
-            type(ret) == pd.Series and ret.size == 1
+            isinstance(ret, pd.Series) and ret.size == 1
         ):  # calling float on len 1 series will eventually throw an error, and we want to unwrap len 1 series.
-            return float(ret.iloc[0])
-        return float(ret)
+            return float_or_int(ret.iloc[0])
+        return float_or_int(ret)
     except:
         return ret
 
 
-def eval_beakscript(equation: str, df: pd.DataFrame):
-    tokens = parse_equation(equation, df)  # first parse the string
-    tokens = preproc_implicit_ops(tokens)  # then restructure the brackets
-    rpnResult = rpn(tokens)  # then convert the tokens to rpn
-    return solve_rpn(rpnResult, df)  # then evaluate it
+def eval_beakscript(equation: str, df: pd.DataFrame, equation_label = ""):
+    prog_ctr = 0
+    prog_steps = ["Parsing", "Preprocessing", "RPN Parsing", "RPN Evaluation"]
+    BeakscriptInterpretError.curr_equation = equation
+    if not (equation_label.isspace() or equation_label == ""):
+        BeakscriptInterpretError.curr_eq_name = equation_label
+    try:
+        tokens = parse_equation(equation, df)  # first parse the string
+        prog_ctr += 1
+        tokens = preproc_implicit_ops(tokens)  # then restructure the brackets
+        prog_ctr += 1
+        rpnResult = rpn(tokens)  # then convert the tokens to rpn
+        prog_ctr += 1
+        return solve_rpn(rpnResult, df)  # then evaluate it
+    except Exception as e:
+        if isinstance(e, BeakscriptInterpretError): raise
+        tb = traceback.extract_tb(e.__traceback__)
+        raise BeakscriptInterpretError(f"Unexpected error occured during step '{prog_steps[prog_ctr]}' ({prog_ctr + 1}/{len(prog_steps)}) of evaluation of equation\n{type(e).__name__}: {tb.format_frame_summary(tb[-1])}") from None
+
+class TestBeakscript(unittest.TestCase):
+    """ One must imagine `OK`"""
+    def test_regex_header(self):
+        assert_series_equal(eval_beakscript("$_A", pd.DataFrame({
+            "1A": [1], "2A": [2], "3B": [3]
+        }), "Unittest Regex"), pd.Series([1, 2]), check_names=False)
+
+    def test_header_sum(self):
+        self.assertEqual(eval_beakscript("$A,B", pd.DataFrame({"A": [1], "B": [2]}), "Unittest Header Sum"), 3)
+
+    def test_type_coercion_and_types(self):
+        self.assertEqual(eval_beakscript("'20' == 20", {}, "Unittest quotes"), 0)
+        self.assertIsInstance(eval_beakscript("20.5", {}, "Unittest float"), float)
+        self.assertIsInstance(eval_beakscript("20", {}, "Unittest int"), int)
+        self.assertIsInstance(eval_beakscript("*{1, 2, 3}", {}, "Unittest UnpackList"), UnpackList)
+    
+    def test_unary_operators(self):
+        assert_series_equal(eval_beakscript("{1, *{2, 3}, 4}", {}, "Unittest U*"), pd.Series([1, 2, 3, 4]))
+        self.assertEqual(eval_beakscript("-5", {}, "Unittest U-"), -5)
+        self.assertEqual(eval_beakscript("!1", {}, "Unittest U!"), 0)
+        self.assertEqual(eval_beakscript("@avg{1, 2, 6, 4}", {}, "Unittest U@avg"), 3.25)
+        self.assertEqual(eval_beakscript("@max{1, 2, 6, 4}", {}, "Unittest U@max"), 6)
+        self.assertEqual(eval_beakscript("@min{1, 2, 6, 4}", {}, "Unittest U@min"), 1)
+        self.assertEqual(eval_beakscript("@sum{1, 2, 6, 4}", {}, "Unittest U@sum"), 13)
+        self.assertEqual(eval_beakscript("@len{1, 2, 6, 4}", {}, "Unittest U@len"), 4)
+    
+    def test_binary_operators(self):
+        self.assertEqual(eval_beakscript("$A[$B == b]", pd.DataFrame({
+            "A": [1, 2, 3],
+            "B": ["a", "b", "c"]
+        }), "Unittest B[]"), 2)
+        self.assertEqual(eval_beakscript("5 * 2", {}, "Unittest B* 1"), 10)
+        assert_series_equal(eval_beakscript("{3, 2} * {2, 1}", {}, "Unittest B* 2"), pd.Series([6, 2]))
+        assert_series_equal(eval_beakscript("{3, 2} * 5", {}, "Unittest B* 3"), pd.Series([15, 10]))
+        self.assertEqual(eval_beakscript("5 / 2", {}, "Unittest B/ 1"), 2.5)
+        assert_series_equal(eval_beakscript("{3, 2} / {2, 1}", {}, "Unittest B/ 2"), pd.Series([1.5, 2.0]))
+        assert_series_equal(eval_beakscript("{3, 2} / 5", {}, "Unittest B/ 3"), pd.Series([0.6, 0.4]))
+        self.assertEqual(eval_beakscript("5 % 2", {}, "Unittest B% 1"), 1)
+        assert_series_equal(eval_beakscript("{3, 2} % {2, 1}", {}, "Unittest B% 2"), pd.Series([1, 0]))
+        assert_series_equal(eval_beakscript("{3, 2} % 5", {}, "Unittest B% 3"), pd.Series([3, 2]))
+        self.assertEqual(eval_beakscript("5 + 2", {}, "Unittest B+ 1"), 7)
+        assert_series_equal(eval_beakscript("{3, 2} + {2, 1}", {}, "Unittest B+ 2"), pd.Series([5, 3]))
+        assert_series_equal(eval_beakscript("{3, 2} + 5", {}, "Unittest B+ 3"), pd.Series([8, 7]))
+        self.assertEqual(eval_beakscript("5 - 2", {}, "Unittest B- 1"), 3)
+        assert_series_equal(eval_beakscript("{3, 2} - {2, 1}", {}, "Unittest B- 2"), pd.Series([1, 1]))
+        assert_series_equal(eval_beakscript("{3, 2} - 5", {}, "Unittest B- 2"), pd.Series([-2, -3]))
+        self.assertEqual(eval_beakscript("a ` pad", {}, "Unittest B` 1"), 1)
+        self.assertEqual(eval_beakscript("a ` pod", {}, "Unittest B` 2"), 0)
+        self.assertEqual(eval_beakscript("1 > 0", {}, "Unittest B> 1"), 1)
+        self.assertEqual(eval_beakscript("1 > 2", {}, "Unittest B> 2"), 0)
+        self.assertEqual(eval_beakscript("1 < 0", {}, "Unittest B< 1"), 0)
+        self.assertEqual(eval_beakscript("1 < 2", {}, "Unittest B< 2"), 1)
+        self.assertEqual(eval_beakscript("1 >= 1", {}, "Unittest B>= 1"), 1)
+        self.assertEqual(eval_beakscript("1 >= 2", {}, "Unittest B>= 2"), 0)
+        self.assertEqual(eval_beakscript("1 <= 1", {}, "Unittest B<= 1"), 1)
+        self.assertEqual(eval_beakscript("1 <= 0", {}, "Unittest B<= 2"), 0)
+        self.assertEqual(eval_beakscript("1 == 1", {}, "Unittest B== 1"), 1)
+        self.assertEqual(eval_beakscript("1 == 0", {}, "Unittest B== 2"), 0)
+        self.assertEqual(eval_beakscript("1 != 1", {}, "Unittest B!= 1"), 0)
+        self.assertEqual(eval_beakscript("1 != 0", {}, "Unittest B!= 2"), 1)
+        self.assertEqual(eval_beakscript("1 ^ 1", {}, "Unittest B^ 1"), 0)
+        self.assertEqual(eval_beakscript("1 ^ 0", {}, "Unittest B^ 2"), 1)
+        self.assertEqual(eval_beakscript("0 ^ 1", {}, "Unittest B^ 3"), 1)
+        self.assertEqual(eval_beakscript("0 ^ 0", {}, "Unittest B^ 4"), 0)
+        self.assertEqual(eval_beakscript("1 & 1", {}, "Unittest B& 1"), 1)
+        self.assertEqual(eval_beakscript("1 & 0", {}, "Unittest B& 2"), 0)
+        self.assertEqual(eval_beakscript("0 & 1", {}, "Unittest B& 3"), 0)
+        self.assertEqual(eval_beakscript("0 & 0", {}, "Unittest B& 4"), 0)
+        self.assertEqual(eval_beakscript("1 | 1", {}, "Unittest B| 1"), 1)
+        self.assertEqual(eval_beakscript("1 | 0", {}, "Unittest B| 2"), 1)
+        self.assertEqual(eval_beakscript("0 | 1", {}, "Unittest B| 3"), 1)
+        self.assertEqual(eval_beakscript("0 | 0", {}, "Unittest B| 4"), 0)
+
+    def test_operator_prec(self):
+        self.assertEqual(eval_beakscript("0 | 1 & 0", {}, "Unittest OoO 1"), 0)
+        self.assertEqual(eval_beakscript("5 + 3 * 2", {}, "Unittest OoO 2"), 11)
+        self.assertEqual(eval_beakscript("0 & 1 == 0", {}, "Unittest OoO 3"), 0)
+        self.assertEqual(eval_beakscript("0 & 1 != 1", {}, "Unittest OoO 4"), 0)
+        self.assertEqual(eval_beakscript("-2 + 5", {}, "Unittest OoO 5"), 3)
+        assert_series_equal(eval_beakscript("@lenn-{2, 3, 5, 6}", {}, "Unittest OoO 6"), pd.Series([-1, -2, -4, -5]))
+
 
 
 if __name__ == "__main__":
     # test beakscript
-    print(
-        eval_beakscript(
-            "@sum$TN,MN[$TC == R | $TC = Y]",
-            pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
-        )
-    )
+    unittest.main()
+    # print(eval_beakscript("{1, *$_A, 3}", pd.DataFrame({
+    #     "T1A": [1, 2], "T2A": [3, 4], "T3B": [5, 6]
+    # })))
+    # print(
+    #     eval_beakscript(
+    #         "@sum$TN,MN[$TC == R | $TC = Y]",
+    #         pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
+    #     )
+    # )
 
-    print(
-        eval_beakscript(
-            "{($TN,MN), $TN - $MN}",
-            pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
-        )
-    )
+    # print(
+    #     eval_beakscript(
+    #         "{($TN,MN), $TN - $MN}",
+    #         pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
+    #     )
+    # )
 
-    print(
-        eval_beakscript(
-            "$TN[$TC != Y]",
-            pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
-        )
-    )
+    # print(
+    #     eval_beakscript(
+    #         "$TN[$TC != Y]",
+    #         pd.DataFrame({"TN": [3, 5, 2], "MN": [2, 3, 8], "TC": ["R", "B", "Y"]}),
+    #     )
+    # )
 
-    print(eval_beakscript("@len{2, 3, 5, 6}", {}))
-    # had to keep this one around because I was impressed that it worked
-    # it works because n is a literal, so @lenn = len(n) = 1, and 1 - {2, 3, 5, 6} becomes {1, 1, 1, 1} - {2, 3, 5, 6}, which becomes {-1, -2, -4, -5}
-    print(eval_beakscript("@lenn-{2, 3, 5, 6}", {}))
+    # print(eval_beakscript("@len{2, 3, 5, 6}", {}))
+    # # had to keep this one around because I was impressed that it worked
+    # # it works because n is a literal, so @lenn = len(n) = 1, and 1 - {2, 3, 5, 6} becomes {1, 1, 1, 1} - {2, 3, 5, 6}, which becomes {-1, -2, -4, -5}
+    # print(eval_beakscript("@lenn-{2, 3, 5, 6}", {}))

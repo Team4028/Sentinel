@@ -9,6 +9,9 @@ from datetime import date
 import re
 import json
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 def generate_admin() -> tuple[str, str, str]:
     """ Generates admin credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt """
@@ -48,7 +51,7 @@ def add_jsons_to_cache(js: dict) -> None:
             js_tmp = json.load(r)
     else: js_tmp = {}
     for key in js:
-        if key in js_tmp and type(js_tmp[key]) == dict: # append to dicts instead of fully overwriting
+        if key in js_tmp and isinstance(js_tmp[key], dict): # append to dicts instead of fully overwriting
             js_tmp[key] |= js[key]
         else:
             js_tmp[key] = js[key]
@@ -98,7 +101,7 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
     """  """
     oprs = {}
     if tba_health() and not (api_key == None or api_key.strip() == ""):
-        print(f"Fetch https://www.thebluealliance.com/api/v3/event/{event_key}/oprs")
+        logger.info(f"Fetch https://www.thebluealliance.com/api/v3/event/{event_key}/oprs")
         fetch_oprs = requests.get(f"https://www.thebluealliance.com/api/v3/event/{event_key}/oprs", {
             "X-TBA-Auth-Key": api_key
         }).json()
@@ -130,7 +133,7 @@ def get_tba_opr(event_key, api_key, year, teams):
     if didnt_read and tba_health() and not (api_key == None or api_key.strip() == ""):
         for team in teams:
             opr = 0.0
-            print(f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}")
+            logger.info(f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}")
             events = requests.get(f"https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}", headers={
                 "X-TBA-Auth-Key": api_key
             }).json() # get events that team was in
@@ -142,7 +145,7 @@ def get_tba_opr(event_key, api_key, year, teams):
                     latest_not_over = event["start_date"]
                     latest_no_event = event
             if latest_no_event:
-                print(f"Fetch: https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs")
+                logger.info(f"Fetch: https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs")
                 opr = float(requests.get(f"https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs", headers={
                 "X-TBA-Auth-Key": api_key
             }).json()["oprs"][f"frc{team}"]) # get the teams opr from that event
@@ -155,7 +158,7 @@ def get_tba_opr(event_key, api_key, year, teams):
 def get_tba_ranks(event_key, api_key, teams):
     """ returns a dictionary mapping each team to a tuple of their rank and rps """
     if tba_health() and not (api_key == None or api_key.strip() == ""): # prioritize live fetch for ranks because they update quickly
-        print(f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/rankings")
+        logger.info(f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/rankings")
         ranks = requests.get(
                 f"https://www.thebluealliance.com/api/v3/event/{event_key}/rankings",
                 headers={"X-TBA-Auth-Key": api_key},
@@ -187,7 +190,7 @@ def load_tba_data(event_key, api_key, year):
     elif didnt_read:
         if (not tba_health()) or (api_key == None or api_key.strip() == ""):
             raise Exception("Error: no wifi or tba cache or invalid api key")
-        print(f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/teams")
+        logger.info(f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/teams")
         teamJSON = requests.get(
                 f"https://www.thebluealliance.com/api/v3/event/{event_key}/teams",
                 headers={"X-TBA-Auth-Key": api_key},
@@ -196,7 +199,7 @@ def load_tba_data(event_key, api_key, year):
             x["team_number"]
             for x in teamJSON
         ]
-        print(f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/matches")
+        logger.info(f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/matches")
         schedJson = requests.get(
             f"https://www.thebluealliance.com/api/v3/event/{event_key}/matches",
             headers={"X-TBA-Auth-Key": api_key},
@@ -277,4 +280,4 @@ def stream(file) -> Generator[bytes, Any, None]:
 def exception_format(e: Exception) -> str: # bruh
         """Gets the stack frame where the exception ACTUALLY occured (deepest frame not in a dependecy)"""
         tb = traceback.extract_tb(e.__traceback__)
-        return f"{type(e).__name__}: {tb.format_frame_summary(tb[-1])}"
+        return f"\n{tb.format_frame_summary(tb[-1])}\n{type(e).__name__}: {e}"

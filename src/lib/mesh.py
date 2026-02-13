@@ -2,11 +2,18 @@ import time
 import sys
 from pubsub import pub
 from meshtastic.serial_interface import SerialInterface
-from meshtastic.serial_interface import serial
-
+import logging
+import os
 # loosely sourced from https://github.com/brad28b/meshtastic-cli-receive-text/blob/main/read_messages_serial.py
 
-serial_port = '/dev/ttyUSB0'
+logger = logging.getLogger(__name__)
+if os.name == 'posix':
+    serial_port = '/dev/ttyUSB0'
+elif os.name == 'nt':
+    serial_port = 'COM3' # there are no other ports I promise
+else:
+    logger.warning('What in the jython is this operating system? probably linux but the bootloader is deleted')
+    serial_port = '/dev/ttyUSB0'
 local = None
 
 def on_receive(packet, f):
@@ -14,8 +21,8 @@ def on_receive(packet, f):
         if packet['decoded']['portnum'] == 'TEXT_MESSAGE_APP':
             message = packet['decoded']['payload'].decode('utf-8')
             f(message)
-            if not local:
-                print(message)
+            if local == None:
+                logger.info("'Recived' " + message)
     except KeyError:
         pass
     except UnicodeDecodeError:
@@ -52,14 +59,14 @@ def main(f):
     pub.subscribe(on_receive_wrapper, "meshtastic.receive") # bind the listener to the recieve channel
     try: 
         local = SerialInterface(serial_port)
-        print(f"SerialInterface setup for listening on port {serial_port}")
+        logger.info(f"SerialInterface setup for listening on port {serial_port}")
     except Exception as e:
         local = None
-        print(f"Error opening port {serial_port}: {e}")
-        print("This channel will remain open for testing purposes.")
+        logger.error(f"Error opening port {serial_port}: {e}\nThis channel will remain open for testing purposes.")
     try: # listen forever
         while True:
             sys.stdout.flush()
             time.sleep(1)
     except KeyboardInterrupt:
-        local.close()
+        if local != None:
+            local.close()

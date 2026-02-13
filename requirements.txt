@@ -13,10 +13,10 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
 meshtastic==2.7.7
-numpy==2.4.1
+numpy==2.4.2
 packaging==24.2
 pandas==3.0.0
-protobuf==6.33.4
+protobuf==6.33.5
 Pypubsub==4.0.7
 pyserial==3.5
 python-dateutil==2.9.0.post0

@@ -3,6 +3,12 @@ name: Build Docker Image
 # run it manually
 on:
     workflow_dispatch:
+        inputs:
+            comment:
+                description: "Reason for build/changes since last build/etc."
+                required: false
+                type: string
+                default: ""
 
 jobs:
     test:
@@ -11,7 +17,7 @@ jobs:
         uses: ./.github/workflows/unittest.yml
         
     build:
-        name: Build Docker images
+        name: Build Docker images -- ${{inputs.comment}}
         runs-on: ubuntu-latest # ofc
 
         steps:
@@ -61,4 +67,8 @@ jobs:
                 path: scouting-app/**
                 include-hidden-files: true
             
+            - name: Write comment to summary
+              run: |
+                echo "## COMMENT ##" >> $GITHUB_STEP_SUMMARY
+                echo "${{inputs.comment}}" >> $GITHUB_STEP_SUMMARY
             

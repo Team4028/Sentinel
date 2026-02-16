@@ -28,7 +28,7 @@ headers:
 
 preproc-operations:
   - name: Split Team Row
-    new-headers: [MN, AC, SI, TN, HC, DS, EID]
+    new-headers: [MN, TC, SI, TN, HC, DS, EID]
     operation: "{{$MN, $AC, $SI, *$_T1, $EID}, {$MN, $AC, $SI, *$_T2, $EID}, {$MN, $AC, $SI, *$_T3, $EID}}"
 
 compute-fields: []

@@ -19,6 +19,7 @@ jobs:
     build:
         name: Build Docker images -- ${{inputs.comment}}
         runs-on: ubuntu-latest # ofc
+        needs: test
 
         steps:
             - name: Check out repo

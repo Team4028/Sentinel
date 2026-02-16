@@ -29,7 +29,7 @@ Basic operations are supported, identical to common programming languages and ma
 <summary> <h2> References </h2> </summary>
 
 You can reference a column/header/field of the input data using the `$` operator. For example, if I want to obtain the number of L4 coral cycles scored in
-auton (listed in the scouting data's csv as 'TL4'), I can use the expression `$TL4` to reference the field. Additionally, fields can be implicitly combined via element-wise summation via a comma: Referencing `$TL4,TL3` will yield a list that is the sum of all the values of TL4 and TL3, meaning that if TL4 was the list {3, 2} and TL3 was the list {4, 5}, `$TL4,TL3` would yield the list {7, 7}. This notation DOES NOT work inside of a list literal, due to the fact that commas distinguish elements. This limitation can be circomventerd via the use of parentheses (ie. `{($AL4,TL4)}` = `{$AL4 + $TL4}`, `{$AL4,$TL4}` ≠ `{$AL4 + $TL4}`)
+auton (listed in the scouting data's csv as 'TL4'), I can use the expression `$TL4` to reference the field. Additionally, fields can be implicitly combined via element-wise summation via a comma: Referencing `$TL4,TL3` will yield a list that is the sum of all the values of TL4 and TL3, meaning that if TL4 was the list {3, 2} and TL3 was the list {4, 5}, `$TL4,TL3` would yield the list {7, 7}. This notation DOES NOT work inside of a list literal, due to the fact that commas distinguish elements. This limitation can be circumvented via the use of parentheses (ie. `{($AL4,TL4)}` = `{$AL4 + $TL4}`, `{$AL4,$TL4}` ≠ `{$AL4 + $TL4}`)
 
 - As these expressions are applied to the whole data row by row, headers are effectively equivelent to the entire column of data, and operations can thus be performed on them to derive new fields. In the compute section, for example, you can define new fields to append to your raw data csv. For example, you could add a new field for total cycles with the equation
 `$AL1,AL2,AL3,AL4,TL1,TL2,TL3,TL4,ATP,AP,ATB,AB`, which would create a new list that is the sum of all of the constituent fields.
@@ -142,5 +142,6 @@ This section denotes tests that the code can perform to ensure all of the input 
 
 There are a number of unit tests defined for beakscript in the `TestBeakscript` class.
 These can be run via `python src/lib/data_config.py -v` (or without `-v`) or via unittest with `python -m unittest src.lib.data_config.TestBeakscript -v` (or no `-v`) -- `-v` is just for verbose, which actually prints out the tests being run
+
 
 </details>

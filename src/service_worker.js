@@ -90,6 +90,6 @@ setInterval(() => {
                     delete json.title;
                     self.registration.showNotification(title, json);
                 }
-            }).catch(() => {});
+            }).catch(() => { });
     }).catch((e) => { console.log(`Error: ${e}`) });
 }, 1000);

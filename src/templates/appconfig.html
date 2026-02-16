@@ -173,10 +173,14 @@
         <label title="Which game to process data for">
             Scouting Year
             <select id="game-year">
-            {% for year in years %}
+                {% for year in years %}
                 <option value="{{year}}">{{year}}</option>
-            {% endfor %}
+                {% endfor %}
             </select>
+        </label>
+        <label title="Team number without the 'frc' prefix">
+            Team Number
+            <input type="number" id="teamNumber">
         </label>
         <label title="While type of moderation to use while adding data to the input csv file">
             Append Moderation Behavior
@@ -258,6 +262,7 @@
         const statusDiv = document.getElementById("status");
         const newUN = document.getElementById("new-un");
         const newPWD = document.getElementById("new-pwd");
+        const teamNum = document.getElementById("teamNumber");
 
         const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
 
@@ -289,6 +294,7 @@
             tcolor.value = json["TEXT_COLOR"];
             chunkSize.value = json["CHUNK_SIZE"];
             year.value = json["YEAR"];
+            teamNum.value = parseInt(json["TEAM"]);
             restrictLevel.value = json["RESTRICT_APPEND_LEVEL"];
             uploadDir.value = json["UPLOAD_DIR"];
             uplName.value = json["INPUT_FILENAME"];
@@ -367,6 +373,7 @@
                 "TEXT_COLOR": tcolor.value,
                 "CHUNK_SIZE": parseInt(chunkSize.value),
                 "YEAR": year.value,
+                "TEAM": teamNum.value.toString(),
                 "RESTRICT_APPEND_LEVEL": parseInt(restrictLevel.value),
                 "UPLOAD_DIR": uploadDir.value,
                 "INPUT_FILENAME": uplName.value,

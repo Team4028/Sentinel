@@ -17,7 +17,9 @@
                         "description": "Optional description parameter just for documentation."
                     }
                 },
-                "required": ["name"]
+                "required": [
+                    "name"
+                ]
             }
         },
         "preproc-operations": {
@@ -31,14 +33,19 @@
                     },
                     "new-headers": {
                         "type": "array",
-                        "items": { "type": "string" }
+                        "items": {
+                            "type": "string"
+                        }
                     },
                     "operation": {
                         "type": "string",
                         "description": "A consumer that takes in a row as a pd.Series and outputs one or more resolved series"
                     }
                 },
-                "required": ["name", "operation"]
+                "required": [
+                    "name",
+                    "operation"
+                ]
             }
         },
         "compute-fields": {
@@ -108,14 +115,22 @@
                         "description": "A beakscript string defining the process by which the elements of this set are obtained"
                     },
                     "static": {
-                        "type": ["object", "null"],
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "type": {
                                 "type": "string",
-                                "enum": ["list", "number"]
+                                "enum": [
+                                    "list",
+                                    "number"
+                                ]
                             }
                         },
-                        "required": ["type"],
+                        "required": [
+                            "type"
+                        ],
                         "description": "Derive the field via a function of the data of all teams in the match as opposed to for each team."
                     }
                 },
@@ -179,5 +194,12 @@
             }
         }
     },
-    "required": ["headers", "compute-fields", "team-fields", "match-fields", "predict-metric", "depth-predict-fields"]
+    "required": [
+        "headers",
+        "compute-fields",
+        "team-fields",
+        "match-fields",
+        "predict-metric",
+        "depth-predict-fields"
+    ]
 }

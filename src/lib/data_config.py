@@ -9,6 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def read_config(year: str):
     """Reads the configuration YAML file into memory"""
     try:
@@ -32,15 +33,22 @@ class GrafanaDataPreset(Enum):
         [x["name"] for x in data["match-fields"]],
         ["number" for _ in data["match-fields"]],
     )
-    TEAM = lambda data: [("Rank", "number"), ("Average RP", "number"), ("OPR", "number"), ("Last OPR", "number")] + list(zip(
-        [
-            FANCY_FIL[f] + " " + x["name"]
-            for f in FILTERS
-            for x in data["team-fields"]
-            if f in x
-        ],
-        ["number" for __ in FILTERS for _ in data["team-fields"] if __ in _],
-    ))  # fill in the blanks type for loop
+    TEAM = lambda data: [
+        ("Rank", "number"),
+        ("Average RP", "number"),
+        ("OPR", "number"),
+        ("Last OPR", "number"),
+    ] + list(
+        zip(
+            [
+                FANCY_FIL[f] + " " + x["name"]
+                for f in FILTERS
+                for x in data["team-fields"]
+                if f in x
+            ],
+            ["number" for f in FILTERS for x in data["team-fields"] if f in x],
+        )
+    )  # fill in the blanks type for loop
 
     PREMATCH = lambda data: zip(
         [x["name"] for x in data["depth-predict-fields"]],
@@ -93,7 +101,8 @@ def lex_config(year: str):
         if "preproc-operations" in data:
             for field in data["preproc-operations"]:
                 _data = {"name": field["name"], "op": field["operation"]}
-                if "new-headers" in field: _data |= {"new-headers": field["new-headers"]}
+                if "new-headers" in field:
+                    _data |= {"new-headers": field["new-headers"]}
                 config["preproc"].append(_data)
         for field in data["compute-fields"]:
             config["compute"].append({"name": field["name"], "eq": field["equation"]})
@@ -107,10 +116,12 @@ def lex_config(year: str):
             )
         if "data-tests" in data:
             for test in data["data-tests"]:
-                config["tests"].append({
-                    "name": test["name"],
-                    "expr": test["expression"],
-                })
+                config["tests"].append(
+                    {
+                        "name": test["name"],
+                        "expr": test["expression"],
+                    }
+                )
         for field in data["match-fields"]:
             config["matches"].append(
                 {
@@ -139,7 +150,7 @@ class TOKENS(Enum):  # different types of expressions there are
 
 
 class Token:  # represents a thing that the lexer can match to
-    def __init__(self, token, symbol, column = 0):
+    def __init__(self, token, symbol, column=0):
         self.token = token
         self.symbol = symbol
         self.column = column
@@ -149,23 +160,27 @@ class Token:  # represents a thing that the lexer can match to
 
     def __repr__(self):
         return f"<{self.token.name}: {self.symbol}, col={self.column}>"
-    
+
+
 class BeakscriptInterpretError(RuntimeError):
     curr_equation: str = ""
     curr_eq_name: str = ""
 
     def __str__(self):
         return f"[{BeakscriptInterpretError.curr_eq_name}] {super().__str__()}"
+
     ...
 
 
 class UnpackList(list): ...
+
 
 def float_or_int(x):
     fx = float(x)
     if fx % 1 == 0:
         return int(fx)
     return fx
+
 
 # all unary operators
 UNOPS = [
@@ -248,13 +263,21 @@ def parse_equation(equation: str, df: pd.DataFrame):
         if c == "@":
             if i + 3 < len(equation):
                 if "".join(equation[i + j] for j in range(4)) not in UNOPS:
-                    raise BeakscriptInterpretError(f"Error at column {i + 1}: invalid unary operator expression after '@'\n{equation}\n{' ' * i + '^'}")
+                    raise BeakscriptInterpretError(
+                        f"Error at column {i + 1}: invalid unary operator expression after '@'\n{equation}\n{' ' * i + '^'}"
+                    )
                 equation_tokens.append(
-                    Token(TOKENS.UNARY_OP, "".join(equation[i + j] for j in range(4)), i + 1)
+                    Token(
+                        TOKENS.UNARY_OP,
+                        "".join(equation[i + j] for j in range(4)),
+                        i + 1,
+                    )
                 )
                 i += 4
             else:
-                raise BeakscriptInterpretError(f"Error at column {i + 1}: not enough characters after '@' unary operator declaration\n{equation}\n{' ' * i + '^'}")
+                raise BeakscriptInterpretError(
+                    f"Error at column {i + 1}: not enough characters after '@' unary operator declaration\n{equation}\n{' ' * i + '^'}"
+                )
             continue
         # if paren, read paren
         if c in PARENS:
@@ -296,10 +319,15 @@ def parse_equation(equation: str, df: pd.DataFrame):
                     curr += c  # add to current entry
                 i += 1
             literal_list = [
-                _ for item in list_tokens for res in (eval_beakscript(item, df),) for _ in (res if isinstance(res, UnpackList) else (res,))
+                _
+                for item in list_tokens
+                for res in (eval_beakscript(item, df),)
+                for _ in (res if isinstance(res, UnpackList) else (res,))
             ]  # evaluate entries
             # make the list into a pd.Series list so it can be filtered
-            equation_tokens.append(Token(TOKENS.LITERAL, pd.Series(literal_list), i + 1))
+            equation_tokens.append(
+                Token(TOKENS.LITERAL, pd.Series(literal_list), i + 1)
+            )
         # if its an operator
         elif c in OPERATOR_STRINGS:
             # check if its unary (at beginning, right after other operator or beginning of {/[/(, or right after @xxx operator)
@@ -310,7 +338,9 @@ def parse_equation(equation: str, df: pd.DataFrame):
                 or (i - 4 >= 0 and equation[i - 4] == "@")
             ):
                 if c not in UNOPS:
-                    raise BeakscriptInterpretError(f"Error at column {i + 1}: invalid use of {c} as an unary operator\n{equation}\n{' ' * i + '^'}")
+                    raise BeakscriptInterpretError(
+                        f"Error at column {i + 1}: invalid use of {c} as an unary operator\n{equation}\n{' ' * i + '^'}"
+                    )
                 equation_tokens.append(Token(TOKENS.UNARY_OP, c, i + 1))
             # turn < into <=, etc
             elif equation[i] in COMP_EXTEND:
@@ -322,7 +352,9 @@ def parse_equation(equation: str, df: pd.DataFrame):
             # otherwise just add it
             else:
                 if c not in BIOP_PRECEDENCE:
-                    raise BeakscriptInterpretError(f"Error at column {i + 1}: invalid use of {c} as an binary operator\n{equation}\n{' ' * i + '^'}")
+                    raise BeakscriptInterpretError(
+                        f"Error at column {i + 1}: invalid use of {c} as an binary operator\n{equation}\n{' ' * i + '^'}"
+                    )
                 equation_tokens.append(Token(TOKENS.BINARY_OP, c, i + 1))
         # its a header!
         elif c == "$":
@@ -367,7 +399,7 @@ def parse_equation(equation: str, df: pd.DataFrame):
 # === TYPE COERCION ===
 def floatize_if_str(x):
     """converts x to a float if it's a string and it can"""
-    if isinstance(x, str) and  "'" in x:
+    if isinstance(x, str) and "'" in x:
         return x.replace("'", "")
     try:
         return float_or_int(x) if isinstance(x, str) else x
@@ -389,11 +421,12 @@ def strfloatize_if_bool(x):
         return "1" if x else "0"
     return x
 
+
 def df_safe_in(a, b):
     try:
         return b.str.contains(a, na=False)
     except:
-        return a in b 
+        return a in b
 
 
 def df_safe_and(a, b):
@@ -465,7 +498,9 @@ def evaluate_unary_operator(x, op, index):
                 return strize_if_float(len(x))
             except:
                 strize_if_float(x)
-    raise BeakscriptInterpretError(f"Parser Error: Unknown unary operation: {op}\n{BeakscriptInterpretError.curr_equation}\n{' ' * index + '^'}")
+    raise BeakscriptInterpretError(
+        f"Parser Error: Unknown unary operation: {op}\n{BeakscriptInterpretError.curr_equation}\n{' ' * index + '^'}"
+    )
 
 
 def evaluate_binary_operator(lhs, rhs, op, index):
@@ -503,7 +538,9 @@ def evaluate_binary_operator(lhs, rhs, op, index):
             return strfloatize_if_bool(df_safe_or(lhs, rhs))
         case "[]":
             return lhs.loc[rhs]
-    raise BeakscriptInterpretError(f"Parser error: Unexpected binary operator: {op}\n{BeakscriptInterpretError.curr_equation}\n{' ' * index + '^'}")
+    raise BeakscriptInterpretError(
+        f"Parser error: Unexpected binary operator: {op}\n{BeakscriptInterpretError.curr_equation}\n{' ' * index + '^'}"
+    )
 
 
 def preproc_implicit_ops(tokens: list[Token]):
@@ -541,7 +578,10 @@ def preproc_implicit_ops(tokens: list[Token]):
         elif (
             t.token == TOKENS.HEADER_COND
             and i > 0
-            and (isinstance(tokens[i - 1].symbol, pd.Series) or tokens[i - 1].symbol == ")")
+            and (
+                isinstance(tokens[i - 1].symbol, pd.Series)
+                or tokens[i - 1].symbol == ")"
+            )
         ):
             i += 1
             inner = []
@@ -643,15 +683,21 @@ def solve_rpn(rpn_tokens: list[Token], df: pd.DataFrame):
                     )
                 else:
                     if "_" in sym:
-                        simr = re.compile('^' + re.escape(sym).replace("_", ".*"))
+                        simr = re.compile("^" + re.escape(sym).replace("_", ".*"))
                         if isinstance(df, pd.DataFrame):
-                            stack_overflow.append(df.filter(regex=simr).iloc[0].reset_index(drop=True))
+                            stack_overflow.append(
+                                df.filter(regex=simr).iloc[0].reset_index(drop=True)
+                            )
                         else:
-                            stack_overflow.append(df.filter(regex=simr).reset_index(drop=True))
+                            stack_overflow.append(
+                                df.filter(regex=simr).reset_index(drop=True)
+                            )
                     else:
                         stack_overflow.append(df[sym])
             except KeyError:
-                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): header not present in dataframe\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}") from None
+                raise BeakscriptInterpretError(
+                    f"Error at column {t.column} symbol '{sym}' ({tok}): header not present in dataframe\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}"
+                ) from None
             continue
 
         if tok == TOKENS.LITERAL:
@@ -660,19 +706,25 @@ def solve_rpn(rpn_tokens: list[Token], df: pd.DataFrame):
 
         if tok == TOKENS.UNARY_OP:
             if len(stack_overflow) < 1:
-                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): not enough operands\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}")
+                raise BeakscriptInterpretError(
+                    f"Error at column {t.column} symbol '{sym}' ({tok}): not enough operands\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}"
+                )
             val = floatize_if_str(
                 stack_overflow.pop()
             )  # pop closest value to apply unop to
             try:
                 stack_overflow.append(evaluate_unary_operator(val, sym, t.column))
             except TypeError:
-                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): invalid operand type for unary operation: <operand: {type(val).__name__}>\n{BeakscriptInterpretError.equation}\n{' ' * (t.column - 1) + '^'}") from None
+                raise BeakscriptInterpretError(
+                    f"Error at column {t.column} symbol '{sym}' ({tok}): invalid operand type for unary operation: <operand: {type(val).__name__}>\n{BeakscriptInterpretError.equation}\n{' ' * (t.column - 1) + '^'}"
+                ) from None
             continue
 
         if tok == TOKENS.BINARY_OP:
             if len(stack_overflow) < 2:
-                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): not enough operands\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}")
+                raise BeakscriptInterpretError(
+                    f"Error at column {t.column} symbol '{sym}' ({tok}): not enough operands\n{BeakscriptInterpretError.curr_equation}\n{' ' * (t.column - 1) + '^'}"
+                )
             rhs = floatize_if_str(stack_overflow.pop())
             lhs = floatize_if_str(
                 stack_overflow.pop()
@@ -680,7 +732,9 @@ def solve_rpn(rpn_tokens: list[Token], df: pd.DataFrame):
             try:
                 stack_overflow.append(evaluate_binary_operator(lhs, rhs, sym, t.column))
             except TypeError:
-                raise BeakscriptInterpretError(f"Error at column {t.column} symbol '{sym}' ({tok}): invalid operand types for binary operation: <lhs: {type(lhs).__name__}, rhs: {type(rhs).__name__}>\n{BeakscriptInterpretError.equation}\n{' ' * (t.column - 1) + '^'}") from None
+                raise BeakscriptInterpretError(
+                    f"Error at column {t.column} symbol '{sym}' ({tok}): invalid operand types for binary operation: <lhs: {type(lhs).__name__}, rhs: {type(rhs).__name__}>\n{BeakscriptInterpretError.equation}\n{' ' * (t.column - 1) + '^'}"
+                ) from None
             continue
 
     if len(stack_overflow) != 1:
@@ -696,7 +750,7 @@ def solve_rpn(rpn_tokens: list[Token], df: pd.DataFrame):
         return ret
 
 
-def eval_beakscript(equation: str, df: pd.DataFrame, equation_label = ""):
+def eval_beakscript(equation: str, df: pd.DataFrame, equation_label=""):
     prog_ctr = 0
     prog_steps = ["Parsing", "Preprocessing", "RPN Parsing", "RPN Evaluation"]
     BeakscriptInterpretError.curr_equation = equation
@@ -711,56 +765,107 @@ def eval_beakscript(equation: str, df: pd.DataFrame, equation_label = ""):
         prog_ctr += 1
         return solve_rpn(rpnResult, df)  # then evaluate it
     except Exception as e:
-        if isinstance(e, BeakscriptInterpretError): raise
+        if isinstance(e, BeakscriptInterpretError):
+            raise
         tb = traceback.extract_tb(e.__traceback__)
-        raise BeakscriptInterpretError(f"Unexpected error occured during step '{prog_steps[prog_ctr]}' ({prog_ctr + 1}/{len(prog_steps)}) of evaluation of equation\n{tb.format_frame_summary(tb[-1])}\n{type(e).__name__}: {e}") from None
+        raise BeakscriptInterpretError(
+            f"Unexpected error occured during step '{prog_steps[prog_ctr]}' ({prog_ctr + 1}/{len(prog_steps)}) of evaluation of equation\n{tb.format_frame_summary(tb[-1])}\n{type(e).__name__}: {e}"
+        ) from None
+
 
 class TestBeakscript(unittest.TestCase):
-    """ One must imagine `OK`"""
+    """One must imagine `OK`"""
+
     def test_regex_header(self):
-        assert_series_equal(eval_beakscript("$_A", pd.DataFrame({
-            "1A": [1], "2A": [2], "3B": [3]
-        }), "Unittest Regex"), pd.Series([1, 2]), check_names=False)
+        """ Test for wildcard-based headers """
+        assert_series_equal(
+            eval_beakscript(
+                "$_A", pd.DataFrame({"1A": [1], "2A": [2], "3B": [3]}), "Unittest Regex"
+            ),
+            pd.Series([1, 2]),
+            check_names=False,
+        )
 
     def test_header_sum(self):
-        self.assertEqual(eval_beakscript("$A,B", pd.DataFrame({"A": [1], "B": [2]}), "Unittest Header Sum"), 3)
+        """ Test the implicit $A,B header summation """
+        self.assertEqual(
+            eval_beakscript(
+                "$A,B", pd.DataFrame({"A": [1], "B": [2]}), "Unittest Header Sum"
+            ),
+            3,
+        )
 
     def test_type_coercion_and_types(self):
+        """ Test various automatic type conversions """
         self.assertEqual(eval_beakscript("'20' == 20", {}, "Unittest quotes"), 0)
         self.assertIsInstance(eval_beakscript("20.5", {}, "Unittest float"), float)
         self.assertIsInstance(eval_beakscript("20", {}, "Unittest int"), int)
-        self.assertIsInstance(eval_beakscript("*{1, 2, 3}", {}, "Unittest UnpackList"), UnpackList)
-    
+        self.assertIsInstance(
+            eval_beakscript("*{1, 2, 3}", {}, "Unittest UnpackList"), UnpackList
+        )
+
     def test_unary_operators(self):
-        assert_series_equal(eval_beakscript("{1, *{2, 3}, 4}", {}, "Unittest U*"), pd.Series([1, 2, 3, 4]))
+        """ Test operators with 1 argument """
+        assert_series_equal(
+            eval_beakscript("{1, *{2, 3}, 4}", {}, "Unittest U*"),
+            pd.Series([1, 2, 3, 4]),
+        )
         self.assertEqual(eval_beakscript("-5", {}, "Unittest U-"), -5)
         self.assertEqual(eval_beakscript("!1", {}, "Unittest U!"), 0)
-        self.assertEqual(eval_beakscript("@avg{1, 2, 6, 4}", {}, "Unittest U@avg"), 3.25)
+        self.assertEqual(
+            eval_beakscript("@avg{1, 2, 6, 4}", {}, "Unittest U@avg"), 3.25
+        )
         self.assertEqual(eval_beakscript("@max{1, 2, 6, 4}", {}, "Unittest U@max"), 6)
         self.assertEqual(eval_beakscript("@min{1, 2, 6, 4}", {}, "Unittest U@min"), 1)
         self.assertEqual(eval_beakscript("@sum{1, 2, 6, 4}", {}, "Unittest U@sum"), 13)
         self.assertEqual(eval_beakscript("@len{1, 2, 6, 4}", {}, "Unittest U@len"), 4)
-    
+
     def test_binary_operators(self):
-        self.assertEqual(eval_beakscript("$A[$B == b]", pd.DataFrame({
-            "A": [1, 2, 3],
-            "B": ["a", "b", "c"]
-        }), "Unittest B[]"), 2)
+        """ Test operators with 2 arguments """
+        self.assertEqual(
+            eval_beakscript(
+                "$A[$B == b]",
+                pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}),
+                "Unittest B[]",
+            ),
+            2,
+        )
         self.assertEqual(eval_beakscript("5 * 2", {}, "Unittest B* 1"), 10)
-        assert_series_equal(eval_beakscript("{3, 2} * {2, 1}", {}, "Unittest B* 2"), pd.Series([6, 2]))
-        assert_series_equal(eval_beakscript("{3, 2} * 5", {}, "Unittest B* 3"), pd.Series([15, 10]))
+        assert_series_equal(
+            eval_beakscript("{3, 2} * {2, 1}", {}, "Unittest B* 2"), pd.Series([6, 2])
+        )
+        assert_series_equal(
+            eval_beakscript("{3, 2} * 5", {}, "Unittest B* 3"), pd.Series([15, 10])
+        )
         self.assertEqual(eval_beakscript("5 / 2", {}, "Unittest B/ 1"), 2.5)
-        assert_series_equal(eval_beakscript("{3, 2} / {2, 1}", {}, "Unittest B/ 2"), pd.Series([1.5, 2.0]))
-        assert_series_equal(eval_beakscript("{3, 2} / 5", {}, "Unittest B/ 3"), pd.Series([0.6, 0.4]))
+        assert_series_equal(
+            eval_beakscript("{3, 2} / {2, 1}", {}, "Unittest B/ 2"),
+            pd.Series([1.5, 2.0]),
+        )
+        assert_series_equal(
+            eval_beakscript("{3, 2} / 5", {}, "Unittest B/ 3"), pd.Series([0.6, 0.4])
+        )
         self.assertEqual(eval_beakscript("5 % 2", {}, "Unittest B% 1"), 1)
-        assert_series_equal(eval_beakscript("{3, 2} % {2, 1}", {}, "Unittest B% 2"), pd.Series([1, 0]))
-        assert_series_equal(eval_beakscript("{3, 2} % 5", {}, "Unittest B% 3"), pd.Series([3, 2]))
+        assert_series_equal(
+            eval_beakscript("{3, 2} % {2, 1}", {}, "Unittest B% 2"), pd.Series([1, 0])
+        )
+        assert_series_equal(
+            eval_beakscript("{3, 2} % 5", {}, "Unittest B% 3"), pd.Series([3, 2])
+        )
         self.assertEqual(eval_beakscript("5 + 2", {}, "Unittest B+ 1"), 7)
-        assert_series_equal(eval_beakscript("{3, 2} + {2, 1}", {}, "Unittest B+ 2"), pd.Series([5, 3]))
-        assert_series_equal(eval_beakscript("{3, 2} + 5", {}, "Unittest B+ 3"), pd.Series([8, 7]))
+        assert_series_equal(
+            eval_beakscript("{3, 2} + {2, 1}", {}, "Unittest B+ 2"), pd.Series([5, 3])
+        )
+        assert_series_equal(
+            eval_beakscript("{3, 2} + 5", {}, "Unittest B+ 3"), pd.Series([8, 7])
+        )
         self.assertEqual(eval_beakscript("5 - 2", {}, "Unittest B- 1"), 3)
-        assert_series_equal(eval_beakscript("{3, 2} - {2, 1}", {}, "Unittest B- 2"), pd.Series([1, 1]))
-        assert_series_equal(eval_beakscript("{3, 2} - 5", {}, "Unittest B- 2"), pd.Series([-2, -3]))
+        assert_series_equal(
+            eval_beakscript("{3, 2} - {2, 1}", {}, "Unittest B- 2"), pd.Series([1, 1])
+        )
+        assert_series_equal(
+            eval_beakscript("{3, 2} - 5", {}, "Unittest B- 2"), pd.Series([-2, -3])
+        )
         self.assertEqual(eval_beakscript("a ` pad", {}, "Unittest B` 1"), 1)
         self.assertEqual(eval_beakscript("a ` pod", {}, "Unittest B` 2"), 0)
         self.assertEqual(eval_beakscript("1 > 0", {}, "Unittest B> 1"), 1)
@@ -789,13 +894,22 @@ class TestBeakscript(unittest.TestCase):
         self.assertEqual(eval_beakscript("0 | 0", {}, "Unittest B| 4"), 0)
 
     def test_operator_prec(self):
+        """ Test that operators are evaluated in the right order """
         self.assertEqual(eval_beakscript("0 | 1 & 0", {}, "Unittest OoO 1"), 0)
-        self.assertEqual(eval_beakscript("5 + 3 * 2", {}, "Unittest OoO 2"), 11)
-        self.assertEqual(eval_beakscript("0 & 1 == 0", {}, "Unittest OoO 3"), 0)
-        self.assertEqual(eval_beakscript("0 & 1 != 1", {}, "Unittest OoO 4"), 0)
-        self.assertEqual(eval_beakscript("-2 + 5", {}, "Unittest OoO 5"), 3)
-        assert_series_equal(eval_beakscript("@lenn-{2, 3, 5, 6}", {}, "Unittest OoO 6"), pd.Series([-1, -2, -4, -5]))
-
+        self.assertEqual(eval_beakscript("5 / 2 * 2", {}, "Unittest OoO 2"), 5) # test L->R for equal precedence 
+        self.assertEqual(eval_beakscript("5 + 3 * 2", {}, "Unittest OoO 3"), 11)
+        self.assertEqual(eval_beakscript("0 & 1 == 0", {}, "Unittest OoO 4"), 0)
+        self.assertEqual(eval_beakscript("0 & 1 != 1", {}, "Unittest OoO 5"), 0)
+        self.assertEqual(eval_beakscript("-2 + 5", {}, "Unittest OoO 6"), 3)
+        self.assertEqual(eval_beakscript("($A * $B)[frank ` $C]", pd.DataFrame({
+           "A": [3, 2, 1],
+           "B": [5, 2, 8],
+           "C": ["frankestein", "modern", "prometheus"] 
+        })), 15)
+        assert_series_equal(
+            eval_beakscript("@lenn-{2, 3, 5, 6}", {}, "Unittest OoO 8"),
+            pd.Series([-1, -2, -4, -5]),
+        )
 
 
 if __name__ == "__main__":

@@ -11,9 +11,7 @@
         :root {
             --bg: #111217;
             --panel: #161b22;
-
             --text: {{text}};
-
             --muted: #8b949e;
             --green: #2ea043;
             --green-bg: #033a16;
@@ -177,7 +175,7 @@
         <ul id="queuelist">
         </ul>
         <h2 id="score"></h2>
-        <li id="4028team"><span class='line-text'>4028</li>
+        <li id="initTeam"><span class='line-text'>{{initTeam}}</li>
         <div id="pick1" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
             <label for="pick1list">Pick 1</label>
             <ul id="pick1list">
@@ -274,10 +272,10 @@
             }
         });
 
-        document.getElementById('4028team').onclick = function (e) {
+        document.getElementById('initTeam').onclick = function (e) {
             if (e.target === this) {
                 const ifr = document.createElement("iframe");
-                ifr.src = `{{grafana_base}}${dashes["TeamView.json"]}/team-view?orgId=1&var-TeamSelector=4028&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s`;
+                ifr.src = `{{grafana_base}}${dashes["TeamView.json"]}/team-view?orgId=1&var-TeamSelector={{initTeam}}&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s`;
                 ifr.width = "300px";
                 ifr.height = "300px";
                 ifr.frameBorder = "0";

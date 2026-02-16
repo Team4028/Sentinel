@@ -295,14 +295,18 @@
         <button id="reload-btn" class="btn" title="Ctrl+A (a for again because Ctrl+R is important)">Reload</button>
         <button id="pic-btn" class="btn" title="Ctrl+P">Upload Picture</button>
         <button id="download-btn" class="btn" title="Ctrl+D">Download</button>
-        <button class="btn" onclick="window.location.href='{{url_for('edit_yaml')}}'" title="Ctrl+E" id="edit-cfg-btn">Edit
+        <button class="btn" onclick="window.location.href='{{url_for('edit_yaml')}}'" title="Ctrl+E"
+            id="edit-cfg-btn">Edit
             Config</button>
-        <button id="picklist-btn" class="btn" title="Ctrl+Q" style="width: 120px;" onclick="window.location.href='{{url_for('picklist')}}'">Picklist</button>
-        <button id="dash-btn" class="btn" title="Ctrl+V" style="width: 120px;" onclick="window.open('{{graf_url}}', '_blank').focus()">Dashboard</button>
+        <button id="picklist-btn" class="btn" title="Ctrl+Q" style="width: 120px;"
+            onclick="window.location.href='{{url_for('picklist')}}'">Picklist</button>
+        <button id="dash-btn" class="btn" title="Ctrl+V" style="width: 120px;"
+            onclick="window.open('{{graf_url}}', '_blank').focus()">Dashboard</button>
         <div class="top-corner-div">
             <button class="btn logout-btn" id="mode-btn" style="width: 120px;" onclick="setSending(!isSending)"
                 title="Ctrl+M">Pit Mode</button>
-            <button class="btn logout-btn" id="lock-btn" style="width: 100px;" onclick="lockTab=!lockTab;document.getElementById('lock-btn').style.backgroundColor = lockTab ? '#a00' : 'var(--accent)';document.getElementById('speed-qr-container').style.display = lockTab ? 'flex' : 'none';"
+            <button class="btn logout-btn" id="lock-btn" style="width: 100px;"
+                onclick="lockTab=!lockTab;document.getElementById('lock-btn').style.backgroundColor = lockTab ? '#a00' : 'var(--accent)';document.getElementById('speed-qr-container').style.display = lockTab ? 'flex' : 'none';"
                 title="Ctrl+B">Scan Mode</button>
             <button class="btn settings-btn" id="settings"
                 onclick="window.location.href='{{url_for('edit_app_conf_page')}}'" title="Ctrl+I">⚙️</button>
@@ -310,11 +314,16 @@
                 title="Ctrl+L">Log out</button>
         </div>
 
-        <div class="top-corner-div" style="left: 10px; display: none; flex-direction: column; padding: 20px; width: fit-content; backdrop-filter: blur(3px); border-radius: 10px; border: 1px solid rgba(0, 0, 0, 0.5)" id="speed-qr-container">
+        <div class="top-corner-div"
+            style="left: 10px; display: none; flex-direction: column; padding: 20px; width: fit-content; backdrop-filter: blur(3px); border-radius: 10px; border: 1px solid rgba(0, 0, 0, 0.5)"
+            id="speed-qr-container">
             <label style="display: block; font-size: large;">Change QR Speed</label>
             <div style="display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 10px;">
-                <div id="speedqr" style="border-radius: 10px; background-color: var(--text); padding: 10px; display: inline-block;"></div>
-                <input type="number" id="speednum" value="5" min="0" max="60" style="display: inline-block; height: 10%;">
+                <div id="speedqr"
+                    style="border-radius: 10px; background-color: var(--text); padding: 10px; display: inline-block;">
+                </div>
+                <input type="number" id="speednum" value="5" min="0" max="60"
+                    style="display: inline-block; height: 10%;">
             </div>
         </div>
 
@@ -334,12 +343,12 @@
         const headers = JSON.parse(`{{headers|safe}}`);
         const data_init = JSON.parse(`{{inp_data|safe}}`);
         for (const data_init_row of data_init) {
-            data.push(Object.assign({}, ...Papa.parse(data_init_row, {delimiter: ",", quotes: true, skipEmptyLines: true}).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
+            data.push(Object.assign({}, ...Papa.parse(data_init_row, { delimiter: ",", quotes: true, skipEmptyLines: true }).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
         }
         let lockTab = false;
         const table = new Tabulator('#table', {
             data: data,
-            columns: headers.map(s => ({title: s, field: s.toLowerCase()}))
+            columns: headers.map(s => ({ title: s, field: s.toLowerCase() }))
         });
 
         async function sha256(str) {
@@ -522,7 +531,7 @@
                 textInput.selectionStart = textInput.selectionEnd = start + 1;
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "b") {
                 ev.preventDefault();
-                lockTab=!lockTab;
+                lockTab = !lockTab;
                 document.getElementById('lock-btn').style.backgroundColor = lockTab ? '#a00' : 'var(--accent)';
                 document.getElementById('speed-qr-container').style.display = lockTab ? 'flex' : 'none';
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "i" && !isSending) {
@@ -573,27 +582,27 @@
             subtree: true,
         });
 
-        function setCookie(name,value,days) {
+        function setCookie(name, value, days) {
             var expires = "";
             if (days) {
                 var date = new Date();
-                date.setTime(date.getTime() + (days*24*60*60*1000));
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
                 expires = "; expires=" + date.toUTCString();
             }
-            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+            document.cookie = name + "=" + (value || "") + expires + "; path=/";
         }
         function getCookie(name) {
             var nameEQ = name + "=";
             var ca = document.cookie.split(';');
-            for(var i=0;i < ca.length;i++) {
+            for (var i = 0; i < ca.length; i++) {
                 var c = ca[i];
-                while (c.charAt(0)==' ') c = c.substring(1,c.length);
-                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
             }
             return null;
         }
-        function eraseCookie(name) {   
-            document.cookie = name +'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        function eraseCookie(name) {
+            document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
         }
 
         downloadButton.addEventListener("click", async () => {
@@ -612,7 +621,7 @@
 
         // @019935xx@ where xx is speed
 
-        table.on("tableBuilt", function() { table.redraw(); })
+        table.on("tableBuilt", function () { table.redraw(); })
 
         function setSending(sending) {
             endpointSelect.value = "/append";
@@ -629,7 +638,7 @@
                 document.getElementById("table").style.display = "block";
                 try {
                     table.redraw();
-                } catch (_) {}
+                } catch (_) { }
             } else {
                 dropZone.style.display = "block";
                 endpointSelect.style.display = "block";
@@ -788,7 +797,7 @@
             const url = endpointSelect.value;
 
             if (isSending) {
-                data.push(Object.assign({}, ...Papa.parse(text, {delimiter: ",", quotes: true, skipEmptyLines: true}).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
+                data.push(Object.assign({}, ...Papa.parse(text, { delimiter: ",", quotes: true, skipEmptyLines: true }).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
                 if (table) {
                     table.setData(data);
                 }

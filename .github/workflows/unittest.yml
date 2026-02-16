@@ -1,0 +1,25 @@
+name: Test
+
+on:
+    push:
+        branches: ['main']
+    workflow_dispatch:
+    workflow_call:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+            - name: Set up python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.13.1"
+            - name: Install pandas
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install pandas
+            - name: Run unit tests
+              run: python -m unittest src.lib.data_config.TestBeakscript -v

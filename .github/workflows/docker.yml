@@ -5,7 +5,13 @@ on:
     workflow_dispatch:
 
 jobs:
+    test:
+        name: Run unit tests
+        permissions: write-all
+        uses: ./.github/workflows/unittest.yml
+        
     build:
+        name: Build Docker images
         runs-on: ubuntu-latest # ofc
 
         steps:

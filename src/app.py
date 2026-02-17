@@ -584,8 +584,8 @@ def create_app():  # cursed but whatever
     # OPEN (grafana needs this)
     @app.get("/next-3")
     def n3():
-        """Returns the next app.config["NEXT_N_MATCHES_NUMBER"] (currently 3, hence the name) matches after ?`mkey` that contain ?`team`<br>
-        where ?`x` is the url parameter named `x`"""
+        """Returns the next app.config["NEXT_N_MATCHES_NUMBER"] (currently 3, hence the name) matches after `?mkey` that contain `?team`<br>
+        where `?x` is the url parameter named `x`"""
         if not request.args["mkey"]:
             return "", 400  # bad request
         team = (
@@ -695,6 +695,7 @@ def create_app():  # cursed but whatever
             mesh.send_command(
                 f"rm {request.json["mn"]},{request.json["tn"]}", admin_login["pwd"]
             )
+            return "", 200
         if request.json and request.json["lines"]:
             rm_row_hash(request.json["lines"])
             return "", 200

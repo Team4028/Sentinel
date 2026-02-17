@@ -294,8 +294,12 @@ class Processor:
                             if len(new_rho) > 0 and isinstance(
                                 new_rho.iloc[0], pd.Series
                             ):
-                                return list(new_rho) # if series of series, return list of series
-                            return [new_rho] # else return 1 element list of series (the series) 
+                                return list(
+                                    new_rho
+                                )  # if series of series, return list of series
+                            return [
+                                new_rho
+                            ]  # else return 1 element list of series (the series)
                         if isinstance(new_rho, (list, tuple)):
                             return list(new_rho)
                         raise TypeError(
@@ -351,7 +355,9 @@ class Processor:
                             "Data Test " + self.config_data["tests"][i]["name"],
                         )
                     )
-                chunk = chunk.loc[chunk["filter-keep"] == True] # remove values that didn't pass the test (my English grade)
+                chunk = chunk.loc[
+                    chunk["filter-keep"] == True
+                ]  # remove values that didn't pass the test (my English grade)
                 for comp in self.config_data["compute"]:
                     # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
                     # this works because beakscript fully supports pd.DataFrame's, of which chunk is one
@@ -382,9 +388,13 @@ class Processor:
                         team_data
                     )  # add the data to the appropriate team struct
                 for match in chunk["MN"].unique():  # same thing as teams
-                    row = chunk.loc[chunk["MN"] == match] # row is actually 6 rows up here to be used for static fields
+                    row = chunk.loc[
+                        chunk["MN"] == match
+                    ]  # row is actually 6 rows up here to be used for static fields
                     static_fields = {}
-                    for field in self.config_data["matches"]: # parse static fields before breaking down match by team
+                    for field in self.config_data[
+                        "matches"
+                    ]:  # parse static fields before breaking down match by team
                         if "static" in field:
                             val = eval_beakscript(
                                 field["derive"],

@@ -780,7 +780,7 @@ class TestBeakscript(unittest.TestCase):
     """One must imagine `OK`"""
 
     def test_regex_header(self):
-        """ Test for wildcard-based headers """
+        """Test for wildcard-based headers"""
         assert_series_equal(
             eval_beakscript(
                 "$_A", pd.DataFrame({"1A": [1], "2A": [2], "3B": [3]}), "Unittest Regex"
@@ -790,7 +790,7 @@ class TestBeakscript(unittest.TestCase):
         )
 
     def test_header_sum(self):
-        """ Test the implicit $A,B header summation """
+        """Test the implicit $A,B header summation"""
         self.assertEqual(
             eval_beakscript(
                 "$A,B", pd.DataFrame({"A": [1], "B": [2]}), "Unittest Header Sum"
@@ -799,7 +799,7 @@ class TestBeakscript(unittest.TestCase):
         )
 
     def test_type_coercion_and_types(self):
-        """ Test various automatic type conversions """
+        """Test various automatic type conversions"""
         self.assertEqual(eval_beakscript("'20' == 20", {}, "Unittest quotes"), 0)
         self.assertIsInstance(eval_beakscript("20.5", {}, "Unittest float"), float)
         self.assertIsInstance(eval_beakscript("20", {}, "Unittest int"), int)
@@ -808,7 +808,7 @@ class TestBeakscript(unittest.TestCase):
         )
 
     def test_unary_operators(self):
-        """ Test operators with 1 argument """
+        """Test operators with 1 argument"""
         assert_series_equal(
             eval_beakscript("{1, *{2, 3}, 4}", {}, "Unittest U*"),
             pd.Series([1, 2, 3, 4]),
@@ -824,7 +824,7 @@ class TestBeakscript(unittest.TestCase):
         self.assertEqual(eval_beakscript("@len{1, 2, 6, 4}", {}, "Unittest U@len"), 4)
 
     def test_binary_operators(self):
-        """ Test operators with 2 arguments """
+        """Test operators with 2 arguments"""
         self.assertEqual(
             eval_beakscript(
                 "$A[$B == b]",
@@ -897,37 +897,48 @@ class TestBeakscript(unittest.TestCase):
         self.assertEqual(eval_beakscript("0 | 0", {}, "Unittest B| 4"), 0)
 
     def test_operator_prec(self):
-        """ Test that operators are evaluated in the right order """
+        """Test that operators are evaluated in the right order"""
         self.assertEqual(eval_beakscript("0 | 1 & 0", {}, "Unittest OoO 1"), 0)
-        self.assertEqual(eval_beakscript("5 / 2 * 2", {}, "Unittest OoO 2"), 5) # test L->R for equal precedence 
+        self.assertEqual(
+            eval_beakscript("5 / 2 * 2", {}, "Unittest OoO 2"), 5
+        )  # test L->R for equal precedence
         self.assertEqual(eval_beakscript("5 + 3 * 2", {}, "Unittest OoO 3"), 11)
         self.assertEqual(eval_beakscript("0 & 1 == 0", {}, "Unittest OoO 4"), 0)
         self.assertEqual(eval_beakscript("0 & 1 != 1", {}, "Unittest OoO 5"), 0)
         self.assertEqual(eval_beakscript("-2 + 5", {}, "Unittest OoO 6"), 3)
-        self.assertEqual(eval_beakscript("($A * $B)[frank ` $C]", pd.DataFrame({
-           "A": [3, 2, 1],
-           "B": [5, 2, 8],
-           "C": ["frankestein", "modern", "prometheus"] 
-        })), 15)
+        self.assertEqual(
+            eval_beakscript(
+                "($A * $B)[frank ` $C]",
+                pd.DataFrame(
+                    {
+                        "A": [3, 2, 1],
+                        "B": [5, 2, 8],
+                        "C": ["frankestein", "modern", "prometheus"],
+                    }
+                ),
+            ),
+            15,
+        )
         assert_series_equal(
             eval_beakscript("@lenn-{2, 3, 5, 6}", {}, "Unittest OoO 8"),
             pd.Series([-1, -2, -4, -5]),
         )
 
     def test_config_files_scheme(self):
-        """ Ensure that the configuration files match the schema """
-        with open("./config/schema.json", 'r') as f:
+        """Ensure that the configuration files match the schema"""
+        with open("./config/schema.json", "r") as f:
             schema = json.load(f)
         for file in Path("./config").glob("field-config-*.yaml"):
-            with file.open('r') as f:
+            with file.open("r") as f:
                 data = yaml.safe_load(f)
             validator = Draft7Validator(schema)
             errors = sorted(validator.iter_errors(data), key=lambda e: e.path)
             if errors:
-                messages = [
-                    f"{list(e.path)}: {e.message}" for e in errors
-                ]
-                self.fail(f"Schema validation failed in file {file}:\n{'\n'.join(messages)}")
+                messages = [f"{list(e.path)}: {e.message}" for e in errors]
+                self.fail(
+                    f"Schema validation failed in file {file}:\n{'\n'.join(messages)}"
+                )
+
 
 if __name__ == "__main__":
     # test beakscript

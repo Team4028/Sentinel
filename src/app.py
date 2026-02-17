@@ -405,7 +405,7 @@ def create_app():  # cursed but whatever
     # OPEN (need to log in before you can be logged in)
     @app.route("/login", methods=["GET", "POST"])
     def login():
-        """ Sends login page and validates login un/pw """
+        """Sends login page and validates login un/pw"""
         form = LoginForm()
         if form.validate_on_submit():
             if (
@@ -425,7 +425,7 @@ def create_app():  # cursed but whatever
         return jsonify({"logged_in": False})
 
     @app.get("/csrf")
-    def gen_csrf(): # QRScout needs a csrf token to log in and post
+    def gen_csrf():  # QRScout needs a csrf token to log in and post
         return jsonify({"csrf": generate_csrf()})
 
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
@@ -601,9 +601,13 @@ def create_app():  # cursed but whatever
                 ):  # app is compatible for >3 next, but keep endpoint name because i don't want to redo dash
                     break  # stop looking once you find all of them
                 if (
-                    team == -1 # if team == -1, just get the next 3
-                    or (("frc" + team) in m["b"]) # if team in this match, return it (blue)
-                    or (("frc" + team) in m["r"]) # if team in this match, return it (red)
+                    team == -1  # if team == -1, just get the next 3
+                    or (
+                        ("frc" + team) in m["b"]
+                    )  # if team in this match, return it (blue)
+                    or (
+                        ("frc" + team) in m["r"]
+                    )  # if team in this match, return it (red)
                 ):
                     next_3.append(m["k"])
             elif m["k"] == curr_match:
@@ -628,7 +632,10 @@ def create_app():  # cursed but whatever
                 lines_to_write = [
                     l.decode("utf-8").strip() + "\n"
                     for l in d_file.readlines()
-                    if l and (not "MN" in l.decode("utf-8")) # if there's "MN", then it's the header line
+                    if l
+                    and (
+                        not "MN" in l.decode("utf-8")
+                    )  # if there's "MN", then it's the header line
                 ]
                 for line in lines_to_write:
                     process_queue.append(line)
@@ -862,7 +869,8 @@ def create_app():  # cursed but whatever
             "picklist.html",
             initTeam=app.config["TEAM"],
             teams=filter(
-                lambda x: x != int(app.config["TEAM"]), sorted([int(x) for x in processor._teamsAt])
+                lambda x: x != int(app.config["TEAM"]),
+                sorted([int(x) for x in processor._teamsAt]),
             ),
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=GRAFANA_BASE_URL,

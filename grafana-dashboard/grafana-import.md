@@ -6,7 +6,7 @@
 - Select Import Dashboard
 - Paste in or upload the JSON file
 
-## $ Data\text{ }Sources $
+## $Data\text{ }Sources$
 While it's definitely easier to just make them from scratch, data sources can be imported by curling `/api/datasources` with the datasource JSON and bearer token:
 ### Example:
 ```http

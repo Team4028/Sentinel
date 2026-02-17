@@ -10,9 +10,9 @@ import re
 import json
 import time
 import logging
+from jsonschema import Draft7Validator
 
 logger = logging.getLogger(__name__)
-
 
 def generate_admin() -> tuple[str, str, str]:
     """Generates admin credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt"""
@@ -43,7 +43,6 @@ def safer_replace(src, dest) -> None:
         os.fsync(fdest.fileno())
 
     os.remove(src)
-
 
 def add_jsons_to_cache(js: dict) -> None:
     """adds each key in js to the tba cache"""
@@ -80,6 +79,16 @@ def tba_health() -> bool:
         return False
     return res.ok
 
+def yaml_check_schema_raise_errors(yamldata):
+    with open("./config/schema.json", 'r') as f:
+        schema = json.load(f)
+    validator = Draft7Validator(schema)
+    errors = sorted(validator.iter_errors(yamldata), key=lambda e: e.path)
+    if errors:
+        messages = [
+            f"{list(e.path)}: {e.message}" for e in errors
+        ]
+        raise Exception(f"Schema validation failed:\n{'\n'.join(messages)}")
 
 def test_tba_key(key: str) -> bool:
     """pings tba/api/v3/status with the key given to see if the key is good"""

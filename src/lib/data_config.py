@@ -1,3 +1,4 @@
+from pathlib import Path
 import yaml
 from enum import Enum
 import pandas as pd
@@ -6,6 +7,8 @@ import traceback
 import re
 import unittest
 import logging
+import json
+from jsonschema import Draft7Validator, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -911,6 +914,20 @@ class TestBeakscript(unittest.TestCase):
             pd.Series([-1, -2, -4, -5]),
         )
 
+    def test_config_files_scheme(self):
+        """ Ensure that the configuration files match the schema """
+        with open("./config/schema.json", 'r') as f:
+            schema = json.load(f)
+        for file in Path("./config").glob("field-config-*.yaml"):
+            with file.open('r') as f:
+                data = yaml.safe_load(f)
+            validator = Draft7Validator(schema)
+            errors = sorted(validator.iter_errors(data), key=lambda e: e.path)
+            if errors:
+                messages = [
+                    f"{list(e.path)}: {e.message}" for e in errors
+                ]
+                self.fail(f"Schema validation failed in file {file}:\n{'\n'.join(messages)}")
 
 if __name__ == "__main__":
     # test beakscript

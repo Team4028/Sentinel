@@ -715,7 +715,8 @@ def create_app():  # cursed but whatever
         """A file consumer that saves the field-config.yaml file during web editing"""
         data = html.unescape(request.json.get("code", ""))
         try:
-            yaml.safe_load(data)
+            dat = yaml.safe_load(data)
+            apputils.yaml_check_schema_raise_errors(dat)
             with open(config_file, "w") as f:  # save
                 f.write(data)
             processor.config_data = lex_config(app.config["YEAR"])  # reload config data
@@ -726,7 +727,7 @@ def create_app():  # cursed but whatever
             app.logger.info("Finished processing data.")
             reload_js()
             return jsonify({"ok": True, "message": "Saved"})
-        except yaml.YAMLError as e:
+        except Exception as e:
             return jsonify({"ok": False, "message": str(e)})
 
     # RESTRICTED (technically doesn't write to app config but still bad)

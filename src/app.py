@@ -353,7 +353,7 @@ def create_app():  # cursed but whatever
     def handle_exception(e):
         """Dampens the app's explosion"""
         app.logger.exception(f"Unhandled Exception: {apputils.exception_format(e)}")
-        return "Internal server error", 500
+        return f"Internal server error: {apputils.exception_format(e)}", 500
 
     @app.errorhandler(404)
     def handle_404(e):
@@ -536,7 +536,7 @@ def create_app():  # cursed but whatever
                 headers = r.readline().strip().split(",")  # decode csv into list[str]
                 headers.remove("Team")
                 return jsonify(headers)
-        return ""
+        return "File not found", 400
 
     # OPEN (grafana needs this (maybe))
     @app.route("/match-meta")
@@ -558,7 +558,7 @@ def create_app():  # cursed but whatever
                 headers.remove("Match")
                 headers.remove("Team")
                 return jsonify(headers)
-        return ""
+        return "File not found", 400
 
     # OPEN (grafana required)
     @app.get("/team-photo")
@@ -754,7 +754,6 @@ def create_app():  # cursed but whatever
         """Returns the app configuration for the editor at /edit-app-conf to read"""
         with open(os.path.join(app.root_path, "config", "app-config.json"), "r") as r:
             return jsonify(json.load(r))
-        return "", 500
 
     # RESTRICTED (obviously don't want to share this)
     @app.get("/tba-key")

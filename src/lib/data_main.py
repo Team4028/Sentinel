@@ -1,3 +1,4 @@
+import math
 import pandas as pd
 import os
 import json
@@ -10,6 +11,7 @@ except ModuleNotFoundError:
 from collections import defaultdict
 from collections.abc import Iterable
 import logging
+from scipy.linalg import svd
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,15 @@ class TeamStruct:
             "Last OPR": _opr,
         }
         # the | operator for dicts in python combines dicts with different entries (OR's them)
+        for field in config["svd"]:
+            data |= (
+                DataField(field["name"], self.data[field["name"]], []).objectify()
+                | DataField(
+                    f"{field["name"]} Variance",
+                    self.data[f"{field["name"]} Variance"],
+                    [],
+                ).objectify()
+            )
         for field in config["teams"]:
             data |= DataField(
                 field["name"], self.data[field["name"]], field["filters"]
@@ -55,7 +66,7 @@ class DataField:
         """returns the average of the dataset"""
         return (
             # x̄ = Σx/|x|
-            round(sum(self.data) / len(self.data), 2)
+            round(sum(self.data) / len(self.data), 3)
             if len(self.data) > 0
             else "N/A"
         )
@@ -67,7 +78,7 @@ class DataField:
     def filter(self) -> float:
         """returns the average of the dataset, filtered by median += 2 * MAD"""
         return float(
-            np.around(np.mean(Processor.mad_filter(np.array(self.data))), 2)
+            np.around(np.mean(Processor.mad_filter(np.array(self.data))), 3)
         )  # around is just round
 
     calc_map = {"avg": average, "max": max, "fil": filter}
@@ -136,12 +147,52 @@ class Processor:
         mad = np.median(diff)
         return data[diff <= (c * mad)]
 
+    def round_sigfigs(x, sig=3):
+        if np.isscalar(x):
+            if x == 0.0 or np.isnan(np.log10(x)):
+                return x
+            return np.around(x, sig - int(np.floor(np.log10(np.abs(x)))) - 1)
+        else:
+            return np.array([Processor.round_sigfigs(y) for y in x], dtype=np.float64)
+
+    def get_svd_analysis(
+        self, stat: pd.DataFrame, comp_team: pd.Series, compteamname
+    ) -> tuple[dict[int, np.float64], dict[int, np.float64], np.float64]:
+        """Returns the nomalized rank factors of each team, the variance score of each team, and the stability score"""
+        # much thanks to pairwise
+        arrLen = len(self._teams)
+        matrix = np.zeros((arrLen, arrLen))
+        teamkeys = list(self._teams.keys())
+        for t1, t2 in comp_team.items():
+            matrix[teamkeys.index(t1)][teamkeys.index(t2)] = stat.loc[
+                (stat["TN"] == int(t1)) & (stat[compteamname] == int(t2))
+            ].iloc[
+                0, 2
+            ]  # t1 - t2 because ranking is 1 > 2 > 3 and so we need to negate the otherwise t2 - t1
+        U, S, _ = svd(matrix)
+        u_ranks: np.ndarray = U[:, 0]
+        u_ranks = Processor.round_sigfigs(
+            (u_ranks - u_ranks.min()) / (u_ranks.max() - u_ranks.min()) * 100
+        )
+        stability = S.max() / S.min()
+        variation_score = np.zeros(len(S))  # less = more consistent
+        for i in range(len(S)):
+            variation_score[i] = Processor.round_sigfigs(
+                np.sqrt(sum([(U[i][j] * S[j]) ** 2 for j in range(1, len(S))]))
+            )
+
+        return (
+            dict(zip(teamkeys, u_ranks)),
+            dict(zip(teamkeys, variation_score)),
+            Processor.round_sigfigs(stability),
+        )
+
     def get_percent_scouted(self) -> float:
         """gets the percentage of teams scouted in the current comp"""
         return round(
             len([x for x in self._teams.keys() if x in self._teamsAt])
             / len(self._teamsAt),
-            2,
+            2,  # use 2 because %
         )
 
     def output_teams(self, outfile) -> None:
@@ -329,20 +380,25 @@ class Processor:
                         else:
                             chunk.columns = last_cols
                 # if MN and TN are the same, there are two instances of the same team in the same match, so it's a duplicate row
-                dupes = chunk.duplicated(subset=["MN", "TN"], keep=False)
-                if dupes.any():
-                    logger.warning(
-                        "Warning: duplicate teams for the following matches:\n\t"
-                        + "\n\t".join(
-                            str(chunk[dupes][["MN", "TN"]].drop_duplicates()).split(
-                                "\n"
+                if len(self.config_data["uniques"]) > 0:
+                    dupes = chunk.duplicated(
+                        subset=self.config_data["uniques"], keep=False
+                    )
+                    if dupes.any():
+                        logger.warning(
+                            "Warning: duplicate teams for the following matches:\n\t"
+                            + "\n\t".join(
+                                str(
+                                    chunk[dupes][
+                                        self.config_data["uniques"]
+                                    ].drop_duplicates()
+                                ).split("\n")
                             )
                         )
-                    )
-                    logger.info("Filtering out...")
-                chunk = chunk.drop_duplicates(
-                    subset=["MN", "TN"], keep="first"
-                )  # remove the duplicates
+                        logger.info("Filtering out...")
+                    chunk = chunk.drop_duplicates(
+                        subset=self.config_data["uniques"], keep="first"
+                    )  # remove the duplicates
                 chunk["filter-keep"] = True
                 for i in range(len(self.config_data["tests"])):
                     logger.info(
@@ -358,12 +414,56 @@ class Processor:
                 chunk = chunk.loc[
                     chunk["filter-keep"] == True
                 ]  # remove values that didn't pass the test (my English grade)
+                chunk.drop(columns=["filter-keep"], inplace=True)
                 for comp in self.config_data["compute"]:
                     # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
                     # this works because beakscript fully supports pd.DataFrame's, of which chunk is one
                     chunk[comp["name"]] = eval_beakscript(
                         comp["eq"], chunk, "Compute Field " + comp["name"]
                     )
+                for team in chunk["TN"].unique():
+                    self._teams |= {int(team): TeamStruct()}
+                for subj in self.config_data["svd"]:
+                    u, v, s = self.get_svd_analysis(
+                        chunk[["TN", subj["comp-team"], subj["source"]]],
+                        chunk.set_index("TN")[subj["comp-team"]],
+                        subj["comp-team"],
+                    )
+                    svd_rank = []
+                    svd_var = []
+
+                    # make sorting
+                    ks = np.array(list(u.keys()))
+                    vs = np.array(list(u.values()))
+                    sorted_i = np.argsort(vs)
+                    sorted_v = vs[sorted_i]
+                    dense_ranks = np.zeros_like(vs, dtype=int)
+                    curr_rank = 0
+                    dense_ranks[sorted_i[0]] = curr_rank
+                    for i in range(1, len(vs)):
+                        if sorted_v[i] != sorted_v[i - 1]:
+                            curr_rank += 1
+                        dense_ranks[sorted_i[i]] = curr_rank
+                    ranks = dict(zip(ks, dense_ranks))
+
+                    for team in chunk["TN"]:
+                        svd_rank.append(u[team])
+                        svd_var.append(v[team])
+                    chunk[f"{subj["name"]}"] = svd_rank
+                    if "variance-score" in subj["augs"]:
+                        chunk[f"{subj["name"]} Variance"] = svd_var
+                    if "stability" in subj["augs"]:
+                        chunk[f"{subj["name"]} Stabillity"] = [
+                            s for _ in range(len(chunk["TN"]))
+                        ]
+                    for team in chunk["TN"].unique():
+                        self._teams[int(team)].extend_data(
+                            {
+                                f"{subj["name"]}": ranks[team] + 1,
+                                f"{subj["name"]} Variance": v[team],
+                            }
+                        )
+
                 for team in chunk[
                     "TN"
                 ].unique():  # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
@@ -384,7 +484,7 @@ class Processor:
                         if isinstance(val, pd.Series):
                             val = val.tolist()  # pythonify the pandas datatypes
                         team_data[field["name"]] = val  # write the field to the csv
-                    self._teams.setdefault(int(team), TeamStruct()).extend_data(
+                    self._teams[int(team)].extend_data(
                         team_data
                     )  # add the data to the appropriate team struct
                 for match in chunk["MN"].unique():  # same thing as teams

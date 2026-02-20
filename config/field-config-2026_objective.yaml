@@ -44,6 +44,8 @@ headers:
     - name: EID
       desc: Event ID
 
+filter-unique-fields: [MN, TN]
+
 compute-fields:
     - name: Auton Shots
       equation: $FR * $ASS

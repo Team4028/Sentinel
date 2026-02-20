@@ -27,6 +27,8 @@ def read_config(year: str):
 
 FILTERS = ["avg", "max", "fil"]
 
+SVD_AUGS = ["variance-score", "stability"]
+
 # more human readable names for the yaml filters
 FANCY_FIL = {"avg": "Average", "max": "Max", "fil": "Filtered"}
 
@@ -86,9 +88,11 @@ def lex_config(year: str):
     config = {
         "compute": [],
         "headers": [],
+        "svd": [],
         "teams": [],
         "matches": [],
         "predict-metric": "",
+        "uniques": [],
         "preproc": [],
         "dash-panel": {},
         "deep-predict": [],
@@ -109,6 +113,17 @@ def lex_config(year: str):
                 config["preproc"].append(_data)
         for field in data["compute-fields"]:
             config["compute"].append({"name": field["name"], "eq": field["equation"]})
+        config["uniques"] = data["filter-unique-fields"]
+        if "subjective-svd-fields" in data:
+            for field in data["subjective-svd-fields"]:
+                config["svd"].append(
+                    {
+                        "name": field["name"],
+                        "source": field["source"],
+                        "comp-team": field["compare-team-source"],
+                        "augs": [x for x in SVD_AUGS if x in field],
+                    }
+                )
         for field in data["team-fields"]:
             config["teams"].append(
                 {
@@ -299,8 +314,10 @@ def parse_equation(equation: str, df: pd.DataFrame):
                 c = equation[i]
                 if c == "(":
                     p_count += 1
+                    curr += c
                 elif c == ")":
                     p_count -= 1
+                    curr += c
                 elif c == "{":
                     b_count += 1
                     curr += c
@@ -685,8 +702,10 @@ def solve_rpn(rpn_tokens: list[Token], df: pd.DataFrame):
                         df[[s.strip() for s in sym.split(",")]].sum(axis=1)
                     )
                 else:
-                    if "_" in sym:
-                        simr = re.compile("^" + re.escape(sym).replace("_", ".*"))
+                    if "_" in sym or "?" in sym:
+                        simr = re.compile(
+                            "^" + re.escape(sym).replace("_", ".*").replace("\?", ".+")
+                        )
                         if isinstance(df, pd.DataFrame):
                             stack_overflow.append(
                                 df.filter(regex=simr).iloc[0].reset_index(drop=True)
@@ -783,7 +802,18 @@ class TestBeakscript(unittest.TestCase):
         """Test for wildcard-based headers"""
         assert_series_equal(
             eval_beakscript(
-                "$_A", pd.DataFrame({"1A": [1], "2A": [2], "3B": [3]}), "Unittest Regex"
+                "$_A",
+                pd.DataFrame({"A": [0], "1A": [1], "2A": [2], "3B": [3]}),
+                "Unittest Regex",
+            ),
+            pd.Series([0, 1, 2]),
+            check_names=False,
+        )
+        assert_series_equal(
+            eval_beakscript(
+                "$?A",
+                pd.DataFrame({"A": [0], "1A": [1], "2A": [2], "3B": [3]}),
+                "Unittest Regex",
             ),
             pd.Series([1, 2]),
             check_names=False,
@@ -903,9 +933,10 @@ class TestBeakscript(unittest.TestCase):
             eval_beakscript("5 / 2 * 2", {}, "Unittest OoO 2"), 5
         )  # test L->R for equal precedence
         self.assertEqual(eval_beakscript("5 + 3 * 2", {}, "Unittest OoO 3"), 11)
-        self.assertEqual(eval_beakscript("0 & 1 == 0", {}, "Unittest OoO 4"), 0)
-        self.assertEqual(eval_beakscript("0 & 1 != 1", {}, "Unittest OoO 5"), 0)
-        self.assertEqual(eval_beakscript("-2 + 5", {}, "Unittest OoO 6"), 3)
+        self.assertEqual(eval_beakscript("3 * (5 + 2)", {}, "Unittest OoO 4"), 21)
+        self.assertEqual(eval_beakscript("0 & 1 == 0", {}, "Unittest OoO 5"), 0)
+        self.assertEqual(eval_beakscript("0 & 1 != 1", {}, "Unittest OoO 6"), 0)
+        self.assertEqual(eval_beakscript("-2 + 5", {}, "Unittest OoO 7"), 3)
         self.assertEqual(
             eval_beakscript(
                 "($A * $B)[frank ` $C]",
@@ -916,11 +947,12 @@ class TestBeakscript(unittest.TestCase):
                         "C": ["frankestein", "modern", "prometheus"],
                     }
                 ),
+                "Unittest OoO 8",
             ),
             15,
         )
         assert_series_equal(
-            eval_beakscript("@lenn-{2, 3, 5, 6}", {}, "Unittest OoO 8"),
+            eval_beakscript("@lenn-{2, 3, 5, 6}", {}, "Unittest OoO 9"),
             pd.Series([-1, -2, -4, -5]),
         )
 

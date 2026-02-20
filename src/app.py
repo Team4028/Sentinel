@@ -123,7 +123,7 @@ def create_app():  # cursed but whatever
             app.config["OUT_DIR"],
             app.config["CHUNK_SIZE"],
             *apputils.load_tba_data(
-                app.config["EVENT_KEY"], auth_key, app.config["YEAR"]
+                app.config["EVENT_KEY"], auth_key, app.config["YEAR"].split("_")[0]
             ),
             lex_config(app.config["YEAR"]),
         )  # what's wrong with my copy of python why are their pointers (it's just the unpack operator)
@@ -812,7 +812,7 @@ def create_app():  # cursed but whatever
                     processor._oprs,
                     processor._curr_oprs,
                 ) = apputils.load_tba_data(
-                    app.config["EVENT_KEY"], auth_key, app.config["YEAR"]
+                    app.config["EVENT_KEY"], auth_key, app.config["YEAR"].split("_")[0]
                 )
                 return "", 200
             else:
@@ -906,7 +906,7 @@ def create_app():  # cursed but whatever
                     processor._oprs,
                     processor._curr_oprs,
                 ) = apputils.load_tba_data(
-                    app.config["EVENT_KEY"], auth_key, app.config["YEAR"]
+                    app.config["EVENT_KEY"], auth_key, app.config["YEAR"].split("_")[0]
                 )  # event key may have changed
                 if apputils.data_in_exists(app):
                     try:

@@ -69,6 +69,42 @@
             },
             "uniqueItems": true
         },
+        "subjective-svd-fields": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the output ranking header"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Name of source field (no '$')"
+                    },
+                    "compare-team-source": {
+                        "type": "string",
+                        "description": "Name of the field that has the team to compare to (no '$')"
+                    },
+                    "variance-score": {
+                        "type": "null",
+                        "description": "Whether to include the variance score for each team"
+                    },
+                    "stability": {
+                        "type": "null",
+                        "description": "Whether to include the stability (confidence)"
+                    }
+                },
+                "required": ["name", "source", "compare-team-source"]
+            }
+        },
+        "filter-unique-fields": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Fields with which to deliniate distinct rows and detect duplicates"
+        },
         "team-fields": {
             "type": "array",
             "items": {
@@ -200,6 +236,7 @@
         "team-fields",
         "match-fields",
         "predict-metric",
+        "filter-unique-fields",
         "depth-predict-fields"
     ]
 }

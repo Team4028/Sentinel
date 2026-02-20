@@ -60,6 +60,8 @@ headers:
     - name: EID
       desc: Event TBA ID key
 
+filter-unique-fields: [MN, TN]
+
 compute-fields:
     - name: Total ACoral
       equation: $AL1,AL2,AL3,AL4

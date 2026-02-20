@@ -3,7 +3,7 @@
     "ACCENT_COLOR": "#8307b0",
     "TEXT_COLOR": "#ffffff",
     "CHUNK_SIZE": 10000,
-    "YEAR": "2025",
+    "YEAR": "2026_subjective",
     "TEAM": "4028",
     "RESTRICT_APPEND_LEVEL": 1,
     "UPLOAD_DIR": "datain",

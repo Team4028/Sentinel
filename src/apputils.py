@@ -14,6 +14,7 @@ from jsonschema import Draft7Validator
 
 logger = logging.getLogger(__name__)
 
+
 def generate_admin() -> tuple[str, str, str]:
     """Generates admin credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt"""
     os.makedirs("secrets", exist_ok=True)  # ensure secrets directory exists
@@ -43,6 +44,7 @@ def safer_replace(src, dest) -> None:
         os.fsync(fdest.fileno())
 
     os.remove(src)
+
 
 def add_jsons_to_cache(js: dict) -> None:
     """adds each key in js to the tba cache"""
@@ -79,16 +81,16 @@ def tba_health() -> bool:
         return False
     return res.ok
 
+
 def yaml_check_schema_raise_errors(yamldata):
-    with open("./config/schema.json", 'r') as f:
+    with open("./config/schema.json", "r") as f:
         schema = json.load(f)
     validator = Draft7Validator(schema)
     errors = sorted(validator.iter_errors(yamldata), key=lambda e: e.path)
     if errors:
-        messages = [
-            f"{list(e.path)}: {e.message}" for e in errors
-        ]
+        messages = [f"{list(e.path)}: {e.message}" for e in errors]
         raise Exception(f"Schema validation failed:\n{'\n'.join(messages)}")
+
 
 def test_tba_key(key: str) -> bool:
     """pings tba/api/v3/status with the key given to see if the key is good"""
@@ -132,7 +134,7 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
             {"X-TBA-Auth-Key": api_key},
         ).json()
         for x, y in fetch_oprs["oprs"].items():
-            oprs |= {x.removeprefix("frc"): y}
+            oprs |= {x.removeprefix("frc"): round(float(y), 3)}
         add_jsons_to_cache({"curr_oprs": oprs})
     else:
         if os.path.exists("config/tba-cache.json"):
@@ -189,7 +191,7 @@ def get_tba_opr(event_key, api_key, year, teams):
                         headers={"X-TBA-Auth-Key": api_key},
                     ).json()["oprs"][f"frc{team}"]
                 )  # get the teams opr from that event
-            oprs |= {team: opr}
+            oprs |= {team: round(opr, 3)}
         add_jsons_to_cache({"oprs": oprs})
     elif didnt_read:
         raise Exception("Error: no wifi or tba cache or invalid api key")
@@ -357,4 +359,8 @@ def stream(file) -> Generator[bytes, Any, None]:
 def exception_format(e: Exception) -> str:  # bruh
     """Gets the stack frame where the exception ACTUALLY occured (deepest frame not in a dependecy)"""
     tb = traceback.extract_tb(e.__traceback__)
-    return f"\n{tb.format_frame_summary(tb[-1])}\n{type(e).__name__}: {e}"
+    _err = []
+    for f in tb:
+        if ".venv" not in f:
+            _err.append(tb.format_frame_summary(f))
+    return f"\n{"".join(_err)}\n{type(e).__name__}: {e}"

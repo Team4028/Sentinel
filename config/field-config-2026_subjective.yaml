@@ -44,6 +44,9 @@ headers:
   - name: EID
     desc: Event ID
 
+team-header-name: TN
+match-header-name: MN
+
 preproc-operations:
   - name: Split Team Row
     new-headers: [MN, TC, SI, TN, SPD, ACC, DS, DF, HC, CT, EID]

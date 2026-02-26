@@ -334,6 +334,7 @@ class Processor:
             data_filepath, chunksize=self.chunk_size, iterator=True
         ) as reader:
             first = True
+            tn, mn = self.config_data["tn"], self.config_data["mn"]
             for chunk in reader:  # read in chunks in case big
                 if len(self.config_data["preproc"]) > 0:
 
@@ -421,12 +422,12 @@ class Processor:
                     chunk[comp["name"]] = eval_beakscript(
                         comp["eq"], chunk, "Compute Field " + comp["name"]
                     )
-                for team in chunk["TN"].unique():
+                for team in chunk[tn].unique():
                     self._teams |= {int(team): TeamStruct()}
                 for subj in self.config_data["svd"]:
                     u, v, s = self.get_svd_analysis(
-                        chunk[["TN", subj["comp-team"], subj["source"]]],
-                        chunk.set_index("TN")[subj["comp-team"]],
+                        chunk[[tn, subj["comp-team"], subj["source"]]],
+                        chunk.set_index(tn)[subj["comp-team"]],
                         subj["comp-team"],
                     )
                     svd_rank = []
@@ -446,7 +447,7 @@ class Processor:
                         dense_ranks[sorted_i[i]] = curr_rank
                     ranks = dict(zip(ks, dense_ranks))
 
-                    for team in chunk["TN"]:
+                    for team in chunk[tn]:
                         svd_rank.append(u[team])
                         svd_var.append(v[team])
                     chunk[f"{subj["name"]}"] = svd_rank
@@ -454,9 +455,9 @@ class Processor:
                         chunk[f"{subj["name"]} Variance"] = svd_var
                     if "stability" in subj["augs"]:
                         chunk[f"{subj["name"]} Stabillity"] = [
-                            s for _ in range(len(chunk["TN"]))
+                            s for _ in range(len(chunk[tn]))
                         ]
-                    for team in chunk["TN"].unique():
+                    for team in chunk[tn].unique():
                         self._teams[int(team)].extend_data(
                             {
                                 f"{subj["name"]}": ranks[team] + 1,
@@ -465,7 +466,7 @@ class Processor:
                         )
 
                 for team in chunk[
-                    "TN"
+                    tn
                 ].unique():  # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
                     team_data = {}
                     if int(team) in self._ranks:
@@ -478,7 +479,7 @@ class Processor:
                         # call the beakscript functions for the derived fields where the TN == team
                         val = eval_beakscript(
                             field["derive"],
-                            chunk.loc[chunk["TN"] == team],
+                            chunk.loc[chunk[tn] == team],
                             "Team Field " + field["name"],
                         )
                         if isinstance(val, pd.Series):
@@ -487,9 +488,9 @@ class Processor:
                     self._teams[int(team)].extend_data(
                         team_data
                     )  # add the data to the appropriate team struct
-                for match in chunk["MN"].unique():  # same thing as teams
+                for match in chunk[mn].unique():  # same thing as teams
                     row = chunk.loc[
-                        chunk["MN"] == match
+                        chunk[mn] == match
                     ]  # row is actually 6 rows up here to be used for static fields
                     static_fields = {}
                     for field in self.config_data[
@@ -506,13 +507,11 @@ class Processor:
 
                             static_fields |= {field["name"]: val}
                     for i, team in enumerate(
-                        chunk.loc[chunk["MN"] == match, "TN"].unique()
+                        chunk.loc[chunk[mn] == match, tn].unique()
                     ):  # the .unique is uneccesary but safe
                         data = {}
                         for field in self.config_data["matches"]:
-                            row = chunk.loc[
-                                (chunk["TN"] == team) & (chunk["MN"] == match)
-                            ]
+                            row = chunk.loc[(chunk[tn] == team) & (chunk[mn] == match)]
                             if "static" in field:
                                 continue
                             # get derived fields for matches

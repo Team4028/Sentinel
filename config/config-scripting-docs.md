@@ -146,7 +146,7 @@ This section denotes tests that the code can perform to ensure all of the input 
 <summary> <h2> Testing </h2> </summary>
 
 There are a number of unit tests defined for beakscript in the `TestBeakscript` class.
-These can be run via `python src/lib/data_config.py -v` (or without `-v`) or via unittest with `python -m unittest src.lib.data_config.TestBeakscript -v` (or no `-v`) -- `-v` is just for verbose, which actually prints out the tests being run
+These can be run via `python src/lib/data_config.py -v` (or without `-v`) or via unittest with `python -m unittest src.lib.libtest.TestBeakscript -v` (or no `-v`) -- `-v` is just for verbose, which actually prints out the tests being run
 
 
 </details>

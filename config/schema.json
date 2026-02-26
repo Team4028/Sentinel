@@ -3,6 +3,14 @@
     "title": "Sentinel Configuration",
     "type": "object",
     "properties": {
+        "team-header-name": {
+            "type": "string",
+            "description": "Name of the header cooresponding to the team number"
+        },
+        "match-header-name": {
+            "type": "string",
+            "description": "Name of the header cooresponding to the match number"
+        },
         "headers": {
             "type": "array",
             "items": {
@@ -231,6 +239,8 @@
         }
     },
     "required": [
+        "team-header-name",
+        "match-header-name",
         "headers",
         "compute-fields",
         "team-fields",

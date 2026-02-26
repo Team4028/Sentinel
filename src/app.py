@@ -49,11 +49,11 @@ def create_app():  # cursed but whatever
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
     # set up cross site request forgery protection because it's one line
-    csrf = CSRFProtect(app)
+    csrf = CSRFProtect(app)  # assign to ensure it's not garbage collected
     CORS(
         app,
         supports_credentials=True,
-        origins=["https://team4028.github.io", "http://localhost:5173"],
+        origins=["https://team4028.github.io", "http://localhost:5173"],  # testing
     )
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
@@ -237,7 +237,7 @@ def create_app():  # cursed but whatever
             "body": (
                 "New changes avaliable to apply." if lines == None else "\n".join(lines)
             ),
-            "icon": "/static/favicon.ico",
+            "icon": url_for("static", filename="favicon.ico"),
         }
         data["actions"] = (
             [  # makes a button that invokes the 'goto-changes' action in the service worker
@@ -772,7 +772,7 @@ def create_app():  # cursed but whatever
                 {
                     "title": "Test",
                     "body": "this is a test notification",
-                    "icon": "/static/favicon.ico",
+                    "icon": url_for("static", filename="favicon.ico"),
                 },
                 time.time() + 10,
                 [],
@@ -981,11 +981,7 @@ def create_app():  # cursed but whatever
 # =======================================================
 
 if __name__ == "__main__":
-    if (
-        len(sys.argv) > 1 and sys.argv[1] == "gen"
-    ):  # python src/app.py gen (argv[0] is src/app.py so check argv[1])
-        apputils.generate_keys()
-    elif len(sys.argv) > 1 and sys.argv[1] == "pwd":
+    if len(sys.argv) > 1 and sys.argv[1] == "pwd":
         apputils.generate_admin()
     else:
         create_app().run(port=5001, use_reloader=False)  # debug run python

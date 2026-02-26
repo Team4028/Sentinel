@@ -60,6 +60,9 @@ headers:
     - name: EID
       desc: Event TBA ID key
 
+team-header-name: TN
+match-header-name: MN
+
 filter-unique-fields: [MN, TN]
 
 compute-fields:

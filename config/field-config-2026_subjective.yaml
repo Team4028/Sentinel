@@ -7,28 +7,46 @@ headers:
     desc: Scouter Initials
   - name: T1
     desc: Team 1 Number
-  - name: HCT1
-    desc: Hopper 1 Capacity
+  - name: SPDT1
+    desc: Team 1 Speed Ranking
+  - name: ACCT1
+    desc: Team 1 Accuracy
   - name: DST1
-    desc: Driver Skill Rating 1
+    desc: Team 1 Driver Skill
+  - name: DFT1
+    desc: Team 1 Defense
+  - name: HCT1
+    desc: Team 1 Hopper Capacity
   - name: T2
     desc: Team 2 Number
-  - name: HCT2
-    desc: Hopper 2 Capacity
+  - name: SPDT2
+    desc: Team 2 Speed Ranking
+  - name: ACCT2
+    desc: Team 2 Accuracy
   - name: DST2
-    desc: Driver Skill Rating 2
+    desc: Team 2 Driver Skill
+  - name: DFT2
+    desc: Team 2 Defense
+  - name: HCT2
+    desc: Team 2 Hopper Capacity
   - name: T3
     desc: Team 3 Number
-  - name: HCT3
-    desc: Hopper 3 Capacity
+  - name: SPDT3
+    desc: Team 3 Speed Ranking
+  - name: ACCT3
+    desc: Team 3 Accuracy
   - name: DST3
-    desc: Driver Skill Rating 3
+    desc: Team 3 Driver Skill
+  - name: DFT3
+    desc: Team 3 Defense
+  - name: HCT3
+    desc: Team 3 Hopper Capacity
   - name: EID
     desc: Event ID
 
 preproc-operations:
   - name: Split Team Row
-    new-headers: [MN, TC, SI, TN, HC, DS, CT, EID]
+    new-headers: [MN, TC, SI, TN, SPD, ACC, DS, DF, HC, CT, EID]
     operation: >-
       {
         {$MN, $AC, $SI, $T1, *($?T2 - $?T1), $T2, $EID},
@@ -42,13 +60,28 @@ preproc-operations:
 filter-unique-fields: [MN, TN, CT]
 
 subjective-svd-fields:
-  - name: Hopper Capacity
-    source: HC
+  - name: Speed
+    source: SPD
+    compare-team-source: CT
+    variance-score:
+    stability:
+  - name: Accuracy
+    source: ACC
     compare-team-source: CT
     variance-score:
     stability:
   - name: Drive Team Skill
     source: DS
+    compare-team-source: CT
+    variance-score:
+    stability:
+  - name: Defense
+    source: DF
+    compare-team-source: CT
+    variance-score:
+    stability:
+  - name: Hopper Capacity
+    source: HC
     compare-team-source: CT
     variance-score:
     stability:

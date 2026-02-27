@@ -8,5 +8,5 @@ cp .\compose\mount.bat dockerout\mount.bat
 wsl chmod +x dockerout/run.sh
 cp .\compose\run.bat dockerout\run.bat
 cp .\grafana-dashboard\grafana.ini dockerout\grafana-dashboard\grafana.ini
-7z a scouting-app.zip dockerout
+7z a scouting-app.zip ".\dockerout\*"
 rmdir /s /q dockerout

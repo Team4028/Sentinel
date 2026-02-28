@@ -125,116 +125,133 @@ def clear_tba_cache() -> None:
 def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
     """ """
     oprs = {}
-    if tba_health() and not (api_key == None or api_key.strip() == ""):
-        logger.info(
-            f"Fetch https://www.thebluealliance.com/api/v3/event/{event_key}/oprs"
-        )
-        fetch_oprs = requests.get(
-            f"https://www.thebluealliance.com/api/v3/event/{event_key}/oprs",
-            {"X-TBA-Auth-Key": api_key},
-        ).json()
-        for x, y in fetch_oprs["oprs"].items():
-            oprs |= {x.removeprefix("frc"): round(float(y), 3)}
-        add_jsons_to_cache({"curr_oprs": oprs})
-    else:
-        if os.path.exists("config/tba-cache.json"):
-            with open("config/tba-cache.json") as r:
-                js = json.load(r)
-                if "curr_oprs" in js:
-                    oprs = js["curr_oprs"]
-                else:
-                    raise Exception("Error: no wifi or tba cache or invalid api key")
+    try:
+        if tba_health() and not (api_key == None or api_key.strip() == ""):
+            logger.info(
+                f"Fetch https://www.thebluealliance.com/api/v3/event/{event_key}/oprs"
+            )
+            fetch_oprs = requests.get(
+                f"https://www.thebluealliance.com/api/v3/event/{event_key}/oprs",
+                {"X-TBA-Auth-Key": api_key},
+            ).json()
+            for x, y in fetch_oprs["oprs"].items():
+                oprs |= {x.removeprefix("frc"): round(float(y), 3)}
+            add_jsons_to_cache({"curr_oprs": oprs})
         else:
-            raise Exception("Error: no wifi or tba cache or invalid api key")
-    return oprs
+            if os.path.exists("config/tba-cache.json"):
+                with open("config/tba-cache.json") as r:
+                    js = json.load(r)
+                    if "curr_oprs" in js:
+                        oprs = js["curr_oprs"]
+                    else:
+                        logger.error("Error: no wifi or tba cache or invalid api key")
+                        return {}
+            else:
+                logger.error("Error: no wifi or tba cache or invalid api key")
+                return {}
+        return oprs
+    except Exception as e:
+        logger.error(exception_format(e))
+        return {}
 
 
 def get_tba_opr(event_key, api_key, year, teams):
     """returns a dictionary of each team to their cooresponding opr at their last competition"""
     oprs = {}
-    didnt_read = True
-    if os.path.exists("config/tba-cache.json"):  # use cache first because lots of data
-        with open("config/tba-cache.json", "r") as r:
-            js = json.load(r)
-            if "oprs" in js:
-                oprs = js["oprs"]
-                didnt_read = False
-    if didnt_read and tba_health() and not (api_key == None or api_key.strip() == ""):
-        for team in teams:
-            opr = 0.0
-            logger.info(
-                f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}"
-            )
-            events = requests.get(
-                f"https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}",
-                headers={"X-TBA-Auth-Key": api_key},
-            ).json()  # get events that team was in
-            curr_date = date.today().strftime("%Y-%m-%d")
-            latest_not_over = "0000-00-00"
-            latest_no_event = None
-            for event in events:
-                if (
-                    event["start_date"] < curr_date
-                    and event["key"] != event_key
-                    and event["start_date"] > latest_not_over
-                    and not (event["event_type"] in [4, 99])
-                ):  # 99 => offseason, 4 => einstein
-                    latest_not_over = event["start_date"]
-                    latest_no_event = event
-            if latest_no_event:
+    try:
+        didnt_read = True
+        if os.path.exists("config/tba-cache.json"):  # use cache first because lots of data
+            with open("config/tba-cache.json", "r") as r:
+                js = json.load(r)
+                if "oprs" in js:
+                    oprs = js["oprs"]
+                    didnt_read = False
+        if didnt_read and tba_health() and not (api_key == None or api_key.strip() == ""):
+            for team in teams:
+                opr = 0.0
                 logger.info(
-                    f"Fetch: https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs"
+                    f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}"
                 )
-                opr = float(
-                    requests.get(
-                        f"https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs",
-                        headers={"X-TBA-Auth-Key": api_key},
-                    ).json()["oprs"][f"frc{team}"]
-                )  # get the teams opr from that event
-            oprs |= {team: round(opr, 3)}
-        add_jsons_to_cache({"oprs": oprs})
-    elif didnt_read:
-        raise Exception("Error: no wifi or tba cache or invalid api key")
-    return oprs
+                events = requests.get(
+                    f"https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}",
+                    headers={"X-TBA-Auth-Key": api_key},
+                ).json()  # get events that team was in
+                curr_date = date.today().strftime("%Y-%m-%d")
+                latest_not_over = "0000-00-00"
+                latest_no_event = None
+                for event in events:
+                    if (
+                        event["start_date"] < curr_date
+                        and event["key"] != event_key
+                        and event["start_date"] > latest_not_over
+                        and not (event["event_type"] in [4, 99])
+                    ):  # 99 => offseason, 4 => einstein
+                        latest_not_over = event["start_date"]
+                        latest_no_event = event
+                if latest_no_event:
+                    logger.info(
+                        f"Fetch: https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs"
+                    )
+                    opr = float(
+                        requests.get(
+                            f"https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs",
+                            headers={"X-TBA-Auth-Key": api_key},
+                        ).json()["oprs"][f"frc{team}"]
+                    )  # get the teams opr from that event
+                oprs |= {team: round(opr, 3)}
+            add_jsons_to_cache({"oprs": oprs})
+        elif didnt_read:
+            logger.error("Error: no wifi or tba cache or invalid api key")
+            return {}
+        return oprs
+    except Exception as e:
+        logger.error(exception_format(e))
+        return {}
 
 
 def get_tba_ranks(event_key, api_key, teams):
     """returns a dictionary mapping each team to a tuple of their rank and rps"""
-    if tba_health() and not (
-        api_key == None or api_key.strip() == ""
-    ):  # prioritize live fetch for ranks because they update quickly
-        logger.info(
-            f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/rankings"
-        )
-        ranks = requests.get(
-            f"https://www.thebluealliance.com/api/v3/event/{event_key}/rankings",
-            headers={"X-TBA-Auth-Key": api_key},
-        ).json()
-        add_jsons_to_cache({"ranks": ranks})
-    else:
-        if os.path.exists("config/tba-cache.json"):
-            with open("config/tba-cache.json", "r") as r:
-                js = json.load(r)
-                if "ranks" in js:
-                    ranks = js["ranks"]
-                else:
-                    raise Exception("Error: no wifi or tba cache or invalid api key")
+    try:
+        if tba_health() and not (
+            api_key == None or api_key.strip() == ""
+        ):  # prioritize live fetch for ranks because they update quickly
+            logger.info(
+                f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/rankings"
+            )
+            ranks = requests.get(
+                f"https://www.thebluealliance.com/api/v3/event/{event_key}/rankings",
+                headers={"X-TBA-Auth-Key": api_key},
+            ).json()
+            add_jsons_to_cache({"ranks": ranks})
         else:
-            raise Exception("Error: no wifi or tba cache or invalid api key")
+            if os.path.exists("config/tba-cache.json"):
+                with open("config/tba-cache.json", "r") as r:
+                    js = json.load(r)
+                    if "ranks" in js:
+                        ranks = js["ranks"]
+                    else:
+                        logger.error("Error: no wifi or tba cache or invalid api key")
+                        return {}
+            else:
+                logger.error("Error: no wifi or tba cache or invalid api key")
+                return {}
 
-    return dict(
-        map(
-            lambda x: (
-                x,
-                [
-                    (t["rank"], t["sort_orders"][0])
-                    for t in ranks["rankings"]
-                    if t["team_key"] == f"frc{x}"
-                ][0],
-            ),
-            teams,
+        return dict(
+            map(
+                lambda x: (
+                    x,
+                    [
+                        (t["rank"], t["sort_orders"][0])
+                        for t in ranks["rankings"]
+                        if t["team_key"] == f"frc{x}"
+                    ][0],
+                ),
+                teams,
+            )
         )
-    )
+    except Exception as e:
+        logger.error(exception_format(e))
+        return {}
 
 
 def load_tba_data(event_key, api_key, year):

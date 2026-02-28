@@ -208,7 +208,7 @@ class Processor:
             df.append(
                 {"Team": k}
                 | v.output_dict(
-                    self.config_data, self._oprs[str(k)], self._curr_oprs[str(k)]
+                    self.config_data, self._oprs[str(k)] if str(k) in self._oprs else 0, self._curr_oprs[str(k)] if str(k) in self._curr_oprs else 0
                 )
             )
         pd.DataFrame(df).to_csv(outfile, index=False)
@@ -223,8 +223,8 @@ class Processor:
                         int(key.removeprefix("frc"))
                     ].output_dict(
                         self.config_data,
-                        self._oprs[key.removeprefix("frc")],
-                        self._curr_oprs[key.removeprefix("frc")],
+                        self._oprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._oprs else 0,
+                        self._curr_oprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._curr_oprs else 0,
                     )[
                         self.config_data["p-metric"]["source"]
                     ]
@@ -247,7 +247,7 @@ class Processor:
                     }
                     if int(team) in self._teams:
                         teamO = self._teams[int(team)].output_dict(
-                            self.config_data, self._oprs[team], self._curr_oprs[team]
+                            self.config_data, self._oprs[team] if team in self._oprs else 0, self._curr_oprs[team] if team in self._curr_oprs else 0
                         )
                         for field in self.config_data["deep-predict"]:
                             dat |= {

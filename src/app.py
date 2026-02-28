@@ -915,10 +915,11 @@ def create_app():  # cursed but whatever
                         )  # updated processor, so this
                         app.logger.info("Finished processing data.")
                         reload_js()
-                    except:
-                        os.remove(
-                            infile
-                        )  # remove data_in if it's not playing nice (ie. 2025 data in, switches to 2026)
+                    except Exception as e:
+                        app.logger.error(apputils.exception_format(e))
+                        # os.remove(
+                        #     infile
+                        # )  # remove data_in if it's not playing nice (ie. 2025 data in, switches to 2026)
                 ensure_configurable_dirs()  # if either of the the upl/out dirs were changed, they may no longer exist
                 return "", 200
             except Exception as e:

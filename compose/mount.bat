@@ -15,4 +15,4 @@ if %errorlevel% NEQ 0 (
 gsudo usbipd bind -b %USBID%
 echo Please continue after the suspicious looking admin cmd window closes
 pause
-usbipd attach -w -b %USBID%
+usbipd attach -w Ubuntu -b %USBID%

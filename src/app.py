@@ -237,7 +237,7 @@ def create_app():  # cursed but whatever
             "body": (
                 "New changes avaliable to apply." if lines == None else "\n".join(lines)
             ),
-            "icon": url_for("static", filename="favicon.ico"),
+            "icon": '/static/favicon.ico',
         }
         data["actions"] = (
             [  # makes a button that invokes the 'goto-changes' action in the service worker

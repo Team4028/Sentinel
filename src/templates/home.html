@@ -375,7 +375,7 @@
             return hashArr.map(b => ('00' + b.toString(16)).slice(-2)).join('');
         }
 
-        function tableRowDCHandler(_, row, retry = true) {
+        async function tableRowDCHandler(_, row, retry = true) {
             const cells = row.getCells();
             let fullStr = [];
             for (var cell of cells) {

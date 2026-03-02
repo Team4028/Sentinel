@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <!-- This page and entire system is pretty much deprecated -->
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -147,46 +148,85 @@
     <p class="empty">No lines in queue.</p>
     {% endif %}
     <script>
-        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+        let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+        function fetchCSRF(callback) {
+            fetch('/csrf', { method: "GET" }).then(r => {
+                if (r.ok) r.json().then(j => {
+                    csrfToken = j["csrf"];
+                    callback(null, csrfToken);
+                });
+                else r.text().then(t => {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
+                    callback(new Error(`Refresh CSRF failed: ${t}`));
+                }).catch((err) => {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
+                    callback(new Error(`Failed to refresh CSRF token: ${err}`));
+                });
+            });
+        }
+
+        function deleteChange(li, ev, retry = true) {
+            let ret = false;
+            fetch(`{{url_for('delete_change')}}/${[...li.parentNode.children].indexOf(li)}`, { // delete the change based on list index
+                method: "POST",
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            }).then(r => {
+                if (r.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        deleteChange(li, ev, false);
+                    });
+                    ret = true;
+                    return;
+                } else ret = !r.ok;
+            });
+            if (ret) return;
+            li.remove();
+            if (document.getElementsByTagName("ul")[0].children.length == 0) {
+                // make the empty <p> because jinja only updates on page refresh
+                const empty = document.createElement("p");
+                empty.classList.add("empty");
+                empty.innerText = "No lines in queue."
+                document.body.appendChild(empty);
+            }
+        }
+
+        function applyChange(li, a, ev, retry = true) {
+            if (ev.target === a) return;
+            let ret = false;
+            fetch(`{{url_for('apply_change')}}/${[...li.parentNode.children].indexOf(li)}`, { // apply the change based on list index
+                method: "POST",
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            }).then(r => {
+                if (r.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        if (!err) applyChange(li, a, ev, false);
+                    });
+                    ret = true;
+                } else ret = !r.ok;
+            });
+            if (ret) return;
+            li.remove();
+            if (document.getElementsByTagName("ul")[0].children.length == 0) {
+                const empty = document.createElement("p");
+                empty.classList.add("empty");
+                empty.innerText = "No lines in queue."
+                document.body.appendChild(empty);
+            }
+        }
+
         Array.from(document.getElementsByTagName("li")).forEach(li => { // loop through all <li>'s, use Array.from() to unwrap HTMLCollection
             const a = li.getElementsByTagName("a")[0];
-            a.addEventListener("click", ev => {
-                fetch(`{{url_for('delete_change')}}/${[...li.parentNode.children].indexOf(li)}`, { // delete the change based on list index
-                    method: "POST",
-                    headers: {
-                        'X-CSRFToken': csrfToken
-                    }
-                });
-                li.remove();
-                if (document.getElementsByTagName("ul")[0].children.length == 0) {
-                    // make the empty <p> because jinja only updates on page refresh
-                    const empty = document.createElement("p");
-                    empty.classList.add("empty");
-                    empty.innerText = "No lines in queue."
-                    document.body.appendChild(empty);
-                }
-            });
+            a.addEventListener("click", ev => deleteChange(li, ev));
 
-            li.addEventListener("click", ev => {
-                if (ev.target === a) return;
-                fetch(`{{url_for('apply_change')}}/${[...li.parentNode.children].indexOf(li)}`, { // apply the change based on list index
-                    method: "POST",
-                    headers: {
-                        'X-CSRFToken': csrfToken
-                    }
-                });
-                li.remove();
-                if (document.getElementsByTagName("ul")[0].children.length == 0) {
-                    const empty = document.createElement("p");
-                    empty.classList.add("empty");
-                    empty.innerText = "No lines in queue."
-                    document.body.appendChild(empty);
-                }
-            });
+            li.addEventListener("click", ev => applyChange(li, a, ev));
         });
     </script>
     <script src="{{url_for('static', filename='js/register-sw.js')}}"
-        onload="registerServiceWorker('/service_worker.js', `{{pubkey}}`, '/subscribe')"></script>
+        onload="registerServiceWorker('/service_worker.js')"></script>
 </body>
 
 </html>

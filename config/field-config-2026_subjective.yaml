@@ -60,7 +60,7 @@ preproc-operations:
         {$MN, $AC, $SI, $T3, *($?T2 - $?T3), $T2, $EID}
       }
 
-filter-unique-fields: [MN, TN, CT]
+filter-unique-fields: [MN, SI, TN, CT] # SI lets multiple people scout the same alliance
 
 subjective-svd-fields:
   - name: Speed
@@ -90,9 +90,15 @@ subjective-svd-fields:
     stability:
 
 compute-fields: []
-team-fields: []
+team-fields: [] 
 match-fields: []
-data-tests: []
+data-tests:
+  - name: Team/Match Number greater than 0
+    expression: $TN > 0 & $MN > 0
+  - name: Team Color is valid
+    expression: B ` $TC | R ` $TC
+  - name: Year is valid
+    expression: "'2026' ` $EID"
 depth-predict-fields: []
 predict-metric:
   name: OPR

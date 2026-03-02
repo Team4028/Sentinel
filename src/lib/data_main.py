@@ -156,25 +156,27 @@ class Processor:
             return np.array([Processor.round_sigfigs(y) for y in x], dtype=np.float64)
 
     def get_svd_analysis(
-        self, stat: pd.DataFrame, comp_team: pd.Series, compteamname
+        self, stat: pd.DataFrame, compteamname
     ) -> tuple[dict[int, np.float64], dict[int, np.float64], np.float64]:
         """Returns the nomalized rank factors of each team, the variance score of each team, and the stability score"""
         # much thanks to pairwise
         arrLen = len(self._teams)
         matrix = np.zeros((arrLen, arrLen))
         teamkeys = list(self._teams.keys())
-        for t1, t2 in comp_team.items():
-            matrix[teamkeys.index(t1)][teamkeys.index(t2)] = stat.loc[
-                (stat["TN"] == int(t1)) & (stat[compteamname] == int(t2))
-            ].iloc[
-                0, 2
-            ]  # t1 - t2 because ranking is 1 > 2 > 3 and so we need to negate the otherwise t2 - t1
+        team_index = {team: idx for idx, team in enumerate(teamkeys)}
+        grouped = (stat.groupby(["TN", compteamname])[stat.columns[2]].mean())
+        for (t1, t2), value in grouped.items():
+            if t1 in team_index and t2 in team_index:
+                i = team_index[t1]
+                j = team_index[t2]
+                matrix[i, j] = value
+                matrix[j, i] = -value
         U, S, _ = svd(matrix)
         u_ranks: np.ndarray = U[:, 0]
         u_ranks = Processor.round_sigfigs(
             (u_ranks - u_ranks.min()) / (u_ranks.max() - u_ranks.min()) * 100
         )
-        stability = S.max() / S.min()
+        stability = S.max() / S.min() if S.min() > 1e-12 else np.inf
         variation_score = np.zeros(len(S))  # less = more consistent
         for i in range(len(S)):
             variation_score[i] = Processor.round_sigfigs(
@@ -427,7 +429,6 @@ class Processor:
                 for subj in self.config_data["svd"]:
                     u, v, s = self.get_svd_analysis(
                         chunk[[tn, subj["comp-team"], subj["source"]]],
-                        chunk.set_index(tn)[subj["comp-team"]],
                         subj["comp-team"],
                     )
                     svd_rank = []

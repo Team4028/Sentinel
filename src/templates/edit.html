@@ -93,7 +93,7 @@
         // configuer monaco
         require.config({ paths: { vs: "{{url_for('static', filename='monaco-editor/0.44.0/min/vs')}}" } });
         const ymlContent = {{ yaml_content | tojson | safe}};
-        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+        let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
         require(['vs/editor/editor.main'], function () {
 
             window.editor = monaco.editor.create(document.getElementById('editor'), {
@@ -112,6 +112,22 @@
                 saveBtn.innerHTML = dirty ? "Save &#9679" : "Save"; // add a dot if unsaved
             });
         });
+
+        function fetchCSRF(callback) {
+            fetch('/csrf', { method: "GET" }).then(r => {
+                if (r.ok) r.json().then(j => {
+                    csrfToken = j["csrf"];
+                    callback(null, csrfToken);
+                });
+                else r.text().then(t => {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
+                    callback(new Error(`Refresh CSRF failed: ${t}`));
+                }).catch((err) => {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
+                    callback(new Error(`Failed to refresh CSRF token: ${err}`));
+                });
+            });
+        }
 
         let lastSaved = ymlContent;
         // dirty = unsaved changes (its a git term)
@@ -137,7 +153,7 @@
         /**
          * Sends the current yaml file to the server to be saved
          */
-        async function saveYAML() {
+        async function saveYAML(retry = true) {
             const code = window.editor.getValue();
             try {
                 const res = await fetch("{{url_for('save_yaml')}}", {
@@ -148,6 +164,12 @@
                     },
                     body: JSON.stringify({ code })
                 });
+                if (res.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        if (!err) saveYAML(false);
+                    });
+                    return;
+                }
                 const data = await res.json();
                 if (data.ok) {
                     statusDiv.innerText = "Saved";
@@ -167,7 +189,7 @@
         }
     </script>
     <script src="{{url_for('static', filename='js/register-sw.js')}}"
-        onload="registerServiceWorker('/service_worker.js', `{{pubkey}}`, '/subscribe')"></script>
+        onload="registerServiceWorker('/service_worker.js')"></script>
 </body>
 
 </html>

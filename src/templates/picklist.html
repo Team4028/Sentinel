@@ -4,7 +4,6 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="csrf-token" content="{{csrf_token()}}">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <style>
@@ -197,7 +196,6 @@
     <iframe style="display: inline-block;" width="100%" height="1000px" frameborder="0" id="data"></iframe>
     <script>
         const dashes = JSON.parse(`{{dashes | safe}}`);
-        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
         const h2 = document.getElementById("score");
         document.getElementById("data").src = `{{grafana_base}}${dashes["ScoutingDashboard.json"]}/scouting-dashboard?orgId=1&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s&viewPanel=panel-10`
         const search = document.getElementById("ateam-search");
@@ -345,19 +343,17 @@
             if (picks.equals(lastPicks)) {
                 return;
             } else lastPicks = picks;
-            console.log(picks.join('&'));
             fetch(`/calc-team-score?${picks.join("&")}`, {
                 method: "GET",
-                credentials: "include",
-                headers: {
-                    'X-CSRFToken': csrfToken
-                }
+                credentials: "include"
             }).then(res => {
                 if (res.ok)
                     res.json().then(j => {
                         h2.innerText = "Score: " + j["score"];
                     });
-            }).catch(() => { });
+            }).catch((err) => {
+                console.error(`Error calculating predicted score: ${err}`);
+            });
         }
 
         function deserializeFromLocalStorage() {

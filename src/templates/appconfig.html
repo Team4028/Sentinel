@@ -264,15 +264,38 @@
         const newPWD = document.getElementById("new-pwd");
         const teamNum = document.getElementById("teamNumber");
 
-        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+        let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
 
-        async function tbaKeyCheckHealth() {
+        function fetchCSRF(callback) {
+            fetch('/csrf', { method: "GET" }).then(r => {
+                if (r.ok) r.json().then(j => {
+                    csrfToken = j["csrf"];
+                    callback(null, csrfToken);
+                });
+                else r.text().then(t => {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
+                    return callback(new Error(`Refresh CSRF failed: ${t}`));
+                }).catch((err) => {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
+                    return callback(new Error(`Failed to refresh CSRF token: ${err}`));
+                });
+            });
+        }
+
+        async function tbaKeyCheckHealth(retry = true) {
             const res = await fetch(`{{url_for('main')}}test-tba-key/${tbakey.value.trim()}`, {
                 method: "POST",
                 headers: {
                     'X-CSRFToken': csrfToken
                 }
             });
+
+            if (res.status === 403 && retry) {
+                return await fetchCSRF((err) => {
+                    if (!err) return tbaKeyCheckHealth(false);
+                    return new Promise(() => false);
+                });
+            }
 
             return res.ok && await res.text() == "true"
         }
@@ -430,7 +453,7 @@
 
     </script>
     <script src="{{url_for('static', filename='js/register-sw.js')}}"
-        onload="registerServiceWorker('/service_worker.js', `{{pubkey}}`, '/subscribe')"></script>
+        onload="registerServiceWorker('/service_worker.js')"></script>
 </body>
 
 </html>

@@ -340,6 +340,7 @@
     <script>
         let isSending = false;
         let data = [];
+        let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content');
         const headers = JSON.parse(`{{headers|safe}}`);
         const data_init = JSON.parse(`{{inp_data|safe}}`);
         for (const data_init_row of data_init) {
@@ -351,6 +352,22 @@
             columns: headers.map(s => ({ title: s, field: s.toLowerCase() }))
         });
 
+        function fetchCSRF(callback) {
+            fetch('/csrf', { method: "GET" }).then(r => {
+                if (r.ok) r.json().then(j => {
+                    csrfToken = j["csrf"];
+                    callback(null, csrfToken);
+                });
+                else r.text().then(t => {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
+                    callback(new Error(`Refresh CSRF failed: ${t}`));
+                }).catch((err) => {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
+                    callback(new Error(`Failed to refresh CSRF token: ${err}`));
+                });
+            });
+        }
+
         async function sha256(str) {
             const strBuf = new TextEncoder().encode(str);
             const hashBuf = await window.crypto.subtle.digest('SHA-256', strBuf);
@@ -358,7 +375,7 @@
             return hashArr.map(b => ('00' + b.toString(16)).slice(-2)).join('');
         }
 
-        table.on("rowDblClick", async function (_, row) {
+        function tableRowDCHandler(_, row, retry = true) {
             const cells = row.getCells();
             let fullStr = [];
             for (var cell of cells) {
@@ -382,6 +399,11 @@
                     let idx = row.getPosition();
                     row.delete();
                     data.splice(idx - 1, 1);
+                } else if (res.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        if (!err) tableRowDCHandler(_, row, false);
+                    });
+                    return;
                 } else if (res.status === 400) {
                     statusText = "Error: Invalid CSRF";
                 } else if (res.status == 401 || res.status == 403) {
@@ -390,7 +412,9 @@
                     res.text().then(t => statusText = `Error: Internal server error: ${t}`);
                 }
             });
-        });
+        }
+
+        table.on("rowDblClick", tableRowDCHandler);
 
         const dropZone = document.getElementById("drop-zone");
         const fileInput = document.getElementById("file-input");
@@ -412,7 +436,6 @@
         const speedQr = document.getElementById("speedqr");
         const speedNum = document.getElementById("speednum");
         const modeBtn = document.getElementById("mode-btn");
-        const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content');
         const speedQRCode = new QRCode(speedQr, {
             text: "@01993505@",
             width: 128,
@@ -502,19 +525,28 @@
             speedQRCode.makeCode(`@019935${('00' + speedNum.value.toString()).slice(-2)}@`);
         });
 
-        reloadButton.addEventListener("click", () => {
+        function reloadCallback(retry = true) {
             progressContainer.style.display = "block";
             progressBar.style.width = "0";
             statusText.innerText = `[${new Date().toLocaleString()}] ` + "Reloading data..."
             fetch("{{url_for('reprocess')}}", {
+                method: "POST",
                 headers: {
                     'X-CSRFToken': csrfToken
                 }
             }).then(async res => {
+                if (res.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        if (!err) reloadCallback(false);
+                    });
+                    return;
+                }
                 progressBar.style.width = "100%";
                 statusText.innerText = `[${new Date().toLocaleString()}] ` + await res.text();
             });
-        });
+        }
+
+        reloadButton.addEventListener("click", reloadCallback);
 
         window.addEventListener("keydown", ev => {
             if ((ev.ctrlKey || ev.metaKey) && ev.key === "e" && !isSending) { // override Ctrl+S to save
@@ -658,7 +690,7 @@
         /**
          * Upload a selected picture to the server
          */
-        function uploadPicture(file) {
+        function uploadPicture(file, retry = true) {
             statusText.textContent = `[${new Date().toLocaleString()}] Uploading picture ${file}`;
             console.log(file);
             progressBar.style.width = 0;
@@ -680,6 +712,13 @@
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     statusText.textContent = `[${new Date().toLocaleString()}] Upload complete!`;
+                } else if (xhr.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        if (!err) {
+                            uploadPicture(file, false);
+                        }
+                    });
+                    return;
                 } else {
                     statusText.textContent = `[${new Date().toLocaleString()}] Upload failed: ${xhr.responseText}`;
                 }
@@ -689,7 +728,16 @@
             };
 
             xhr.onerror = (err) => {
-                statusText.textContent = `[${new Date().toLocaleString()}] Error occured: ${err}`;
+                if (retry) {
+                    console.warn(`XHR request fail (${err}), refreshing CSRF...`);
+                    fetchCSRF((err) => {
+                        if (!err) {
+                            uploadPicture(file, false);
+                        }
+                    });
+                    return;
+                } else
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error occured: ${err}`;
             }
 
             xhr.send(fData);
@@ -698,7 +746,7 @@
         /**
          * Requests a stream to a server file and then uses it to download the file locally
          */
-        function downloadFile(file) {
+        function downloadFile(file, retry = true) {
             statusText.textContent = `[${new Date().toLocaleString()}] Downloading file ${file}`;
             // reset bar
             progressBar.style.width = 0;
@@ -721,8 +769,18 @@
                 }
             }
 
-            xhr.onerror = (err) =>
-                statusText.textContent = `[${new Date().toLocaleString()}] Error downloading file: ${err}`;
+            xhr.onerror = (err) => {
+                if (retry) {
+                    console.warn(`XHR request fail (${err}), refreshing CSRF...`);
+                    fetchCSRF((err) => {
+                        if (!err) {
+                            downloadFile(file, false);
+                        }
+                    });
+                    return;
+                } else
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error downloading file: ${err}`;
+            }
 
             xhr.onload = () => {
                 progressBar.style.width = "100%";
@@ -734,6 +792,13 @@
                     a.click(); // click the download link
                     URL.revokeObjectURL(a.href);
                     statusText.textContent = `[${new Date().toLocaleString()}] File downloaded: ${file}`;
+                } else if (xhr.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        if (!err) {
+                            downloadFile(file, false);
+                        }
+                    });
+                    return;
                 } else {
                     xhr.response.text().then(t => statusText.textContent = `[${new Date().toLocaleString()}] Error downloading file: ${t}`);
                 }
@@ -745,7 +810,7 @@
         /**
          * Send the selected file to the selected endpoint on the backend
          */
-        function uploadFile(file) {
+        function uploadFile(file, retry = true) {
             const url = endpointSelect.value;
 
             statusText.textContent = `[${new Date().toLocaleString()}] Uploading: ${file.name}`; // timestamp
@@ -771,6 +836,13 @@
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     statusText.textContent = `[${new Date().toLocaleString()}] Upload complete!`;
+                } else if (xhr.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        if (!err) {
+                            uploadFile(file, false);
+                        }
+                    });
+                    return;
                 } else {
                     statusText.textContent = `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.responseText;
                 }
@@ -783,7 +855,14 @@
             };
 
             xhr.onerror = (err) => {
-                statusText.textContent = `[${new Date().toLocaleString()}] Error ocurred: ${err}`;
+                if (retry) {
+                    console.warn(`XHR request fail (${err}), refreshing CSRF...`);
+                    fetchCSRF((err) => {
+                        if (!err) uploadFile(file, false);
+                    });
+                    return;
+                } else
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error ocurred: ${err}`;
             };
 
             xhr.send(formData);
@@ -793,7 +872,7 @@
         /**
          * Creates a blob with the input area text content to send it to the proper backend endpoint
          */
-        function uploadText(text) {
+        function uploadText(text, retry = true) {
             const url = endpointSelect.value;
 
             if (isSending) {
@@ -833,21 +912,36 @@
             };
 
             xhr.onload = () => {
-                statusText.textContent =
-                    xhr.status === 200 ? `[${new Date().toLocaleString()}] Upload complete!` : `[${new Date().toLocaleString()}] ` + "Upload failed: " + xhr.responseText;
+                if (xhr.status === 200) {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Upload Complete!`;
+                } else if (xhr.status === 403 && retry) {
+                    fetchCSRF((err) => {
+                        uploadText(text, false);
+                    });
+                    return;
+                } else {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Upload failed: ${xhr.responseText}`;
+                }
                 textInput.selectionStart = textInput.selectionEnd = 0;
                 textInput.value = "";
             };
 
             xhr.onerror = (err) => {
-                statusText.textContent = `[${new Date().toLocaleString()}] Error occured: ${err}`;
+                if (retry) {
+                    console.warn(`XHR request fail (${err}), refreshing CSRF...`);
+                    fetchCSRF((err) => {
+                        if (!err) uploadText(text, false);
+                    });
+                    return;
+                } else
+                    statusText.textContent = `[${new Date().toLocaleString()}] Error occured: ${err}`;
             };
 
             xhr.send(formData);
         }
     </script>
     <script src="{{url_for('static', filename='js/register-sw.js')}}"
-        onload="registerServiceWorker('/service_worker.js', `{{pubkey}}`, '/subscribe')"></script>
+        onload="registerServiceWorker('/service_worker.js')"></script>
 
 </body>
 

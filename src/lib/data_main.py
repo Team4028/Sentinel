@@ -176,7 +176,7 @@ class Processor:
         u_ranks = Processor.round_sigfigs(
             (u_ranks - u_ranks.min()) / (u_ranks.max() - u_ranks.min()) * 100
         )
-        stability = S.max() / S.min() if S.min() > 1e-12 else np.inf
+        stability = S.max() / S.min()
         variation_score = np.zeros(len(S))  # less = more consistent
         for i in range(len(S)):
             variation_score[i] = Processor.round_sigfigs(

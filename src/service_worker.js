@@ -16,6 +16,14 @@ self.addEventListener("message", event => {
                 });
             })()
         );
+    } else if (event.data.type === "CHECK") {
+        event.waitUntil(
+            (async () => {
+                event.source.postMessage({
+                    type: "CHECK_RES",
+                    good: csrfToken ? "true" : "false"
+                });
+        })());
     }
 });
 

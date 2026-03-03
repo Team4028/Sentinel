@@ -1,5 +1,6 @@
 let cid = localStorage.getItem("client_id");
 let callbackId;
+let checkId;
 if (!cid) {
     cid = crypto.randomUUID();
     localStorage.setItem("client_id", cid);
@@ -10,6 +11,12 @@ function sendCSRF(worker) {
         type: "SET_CSRF",
         token: csrfToken,
         cid: cid
+    });
+}
+
+function checkCSRF(worker) {
+    worker.postMessage({
+        type: "CHECK",
     });
 }
 
@@ -25,6 +32,14 @@ function registerServiceWorker(serviceWorkerUrl) {
             navigator.serviceWorker.addEventListener("message", (e) => {
                 if (e.data.type === "RECIEVED_CSRF") {
                     clearInterval(callbackId);
+                    checkId = setInterval(() => { console.log("Checking CSRF"); checkCSRF(swReg.active); }, 30000);
+                }
+                
+                else if (e.data.type === "CHECK_RES") {
+                    if (e.data.good === "false") {
+                        callbackId = setInterval(() => { console.log("sending CSRF"); sendCSRF(swReg.active); }, 100);
+                        clearInterval(checkId);
+                    }
                 }
             })
         })

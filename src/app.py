@@ -46,7 +46,6 @@ def create_app():  # cursed but whatever
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
-    # set up cross site request forgery protection because it's one line
     CORS(
         app,
         supports_credentials=True,

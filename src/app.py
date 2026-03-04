@@ -240,11 +240,11 @@ def create_app():  # cursed but whatever
             "icon": '/static/favicon.ico',
         }
         data["actions"] = (
-            [  # makes a button that invokes the 'goto-changes' action in the service worker
+            [  # makes a button that invokes the 'goto-changes' action in the service worker (active mod)
                 {"action": "goto-changes", "title": "View"}  # label for button
             ]
             if lines == None
-            else [  # makes a button that invokes the 'goto-changes' action in the service worker
+            else [  # makes a button that invokes the 'remove-change' action in the service worker (passive mod)
                 {"action": "remove-change", "title": "Remove"}  # label for button
             ]
         )
@@ -281,8 +281,8 @@ def create_app():  # cursed but whatever
         This will emit a notification if restrict append level is 1"""
         exists = os.path.exists(infile)
         with open(infile, "a" if exists else "w", encoding="utf-8") as append:
-            lines_to_write[-1] = lines_to_write[-1].strip()  # yeet trailing newline
             if len(lines_to_write) > 0:
+                lines_to_write[-1] = lines_to_write[-1].strip()  # yeet trailing newline
                 if exists:
                     append.write("\n")
                 else:

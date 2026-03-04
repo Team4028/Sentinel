@@ -4,7 +4,6 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="csrf-token" content="{{csrf_token()}}">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>Data Processor Configuration</title>
@@ -93,7 +92,6 @@
         // configuer monaco
         require.config({ paths: { vs: "{{url_for('static', filename='monaco-editor/0.44.0/min/vs')}}" } });
         const ymlContent = {{ yaml_content | tojson | safe}};
-        let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
         require(['vs/editor/editor.main'], function () {
 
             window.editor = monaco.editor.create(document.getElementById('editor'), {
@@ -112,22 +110,6 @@
                 saveBtn.innerHTML = dirty ? "Save &#9679" : "Save"; // add a dot if unsaved
             });
         });
-
-        function fetchCSRF(callback) {
-            fetch('/csrf', { method: "GET" }).then(r => {
-                if (r.ok) r.json().then(j => {
-                    csrfToken = j["csrf"];
-                    callback(null, csrfToken);
-                });
-                else r.text().then(t => {
-                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
-                    callback(new Error(`Refresh CSRF failed: ${t}`));
-                }).catch((err) => {
-                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
-                    callback(new Error(`Failed to refresh CSRF token: ${err}`));
-                });
-            });
-        }
 
         let lastSaved = ymlContent;
         // dirty = unsaved changes (its a git term)
@@ -153,23 +135,16 @@
         /**
          * Sends the current yaml file to the server to be saved
          */
-        async function saveYAML(retry = true) {
+        async function saveYAML() {
             const code = window.editor.getValue();
             try {
                 const res = await fetch("{{url_for('save_yaml')}}", {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json",
-                        'X-CSRFToken': csrfToken
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({ code })
                 });
-                if (res.status === 403 && retry) {
-                    fetchCSRF((err) => {
-                        if (!err) saveYAML(false);
-                    });
-                    return;
-                }
                 const data = await res.json();
                 if (data.ok) {
                     statusDiv.innerText = "Saved";

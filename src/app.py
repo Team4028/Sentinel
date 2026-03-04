@@ -10,9 +10,7 @@ from flask import (
     redirect,
 )
 from flask_login import login_user, login_required, logout_user, current_user
-from flask_wtf import CSRFProtect
 from flask_cors import CORS
-from flask_wtf.csrf import generate_csrf
 
 try:  # janky import stuff: running src/app.py and running scouting_app.py via gunicorn lead to different import paths
     from lib.data_main import Processor
@@ -49,7 +47,6 @@ def create_app():  # cursed but whatever
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
     # set up cross site request forgery protection because it's one line
-    csrf = CSRFProtect(app)  # assign to ensure it's not garbage collected
     CORS(
         app,
         supports_credentials=True,
@@ -423,10 +420,6 @@ def create_app():  # cursed but whatever
         if current_user.is_authenticated:
             return jsonify({"logged_in": True, "username": current_user.id})
         return jsonify({"logged_in": False})
-
-    @app.get("/csrf")
-    def gen_csrf():  # QRScout needs a csrf token to log in and post
-        return jsonify({"csrf": generate_csrf()})
 
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
     @app.route("/logout")

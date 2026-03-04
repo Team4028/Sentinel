@@ -4,7 +4,6 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="csrf-token" content="{{csrf_token()}}">
     <link href="{{url_for('static', filename='fonts/neuropolitical.css')}}" rel="stylesheet">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
@@ -264,38 +263,10 @@
         const newPWD = document.getElementById("new-pwd");
         const teamNum = document.getElementById("teamNumber");
 
-        let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-
-        function fetchCSRF(callback) {
-            fetch('/csrf', { method: "GET" }).then(r => {
-                if (r.ok) r.json().then(j => {
-                    csrfToken = j["csrf"];
-                    callback(null, csrfToken);
-                });
-                else r.text().then(t => {
-                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
-                    return callback(new Error(`Refresh CSRF failed: ${t}`));
-                }).catch((err) => {
-                    statusText.textContent = `[${new Date().toLocaleString()}] Error fetching CSRF: ${err}`;
-                    return callback(new Error(`Failed to refresh CSRF token: ${err}`));
-                });
-            });
-        }
-
-        async function tbaKeyCheckHealth(retry = true) {
+        async function tbaKeyCheckHealth() {
             const res = await fetch(`{{url_for('main')}}test-tba-key/${tbakey.value.trim()}`, {
                 method: "POST",
-                headers: {
-                    'X-CSRFToken': csrfToken
-                }
             });
-
-            if (res.status === 403 && retry) {
-                return await fetchCSRF((err) => {
-                    if (!err) return tbaKeyCheckHealth(false);
-                    return new Promise(() => false);
-                });
-            }
 
             return res.ok && await res.text() == "true"
         }
@@ -305,11 +276,7 @@
         });
 
         async function loadCfg() {
-            const res = await fetch("{{url_for('get_app_config')}}", {
-                headers: {
-                    'X-CSRFToken': csrfToken
-                }
-            });
+            const res = await fetch("{{url_for('get_app_config')}}");
             if (!res.ok) return;
             const json = await res.json();
             eventKey.value = json["EVENT_KEY"];
@@ -327,11 +294,7 @@
             metricFile.value = json["METRIC_OUTPUT_FILENAME"];
             nextN.value = json["NEXT_N_MATCHES_NUMBER"];
 
-            const tbares = await fetch("{{url_for('get_tba_key')}}", {
-                headers: {
-                    'X-CSRFToken': csrfToken
-                }
-            });
+            const tbares = await fetch("{{url_for('get_tba_key')}}");
             if (!tbares.ok) return;
             const tbajson = await tbares.json();
             tbakey.value = tbajson["key"];
@@ -346,10 +309,6 @@
 
             const res = await fetch('{{url_for("set_admin_creds")}}', {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    'X-CSRFToken': csrfToken
-                },
                 body: JSON.stringify(json)
             });
 
@@ -371,7 +330,6 @@
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({ key: tbakey.value })
             });
@@ -417,7 +375,6 @@
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify(json)
             });

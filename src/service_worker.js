@@ -1,37 +1,12 @@
 'use strict';
 
-let csrfToken = null;
-let cid = null;
+let cid = crypto.randomUUID();
 
-self.addEventListener("message", event => {
-    if (event.data.type === "SET_CSRF") {
-        csrfToken = event.data.token;
-        cid = event.data.cid;
-        console.log("Service Worker recieved CSRF + Client ID");
-        event.waitUntil(
-            (async () => {
-                if (!event.source) return;
-                event.source.postMessage({
-                    type: "RECIEVED_CSRF"
-                });
-            })()
-        );
-    } else if (event.data.type === "CHECK") {
-        event.waitUntil(
-            (async () => {
-                event.source.postMessage({
-                    type: "CHECK_RES",
-                    good: csrfToken ? "true" : "false"
-                });
-        })());
-    }
-});
-
-self.addEventListener('install', function (event) {
+self.addEventListener('install', function () {
     console.log('Service Worker installing.');
 });
 
-self.addEventListener('activate', function (event) {
+self.addEventListener('activate', function () {
     console.log('Service Worker activating.');
 });
 
@@ -57,15 +32,10 @@ self.addEventListener("notificationclick", event => {
             credentials: 'include',
             headers: {
                 "Content-Type": "application/json",
-                'X-CSRFToken': csrfToken
             },
             "body": JSON.stringify({ lines: JSON.parse(event.notification.data["line-hashes"]) }) // parse and then unparse the json string
         }).then(res => {
-            if (res.status === 400) { // assume that malformed request is due to csrf because the request json is guarenteed bc we're sending it 
-                self.registration.showNotification("Error", {
-                    body: "CSRF invalid, please reload page",
-                });
-            } else if (res.status === 401 || res.status === 403) {
+            if (res.status === 401 || res.status === 403) {
                 self.registration.showNotification("Error", {
                     body: "Authentication error: are you logged in?"
                 });
@@ -86,7 +56,6 @@ setInterval(() => {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
             'X-Cid': cid
         }
     }).then(res => {

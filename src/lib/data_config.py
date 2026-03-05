@@ -530,10 +530,10 @@ def evaluate_binary_operator(lhs, rhs, op, index):
         case "*":
             return strize_if_float(lhs * rhs)
         case "/":
-            if (rhs == 0): return float('nan')
+            if (type(rhs) != pd.Series and rhs == 0): return float('nan')
             return strize_if_float(lhs / rhs)
         case "%":
-            if (rhs == 0): return float('nan')
+            if (type(rhs) != pd.Series and rhs == 0): return float('nan')
             return strize_if_float(lhs % rhs)
         case "`":
             return strfloatize_if_bool(df_safe_in(lhs, rhs))

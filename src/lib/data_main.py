@@ -149,14 +149,14 @@ class Processor:
 
     def round_sigfigs(x, sig=3):
         if np.isscalar(x):
-            if x == 0.0 or np.isnan(np.log10(x)):
+            if x == 0.0 or np.isnan(np.log10(x)) or np.isinf(x):
                 return x
             return np.around(x, sig - int(np.floor(np.log10(np.abs(x)))) - 1)
         else:
             return np.array([Processor.round_sigfigs(y) for y in x], dtype=np.float64)
 
     def get_svd_analysis(
-        self, stat: pd.DataFrame, compteamname
+        self, stat: pd.DataFrame, compteamname, tn_field
     ) -> tuple[dict[int, np.float64], dict[int, np.float64], np.float64]:
         """Returns the nomalized rank factors of each team, the variance score of each team, and the stability score"""
         # much thanks to pairwise
@@ -164,14 +164,18 @@ class Processor:
         matrix = np.zeros((arrLen, arrLen))
         teamkeys = list(self._teams.keys())
         team_index = {team: idx for idx, team in enumerate(teamkeys)}
-        grouped = (stat.groupby(["TN", compteamname])[stat.columns[2]].mean())
+        grouped = (stat.groupby([tn_field, compteamname])[stat.columns[2]].mean().fillna(0))
+        print(grouped)
         for (t1, t2), value in grouped.items():
             if t1 in team_index and t2 in team_index:
                 i = team_index[t1]
                 j = team_index[t2]
                 matrix[i, j] = value
                 matrix[j, i] = -value
+        print(matrix)
+        print(team_index)
         U, S, _ = svd(matrix)
+        print(U)
         u_ranks: np.ndarray = U[:, 0]
         u_ranks = Processor.round_sigfigs(
             (u_ranks - u_ranks.min()) / (u_ranks.max() - u_ranks.min()) * 100
@@ -317,9 +321,9 @@ class Processor:
                 )
         pd.DataFrame(df).to_csv(outfile, index=False)
 
-    def delete_match_team(data_filepath: str, mn: str, tn: str) -> None:
+    def delete_match_scouter(data_filepath: str, mn: str, si: str) -> None:
         df = pd.read_csv(data_filepath)
-        df[~((df["MN"] == int(mn)) & (df["TN"] == int(tn)))].to_csv(
+        df[~((df["MN"] == int(mn)) & (df["SI"] == si))].to_csv(
             data_filepath, index=False
         )
 
@@ -430,6 +434,7 @@ class Processor:
                     u, v, s = self.get_svd_analysis(
                         chunk[[tn, subj["comp-team"], subj["source"]]],
                         subj["comp-team"],
+                        tn
                     )
                     svd_rank = []
                     svd_var = []

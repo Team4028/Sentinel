@@ -373,7 +373,7 @@
                 body: JSON.stringify({
                     lines: [await sha256(fullStr.join(','))],
                     mn: row.getCell("mn").getValue(),
-                    tn: row.getCell("tn").getValue()
+                    si: row.getCell("si").getValue()
                 })
             }).then(res => {
                 if (res.status == 200) {

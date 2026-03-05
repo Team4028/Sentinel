@@ -318,7 +318,7 @@ def create_app():  # cursed but whatever
                 rest = "".join(rest)
                 match (cmd):
                     case "rm":
-                        Processor.delete_match_team(infile, *rest.split(","))
+                        Processor.delete_match_scouter(infile, *rest.split(","))
                 # room for more
 
         elif app.config["RESTRICT_APPEND_LEVEL"] == 2:
@@ -681,11 +681,11 @@ def create_app():  # cursed but whatever
         if (
             "sending" in request.headers
             and request.headers.get("sending", "false") == "true"
-            and "tn" in request.json
+            and "si" in request.json
             and "mn" in request.json
         ):
             mesh.send_command(
-                f"rm {request.json["mn"]},{request.json["tn"]}", admin_login["pwd"]
+                f"rm {request.json["mn"]},{request.json["si"]}", admin_login["pwd"]
             )
             return "", 200
         if request.json and request.json["lines"]:

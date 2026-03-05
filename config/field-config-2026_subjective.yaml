@@ -13,8 +13,10 @@ headers:
     desc: Team 1 Accuracy
   - name: DST1
     desc: Team 1 Driver Skill
-  - name: DFT1
+  - name: T1DF
     desc: Team 1 Defense
+  - name: T1D
+    desc: Team 1 Played Defense
   - name: HCT1
     desc: Team 1 Hopper Capacity
   - name: T2
@@ -25,8 +27,10 @@ headers:
     desc: Team 2 Accuracy
   - name: DST2
     desc: Team 2 Driver Skill
-  - name: DFT2
+  - name: T2DF
     desc: Team 2 Defense
+  - name: T2D
+    desc: Team 2 Played Defense
   - name: HCT2
     desc: Team 2 Hopper Capacity
   - name: T3
@@ -37,8 +41,10 @@ headers:
     desc: Team 3 Accuracy
   - name: DST3
     desc: Team 3 Driver Skill
-  - name: DFT3
+  - name: T3DF
     desc: Team 3 Defense
+  - name: T3D
+    desc: Team 3 Played Defense
   - name: HCT3
     desc: Team 3 Hopper Capacity
   - name: EID
@@ -49,15 +55,15 @@ match-header-name: MN
 
 preproc-operations:
   - name: Split Team Row
-    new-headers: [MN, TC, SI, TN, SPD, ACC, DS, DF, HC, CT, EID]
+    new-headers: [MN, TC, SI, TN, SPD, ACC, DS, HC, DF, CT, EID]
     operation: >-
       {
-        {$MN, $AC, $SI, $T1, *($?T2 - $?T1), $T2, $EID},
-        {$MN, $AC, $SI, $T1, *($?T3 - $?T1), $T3, $EID},
-        {$MN, $AC, $SI, $T2, *($?T1 - $?T2), $T1, $EID},
-        {$MN, $AC, $SI, $T2, *($?T3 - $?T2), $T3, $EID},
-        {$MN, $AC, $SI, $T3, *($?T1 - $?T3), $T1, $EID},
-        {$MN, $AC, $SI, $T3, *($?T2 - $?T3), $T2, $EID}
+        {$MN, $AC, $SI, $T1, *($?T2 - $?T1), ($T2DF / $T2D) - ($T1DF / $T1D), $T2, $EID},
+        {$MN, $AC, $SI, $T1, *($?T3 - $?T1), ($T3DF / $T3D) - ($T1DF / $T1D), $T3, $EID},
+        {$MN, $AC, $SI, $T2, *($?T1 - $?T2), ($T1DF / $T1D) - ($T2DF / $T2D), $T1, $EID},
+        {$MN, $AC, $SI, $T2, *($?T3 - $?T2), ($T3DF / $T3D) - ($T2DF / $T2D), $T3, $EID},
+        {$MN, $AC, $SI, $T3, *($?T1 - $?T3), ($T1DF / $T1D) - ($T3DF / $T3D), $T1, $EID},
+        {$MN, $AC, $SI, $T3, *($?T2 - $?T3), ($T2DF / $T2D) - ($T3DF / $T3D), $T2, $EID}
       }
 
 filter-unique-fields: [MN, SI, TN, CT] # SI lets multiple people scout the same alliance

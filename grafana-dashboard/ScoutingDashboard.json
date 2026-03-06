@@ -528,6 +528,46 @@
                   {
                     "destinationType": "number",
                     "targetField": "Last OPR"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Speed"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Speed Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Accuracy"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Accuracy Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Drive Team Skill"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Drive Team Skill Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Defense"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Defense Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Hopper Capacity"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Hopper Capacity Variance"
                   }
                 ],
                 "fields": {}
@@ -850,6 +890,46 @@
                   {
                     "destinationType": "number",
                     "targetField": "Last OPR"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Speed"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Speed Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Accuracy"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Accuracy Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Drive Team Skill"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Drive Team Skill Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Defense"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Defense Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Hopper Capacity"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Hopper Capacity Variance"
                   }
                 ],
                 "fields": {}

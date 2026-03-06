@@ -165,17 +165,13 @@ class Processor:
         teamkeys = list(self._teams.keys())
         team_index = {team: idx for idx, team in enumerate(teamkeys)}
         grouped = (stat.groupby([tn_field, compteamname])[stat.columns[2]].mean().fillna(0))
-        print(grouped)
         for (t1, t2), value in grouped.items():
             if t1 in team_index and t2 in team_index:
                 i = team_index[t1]
                 j = team_index[t2]
                 matrix[i, j] = value
                 matrix[j, i] = -value
-        print(matrix)
-        print(team_index)
         U, S, _ = svd(matrix)
-        print(U)
         u_ranks: np.ndarray = U[:, 0]
         u_ranks = Processor.round_sigfigs(
             (u_ranks - u_ranks.min()) / (u_ranks.max() - u_ranks.min()) * 100

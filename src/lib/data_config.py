@@ -29,26 +29,38 @@ FANCY_FIL = {"avg": "Average", "max": "Max", "fil": "Filtered"}
 
 
 class GrafanaDataPreset(Enum):
+
+    def get_svd_headers(svd) -> list[str]:
+        x = [svd["name"]]
+        if "variance-score" in svd:
+            x.append(svd["name"] + " Variance")
+        return x
+
     MATCH = lambda data: zip(
         [x["name"] for x in data["match-fields"]],
         ["number" for _ in data["match-fields"]],
     )
-    TEAM = lambda data: [
+    TEAM = lambda data: ([
         ("Rank", "number"),
         ("Average RP", "number"),
         ("OPR", "number"),
         ("Last OPR", "number"),
-    ] + list(
+    ]
+    + list(zip(
+        l := [_ for svd in data["subjective-svd-fields"] for _ in GrafanaDataPreset.get_svd_headers(svd)], # walrus to avoid reparse list
+        ["number" for _ in l]
+    )) if "subjective-svd-fields" in data else list()
+    + list(
         zip(
-            [
+            l := [
                 FANCY_FIL[f] + " " + x["name"]
                 for f in FILTERS
                 for x in data["team-fields"]
                 if f in x
             ],
-            ["number" for f in FILTERS for x in data["team-fields"] if f in x],
+            ["number" for _ in l],
         )
-    )  # fill in the blanks type for loop
+    ))  # fill in the blanks type for loop
 
     PREMATCH = lambda data: zip(
         [x["name"] for x in data["depth-predict-fields"]],

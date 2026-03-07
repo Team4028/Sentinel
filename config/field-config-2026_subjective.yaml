@@ -7,8 +7,10 @@ headers:
     desc: Scouter Initials
   - name: T1
     desc: Team 1 Number
-  - name: SPDT1
-    desc: Team 1 Speed Ranking
+  - name: ISPDT1
+    desc: Team 1 Infeed Speed
+  - name: SSPDT1
+    desc: Team 1 Shooter Speed
   - name: ACCT1
     desc: Team 1 Accuracy
   - name: DST1
@@ -21,8 +23,10 @@ headers:
     desc: Team 1 Hopper Capacity
   - name: T2
     desc: Team 2 Number
-  - name: SPDT2
-    desc: Team 2 Speed Ranking
+  - name: ISPDT2
+    desc: Team 2 Infeed Speed
+  - name: SSPDT2
+    desc: Team 2 Shooter Speed
   - name: ACCT2
     desc: Team 2 Accuracy
   - name: DST2
@@ -35,8 +39,10 @@ headers:
     desc: Team 2 Hopper Capacity
   - name: T3
     desc: Team 3 Number
-  - name: SPDT3
-    desc: Team 3 Speed Ranking
+  - name: ISPDT3
+    desc: Team 3 Infeed Speed
+  - name: SSPDT3
+    desc: Team 3 Shooter Speed
   - name: ACCT3
     desc: Team 3 Accuracy
   - name: DST3
@@ -55,7 +61,7 @@ match-header-name: MN
 
 preproc-operations:
   - name: Split Team Row
-    new-headers: [MN, TC, SI, TN, SPD, ACC, DS, HC, DF, CT, EID]
+    new-headers: [MN, TC, SI, TN, ISPD, SSPD, ACC, DS, HC, DF, CT, EID]
     operation: >-
       {
         {$MN, $AC, $SI, $T1, *($?T2 - $?T1), ($T2DF / $T2D) - ($T1DF / $T1D), $T2, $EID},
@@ -69,8 +75,13 @@ preproc-operations:
 filter-unique-fields: [MN, SI, TN, CT] # SI lets multiple people scout the same alliance
 
 subjective-svd-fields:
-  - name: Speed
-    source: SPD
+  - name: Infeed Speed
+    source: ISPD
+    compare-team-source: CT
+    variance-score:
+    stability:
+  - name: Shooter Speed
+    source: SSPD
     compare-team-source: CT
     variance-score:
     stability:

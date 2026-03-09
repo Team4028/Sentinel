@@ -21,6 +21,16 @@
                 cursor: pointer;
             }
 
+            .tag {
+                background-color: #222;
+                padding: 5px;
+                padding-left: 10px;
+                margin-right: 5px;
+                border: 3px solid #60a;
+                padding-right: 10px;
+                border-radius: 5px;
+            }
+
             a {
                 color: #fff;
             }
@@ -49,13 +59,17 @@
                 const ul = document.getElementById("fileDownload");
                 for (const release of data) {
                     const li = document.createElement("li");
+                    const tag = document.createElement("span");
                     const a = document.createElement("a");
                     const sp = document.createElement("span");
+                    tag.classList.add("tag");
+                    tag.textContent = release["tag_name"];
                     const asset = release["assets"][0];
                     a.href = asset["browser_download_url"];
                     a.textContent = release["name"] + "/" + asset["name"];
                     sp.textContent = " -- " + release["updated_at"];
                     a.download = asset["browser_download_url"];
+                    li.appendChild(tag);
                     li.appendChild(a);
                     li.appendChild(sp);
                     ul.appendChild(li);

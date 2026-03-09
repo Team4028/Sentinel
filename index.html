@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+        <title>Sentinel Download</title>
+        <style>
+            body {
+                background-color: #333;
+                color: #fff;
+            }
+
+            li {
+                color: #777;
+                transition: background-color 0.25s ease-in-out;
+                padding: 5px;
+                border-radius: 10px;
+            }
+            
+            li:has(a:hover) {
+                background-color: #555;
+                cursor: pointer;
+            }
+
+            a {
+                color: #fff;
+            }
+
+            span {
+                color: #fff;
+            }
+        </style>
+    </head>
+    <body>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 5%;">
+            <img src="/favicon.ico" alt="Beakhead Logo"
+                style="height: 8rem; display: inline-block; padding: 0; margin: 0; margin-bottom: 5px;">
+            <h1 style="font-size: 50px; display: inline-block;">Sentinel Downloads</h1>
+        </div>
+        <ul id="fileDownload" style="display: flex; align-items: center; justify-content: center;">
+        </ul>
+        <script>
+            fetch("release-manifest.json")
+                .then(res => res.json()
+                .then(files => {
+                    const ul = document.getElementById("fileDownload");
+                    Object.keys(files).forEach(file => {
+                        const li = document.createElement("li");
+                        const a = document.createElement("a");
+                        const sp = document.createElement("span");
+                        a.href = "releases/" + file;
+                        a.textContent = file;
+                        sp.textContent = " -- " + files[file];
+                        a.download = file;
+                        li.appendChild(a);
+                        li.appendChild(sp);
+                        ul.appendChild(li);
+                    });
+                }));
+        </script>
+    </body>
+</html>

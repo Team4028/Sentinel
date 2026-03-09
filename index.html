@@ -2,7 +2,7 @@
 <html>
     <head>
         <link rel="icon" href="favicon.ico" type="image/x-icon">
-        <title>Sentinel Download</title>
+        <title>Sentinel Downloads</title>
         <style>
             body {
                 background-color: #333;
@@ -36,6 +36,8 @@
                 style="height: 8rem; display: inline-block; padding: 0; margin: 0; margin-bottom: 5px;">
             <h1 style="font-size: 50px; display: inline-block;">Sentinel Downloads</h1>
         </div>
+        <h3 style="display: flex; justify-content: center; align-items: center; column-gap: 10px;">Hosted URL: </span><a href="">None</a></h3>
+        <h2 style="display: flex; justify-content: center; align-items: center;">Releases</h2>
         <ul id="fileDownload" style="display: flex; align-items: center; justify-content: center;">
         </ul>
         <script>
@@ -50,10 +52,10 @@
                     const a = document.createElement("a");
                     const sp = document.createElement("span");
                     const asset = release["assets"][0];
-                    a.href = asset["url"];
+                    a.href = asset["browser_download_url"];
                     a.textContent = release["name"] + "/" + asset["name"];
                     sp.textContent = " -- " + release["updated_at"];
-                    a.download = asset["url"];
+                    a.download = asset["browser_download_url"];
                     li.appendChild(a);
                     li.appendChild(sp);
                     ul.appendChild(li);

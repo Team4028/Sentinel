@@ -39,23 +39,44 @@
         <ul id="fileDownload" style="display: flex; align-items: center; justify-content: center;">
         </ul>
         <script>
-            fetch("release-manifest.json")
-                .then(res => res.json()
-                .then(files => {
-                    const ul = document.getElementById("fileDownload");
-                    Object.keys(files).forEach(file => {
-                        const li = document.createElement("li");
-                        const a = document.createElement("a");
-                        const sp = document.createElement("span");
-                        a.href = "releases/" + file;
-                        a.textContent = file;
-                        sp.textContent = " -- " + files[file];
-                        a.download = file;
-                        li.appendChild(a);
-                        li.appendChild(sp);
-                        ul.appendChild(li);
-                    });
-                }));
+            async function getReleases() {
+                const res = await fetch(
+                    "https://api.github.com/repos/team4028/Sentinel/releases",
+                );
+                const data = await res.json();
+                const ul = document.getElementById("fileDownload");
+                for (const release of data) {
+                    const li = document.createElement("li");
+                    const a = document.createElement("a");
+                    const sp = document.createElement("span");
+                    const asset = release["assets"][0];
+                    a.href = asset["url"];
+                    a.textContent = release["name"] + "/" + asset["name"];
+                    sp.textContent = " -- " + release["updated_at"];
+                    a.download = asset["url"];
+                    li.appendChild(a);
+                    li.appendChild(sp);
+                    ul.appendChild(li);
+                }
+            }
+            getReleases();
+            // fetch("release-manifest.json")
+            //     .then(res => res.json()
+            //     .then(files => {
+            //         const ul = document.getElementById("fileDownload");
+            //         Object.keys(files).forEach(file => {
+            //             const li = document.createElement("li");
+            //             const a = document.createElement("a");
+            //             const sp = document.createElement("span");
+            //             a.href = "https://github.com/Team4028/Sentinel/raw/refs/heads/gh-pages/releases/" + file;
+            //             a.textContent = file;
+            //             sp.textContent = " -- " + files[file];
+            //             a.download = file;
+            //             li.appendChild(a);
+            //             li.appendChild(sp);
+            //             ul.appendChild(li);
+            //         });
+            //     }));
         </script>
     </body>
 </html>

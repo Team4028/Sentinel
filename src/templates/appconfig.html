@@ -234,6 +234,9 @@
             <input type="password" id="new-pwd">
         </label>
         <button onclick="setCred()" title="Ctrl+P">Set</button>
+        <br><br>
+        <button onclick="resetDash()">Reset Dashboard</button>
+        <button onclick="clearTBACache()">Clear TBA Cache</button>
     </div>
     <div class="button-cont">
         <button onclick="saveCfg()" title="Ctrl+S">Save Changes</button>
@@ -320,6 +323,38 @@
             } else {
                 statusDiv.style.color = "#a00";
                 statusDiv.innerHTML = `Set Error: ${await res.text()}`;
+            }
+        }
+
+        async function resetDash() {
+            const res = await fetch("{{url_for('reset_dash')}}", {
+                method: "POST",
+            });
+
+            if (!res.ok) {
+                const rtxt = await res.text();
+                statusDiv.style.color = "#a00";
+                statusDiv.innerText = `Reset Dash Error: ${rtxt}`;
+            } else {
+                statusDiv.style.color = "#0a0";
+                statusDiv.innerText = "Success";
+                setTimeout(() => statusDiv.innerHTML = "", 2000);
+            }
+        }
+
+        async function clearTBACache() {
+            const res = await fetch("{{url_for('clear_cache')}}", {
+                method: "POST"
+            });
+
+            if (!res.ok) {
+                const rtxt = await res.text();
+                statusDiv.style.color = "#a00";
+                statusDiv.innerText = `Clear Cache Error: ${rtxt}`;
+            } else {
+                statusDiv.style.color = "#0a0";
+                statusDiv.innerText = "Success";
+                setTimeout(() => statusDiv.innerHTML = "", 2000);
             }
         }
 

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Pit Scouting</title>
+    <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            background: #121212;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+            text-align: center;
+            font-family: 'Neuropolitical', sans-serif;
+        }
+
+        .panel {
+            background: #1e1e1e;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #333;
+            width: 80%;
+            overflow-x: hidden;
+        }
+
+        label {
+            display: block;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #9aa0a6;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 60px;
+            height: 60px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            transform: translateY(25%);
+        }
+
+        input[type='color']::-webkit-color-swatch {
+            border-radius: 10px;
+            border: none;
+        }
+
+        input[type=color]::-moz-color-swatch {
+            border-radius: 10px;
+            border: none;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        select,
+        textarea,
+        button {
+            color: #e0e0e0;
+            text-align: center;
+            font-size: large;
+            width: 100%;
+            margin-top: 0.3rem;
+            padding: 0.5rem;
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        .no-white-border:focus {
+            outline: none;
+        }
+
+        textarea {
+            min-height: 200px;
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        .back-cont {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+        }
+
+        .button-cont {
+            position: fixed;
+            top: 1rem;
+            right: 2rem;
+        }
+
+        button {
+            font-size: medium;
+            margin-top: 1rem;
+            cursor: pointer;
+            background: var(--accent);
+            border: none;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .floating-panel {
+            position: fixed;
+            right: 1rem;
+            width: 20%;
+            top: 10rem;
+        }
+
+        #status {
+            font-size: large;
+            position: fixed;
+            bottom: 1rem;
+            right: 2rem;
+            z-index: 10;
+        }
+
+        video,
+        #preview {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        button, select, input[type="file"] {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="panel">
+        <h1> <img src="{{ url_for('static', filename='favicon.ico') }}"
+                style="height: 5rem; transform: translateY(2rem);"> Pit Scouting</h1>
+        <label title="Team Number">
+            Team Number
+            <input type="number" id="tn" step="1">
+        </label>
+        <label title="Bump or Trench">
+            Bump or Trench
+            <select id="bump-trench">
+                <option value="bump">Bump</option>
+                <option value="trench">Trench</option>
+                <option value="both">Both</option>
+            </select>
+        </label>
+        <label title="Number of shooters on the robot">
+            Number of shooters
+            <input type="number" id="num-shooters" step="1">
+        </label>
+        <label title="Type of shooter on robot">
+            Shooter type
+            <select id="shooter-type">
+                <option value="turret">Turret</option>
+                <option value="static">Static</option>
+                <option value="dumper">Dumper (Drum)</option>
+            </select>
+        </label>
+        <label title="Goes for neutral in auton">
+            Go for neutral in auton
+            <select id="auto-neutral">
+                <option value="0">No</option>
+                <option value="1">Yes</option>
+            </select>
+        </label>
+        <label title="Hopper capacity in balls">
+            Hopper Capacity
+            <input type="number" id="hopper-capacity" step="1">
+        </label>
+        <label title="Flow Rate in balls per second">
+            Flow Rate
+            <input type="number" step="0.01" id="bps">
+        </label>
+        <label title="Drive base type">
+            Drivebase
+            <select id="drive-base">
+                <option value="swerve">Swerve</option>
+                <option value="tank">Tank</option>
+            </select>
+        </label>
+        <label title="Robot name">
+            Robot Name
+            <input type="text" id="rname">
+        </label>
+
+        <div>
+            <label for="fileInput">Upload an image:</label>
+            <input type="file" id="fileInput" accept="image/*">
+            <br>
+            <label for="cameraSelect">Select Camera:</label>
+            <select id="cameraSelect"></select>
+            <button id="startCamera">Take a Picture with Camera</button>
+            <video id="camera" autoplay></video>
+            <button id="capture" style="display: none;">Take Picture</button>
+
+            <img id="preview" alt="Image preview...">
+        </div>
+        <button id="sub">Submit</button>
+        <button onclick="window.location.reload()">Reset</button>
+    </div>
+    <div id="status"></div>
+    <div class="back-cont">
+        <button onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Back</button>
+    </div>
+    <script>
+        const cameraSelect = document.getElementById("cameraSelect");
+        const tn = document.getElementById("tn");
+        const fileInput = document.getElementById("fileInput");
+        const preview = document.getElementById("preview");
+        const startCamera = document.getElementById("startCamera");
+        const camera = document.getElementById("camera");
+        const capture = document.getElementById("capture");
+        const statusDiv = document.getElementById("status");
+        const bumpTrench = document.getElementById("bump-trench");
+        const numShooters = document.getElementById("num-shooters");
+        const shooterType = document.getElementById("shooter-type");
+        const autoNeutral = document.getElementById("auto-neutral");
+        const hopCapacity = document.getElementById("hopper-capacity");
+        const bps = document.getElementById("bps");
+        const driveBase = document.getElementById("drive-base");
+        const robotName = document.getElementById("rname");
+        let imageBlob;
+        let stream;
+
+        async function listCameras() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            cameraSelect.innerHTML = '';
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`;
+                cameraSelect.appendChild(option);
+            });
+        }
+
+        document.getElementById("sub").addEventListener('click', savePitScouting);
+
+        async function savePitScouting() {
+            if (imageBlob) {
+                statusDiv.style.color = "#aaa";
+                statusDiv.innerText = "Saving photo...";
+                const fData = new FormData();
+                fData.append('photo', imageBlob, 'photo.png');
+                const response = await fetch('{{url_for("upload_photo")}}', {
+                    method: 'POST',
+                    headers: {
+                        "team": String(tn.value),
+                    },
+                    body: fData
+                });
+            }
+
+            statusDiv.style.color = "#aaa";
+            statusDiv.innerText = "Saving data...";
+            const json = {
+                "tn": parseInt(tn.value),
+                "bump-trench": bumpTrench.value,
+                "num-shooters": parseInt(numShooters.value),
+                "shooter-type": shooterType.value,
+                "auto-neutral": autoNeutral.value,
+                "hopper-capacity": parseInt(hopCapacity.value),
+                "bps": parseFloat(bps.value),
+                "drive-base": driveBase.value,
+                "robotName": robotName.value
+            };
+
+            const res = await fetch('{{url_for("save_pit")}}', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(json)
+            });
+
+            if (res.ok) {
+                statusDiv.style.color = "#0a0";
+                statusDiv.innerHTML = "";
+                statusDiv.innerText = "Save Successful.";
+                setTimeout(() => statusDiv.innerHTML = "", 2000);
+            } else {
+                statusDiv.style.color = "#a00";
+                statusDiv.innerHTML = `Save Error: ${await res.text()}`;
+            }
+        }
+
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                imageBlob = file;
+                preview.src = URL.createObjectURL(file);
+            }
+        });
+
+        startCamera.addEventListener('click', async () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            preview.src = "";
+            const selectedDeviceId = cameraSelect.value;
+            stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: selectedDeviceId } } });
+            camera.srcObject = stream;
+            camera.style.display = 'block';
+            capture.style.display = 'inline';
+        });
+
+        capture.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = camera.videoWidth;
+            canvas.height = camera.videoHeight;
+            canvas.getContext('2d').drawImage(camera, 0, 0);
+            canvas.toBlob((b) => {
+                imageBlob = b;
+                preview.src = URL.createObjectURL(b);
+            }, "image/png");
+
+            stream.getTracks().forEach(track => track.stop());
+            camera.style.display = 'none';
+            camera.style.display = 'none';
+        });
+        listCameras();
+    </script>
+</body>
+
+</html>

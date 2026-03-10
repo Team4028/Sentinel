@@ -657,7 +657,6 @@
          */
         function uploadPicture(file) {
             statusText.textContent = `[${new Date().toLocaleString()}] Uploading picture ${file}`;
-            console.log(file);
             progressBar.style.width = 0;
             progressContainer.style.display = "block";
             const fData = new FormData();

@@ -531,11 +531,19 @@
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Speed"
+                    "targetField": "Infeed Speed"
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Speed Variance"
+                    "targetField": "Infeed Speed Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Shooter Speed"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Shooter Speed Variance"
                   },
                   {
                     "destinationType": "number",
@@ -893,11 +901,19 @@
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Speed"
+                    "targetField": "Infeed Speed"
                   },
                   {
                     "destinationType": "number",
-                    "targetField": "Speed Variance"
+                    "targetField": "Infeed Speed Variance"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Shooter Speed"
+                  },
+                  {
+                    "destinationType": "number",
+                    "targetField": "Shooter Speed Variance"
                   },
                   {
                     "destinationType": "number",

@@ -100,5 +100,25 @@
       "storage": "local"
     },
     "readOnly": false
+  },
+  {
+    "id": 14,
+    "uid": "de2if7k35yfk74",
+    "orgId": 1,
+    "name": "pit-scouting",
+    "type": "marcusolsson-csv-datasource",
+    "typeName": "CSV",
+    "typeLogoUrl": "public/plugins/marcusolsson-csv-datasource/img/logo.svg",
+    "access": "proxy",
+    "url": "/app/dataout/output.csv-pit-scouting.csv",
+    "user": "",
+    "database": "",
+    "basicAuth": false,
+    "isDefault": true,
+    "jsonData": {
+      "pdcInjected": false,
+      "storage": "local"
+    },
+    "readOnly": false
   }
 ]

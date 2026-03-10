@@ -24,6 +24,7 @@ except ModuleNotFoundError:
     from src.lib.data_config import lex_config
     import src.apputils as apputils
     from src.auth import BigBrother, LoginForm, require_admin, init_loginm_app
+import csv
 import os
 import json
 from threading import Thread
@@ -177,8 +178,6 @@ def create_app():  # cursed but whatever
             if os.name == "posix":
                 # inject the new dash to the provisioning dir
                 shutil.copy(out_path, "/var/lib/grafana/dashboards/")
-
-    compile_scouting_dashboard()
 
     try:
         processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
@@ -432,6 +431,29 @@ def create_app():  # cursed but whatever
     def send_sw():
         """Passthrough for the service worker so that the client can fetch it"""
         return send_file("service_worker.js")
+    
+    @app.get('/pit')
+    @login_required
+    @require_admin
+    def pit_scout():
+        return render_template_style('pit-scouting.html')
+    
+    @app.post('/submit-pit')
+    @login_required
+    @require_admin
+    def save_pit():
+        if request and request.json:
+            try:
+                csv_file = os.path.join(app.config["OUT_DIR"], app.config["BASE_OUTPUT_FILENAME"] + "-pit-scouting.csv")
+                need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0 
+                with open(os.path.join(app.config["OUT_DIR"], app.config["BASE_OUTPUT_FILENAME"] + "-pit-scouting.csv"), mode='a', newline='') as f:
+                    writer = csv.DictWriter(f, fieldnames=request.json.keys())
+                    if need_write: writer.writeheader()
+                    writer.writerow(request.json)
+                return "Success", 200
+            except Exception as e:
+                return apputils.exception_format(e), 500
+        return "Error: invalid request", 400
 
     # RESTRICTED (can edit things and delete data = restrict)
     @app.route("/changes")
@@ -692,6 +714,26 @@ def create_app():  # cursed but whatever
             rm_row_hash(request.json["lines"])
             return "", 200
         return "Invalid request", 400
+    
+    @app.post("/dash-reset")
+    @login_required
+    @require_admin
+    def reset_dash():
+        try:
+            compile_scouting_dashboard()
+            return "", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
+        
+    @app.post('/clear-tba-cache')
+    @login_required
+    @require_admin
+    def clear_cache():
+        try:
+            apputils.clear_tba_cache()
+            return "", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
 
     # RESTRICTED (can edit field-config = bad (technically not but still))
     @app.get("/edit")
@@ -720,7 +762,6 @@ def create_app():  # cursed but whatever
             with open(config_file, "w") as f:  # save
                 f.write(data)
             processor.config_data = lex_config(app.config["YEAR"])  # reload config data
-            compile_scouting_dashboard()
             processor.proccess_data(
                 infile, app.config["BASE_OUTPUT_FILENAME"]
             )  # reprocess
@@ -885,7 +926,6 @@ def create_app():  # cursed but whatever
                 last_year, last_id = app.config["YEAR"], app.config["EVENT_KEY"]
                 app.config.from_file("config/app-config.json", load=json.load)
                 processor.config_data = lex_config(app.config["YEAR"])
-                compile_scouting_dashboard()
                 if (
                     app.config["YEAR"] != last_year
                     or app.config["EVENT_KEY"] != last_id

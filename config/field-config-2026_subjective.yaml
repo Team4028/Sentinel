@@ -15,12 +15,12 @@ headers:
     desc: Team 1 Accuracy
   - name: DST1
     desc: Team 1 Driver Skill
+  - name: HCT1
+    desc: Team 1 Hopper Capacity
   - name: T1DF
     desc: Team 1 Defense
   - name: T1D
     desc: Team 1 Played Defense
-  - name: HCT1
-    desc: Team 1 Hopper Capacity
   - name: T2
     desc: Team 2 Number
   - name: ISPDT2
@@ -31,12 +31,12 @@ headers:
     desc: Team 2 Accuracy
   - name: DST2
     desc: Team 2 Driver Skill
+  - name: HCT2
+    desc: Team 2 Hopper Capacity
   - name: T2DF
     desc: Team 2 Defense
   - name: T2D
     desc: Team 2 Played Defense
-  - name: HCT2
-    desc: Team 2 Hopper Capacity
   - name: T3
     desc: Team 3 Number
   - name: ISPDT3
@@ -47,12 +47,12 @@ headers:
     desc: Team 3 Accuracy
   - name: DST3
     desc: Team 3 Driver Skill
+  - name: HCT3
+    desc: Team 3 Hopper Capacity
   - name: T3DF
     desc: Team 3 Defense
   - name: T3D
     desc: Team 3 Played Defense
-  - name: HCT3
-    desc: Team 3 Hopper Capacity
   - name: EID
     desc: Event ID
 

@@ -47,6 +47,10 @@ class GrafanaDataPreset(Enum):
         ("Last OPR", "number"),
     ]
     + list(zip(
+        l := [s for s in data["copr-keys"]],
+        ["number" for _ in l]
+    ))
+    + list(zip(
         l := [_ for svd in data["subjective-svd-fields"] for _ in GrafanaDataPreset.get_svd_headers(svd)], # walrus to avoid reparse list
         ["number" for _ in l]
     )) if "subjective-svd-fields" in data else list()
@@ -62,10 +66,17 @@ class GrafanaDataPreset(Enum):
         )
     ))  # fill in the blanks type for loop
 
-    PREMATCH = lambda data: zip(
+    PREMATCH = lambda data: ([
+        ("OPR", "number"),
+    ]
+    + list(zip(
+        l := [s for s in data["copr-keys"]],
+        ["number" for _ in l]
+    ))
+    + list(zip(
         [x["name"] for x in data["depth-predict-fields"]],
         ["number" for _ in data["depth-predict-fields"]],
-    )
+    )))
 
     PREMATCH_SCORE = lambda _: [
         ("1 Score", "number"),
@@ -103,6 +114,7 @@ def lex_config(year: str):
         "preproc": [],
         "dash-panel": {},
         "deep-predict": [],
+        "copr": [],
         "tests": [],
     }
     if data:
@@ -123,6 +135,13 @@ def lex_config(year: str):
         for field in data["compute-fields"]:
             config["compute"].append({"name": field["name"], "eq": field["equation"]})
         config["uniques"] = data["filter-unique-fields"]
+        if 'copr-keys' in data:
+            config['copr'] = data['copr-keys']
+            for cpr in data["copr-keys"]:
+                config["deep-predict"].append({
+                    "name": cpr,
+                    "source": cpr
+                })
         if "subjective-svd-fields" in data:
             for field in data["subjective-svd-fields"]:
                 config["svd"].append(
@@ -162,6 +181,10 @@ def lex_config(year: str):
             config["deep-predict"].append(
                 {"name": field["name"], "source": field["source"]}
             )
+        config["deep-predict"].append({
+            "name": "OPR",
+            "source": "OPR"
+        })
     return config
 
 

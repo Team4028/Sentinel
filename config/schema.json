@@ -30,6 +30,13 @@
                 ]
             }
         },
+        "copr-keys": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Keys of the component opr fields to fetch"
+        },
         "preproc-operations": {
             "type": "array",
             "items": {

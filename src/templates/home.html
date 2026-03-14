@@ -299,6 +299,8 @@
             Config</button>
         <button id="picklist-btn" class="btn" title="Ctrl+Q" style="width: 120px;"
             onclick="window.location.href='{{url_for('picklist')}}'">Picklist</button>
+        <button id="pit-btn" class="btn" title="Ctrl+S" style="width: 120px;"
+            onclick="window.location.href='{{url_for('pit_scout')}}'">Pit Scout</button>
         <button id="dash-btn" class="btn" title="Ctrl+V" style="width: 120px;"
             onclick="window.open('{{graf_url}}', '_blank').focus()">Dashboard</button>
         <div class="top-corner-div">
@@ -410,6 +412,9 @@
         const speedQr = document.getElementById("speedqr");
         const speedNum = document.getElementById("speednum");
         const modeBtn = document.getElementById("mode-btn");
+        const pitScoutButton = document.getElementById("pit-btn");
+        const dashButton = document.getElementById("dash-btn");
+        const picklistButton = document.getElementById("picklist-btn");
         const speedQRCode = new QRCode(speedQr, {
             text: "@01993505@",
             width: 128,
@@ -520,6 +525,9 @@
             } else if (ev.key === "Enter" && lockTab && isSending && document.activeElement === textInput) {
                 ev.preventDefault();
                 if (!uploadBtn.disabled) uploadBtn.click();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "s" && !isSending) {
+                ev.preventDefault();
+                window.location.href = "{{url_for('pit_scout')}}";
             } else if (ev.key === "Tab" && lockTab && isSending && document.activeElement === textInput) {
                 ev.preventDefault();
                 const start = textInput.selectionStart;
@@ -629,6 +637,9 @@
                 reloadButton.style.display = "none";
                 settingsButton.style.display = "none";
                 editCfgBtn.style.display = "none";
+                pitScoutButton.style.display = "none";
+                picklistButton.style.display = "none";
+                dashButton.style.display = "none";
                 textInput.style.width = "95%";
                 modeBtn.innerText = "Stands Mode";
                 document.getElementById("the-box").style.width = "90%";
@@ -643,6 +654,9 @@
                 reloadButton.style.display = "inline-block";
                 editCfgBtn.style.display = "inline-block";
                 settingsButton.style.display = "flex";
+                pitScoutButton.style.display = "inline-block";
+                picklistButton.style.display = "inline-block";
+                dashButton.style.display = "inline-block";
                 textInput.style.width = "90%";
                 modeBtn.innerText = "Pit Mode";
                 document.getElementById("the-box").style.width = "40%";

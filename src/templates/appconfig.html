@@ -179,7 +179,7 @@
         </label>
         <label title="Team number without the 'frc' prefix">
             Team Number
-            <input type="number" id="teamNumber">
+            <input type="number" id="teamNumber" min="-1">
         </label>
         <label title="While type of moderation to use while adding data to the input csv file">
             Append Moderation Behavior
@@ -312,6 +312,9 @@
 
             const res = await fetch('{{url_for("set_admin_creds")}}', {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify(json)
             });
 

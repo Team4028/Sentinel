@@ -4,6 +4,7 @@ import secrets
 import shutil
 import traceback
 from typing import Any, Generator
+from pandas import api
 import requests
 from datetime import date
 import re
@@ -11,6 +12,12 @@ import json
 import time
 import logging
 from jsonschema import Draft7Validator
+from cryptography import x509
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from datetime import datetime, timedelta, UTC
+
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +41,49 @@ def generate_default_admin() -> tuple[str, str, str]:
     with open("./secrets/admin.txt", "w") as f:
         f.write("admin" + "\n" + pwd + "\n" + sec)
     return ("admin", pwd, sec)
+
+def generate_ssl_sign():
+    domains = ["sentinel.beaksquad.dev", "localhost"]
+    key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048
+    )
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, u"US"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"Ohio"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, u"Local"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"FRC 4028 The Beak Squad"),
+        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, u"Robotics"),
+        x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
+    ])
+
+    san = x509.SubjectAlternativeName([x509.DNSName(d) for d in domains])
+
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(UTC))
+        .not_valid_after(datetime.now(UTC) + timedelta(days=365))
+        .add_extension(san, critical=False)
+        .sign(key, hashes.SHA256())
+    )
+
+    with open("./secrets/sentinel-key.pem", 'wb') as w:
+        w.write(
+            key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption()
+            )
+        )
+    
+    with open('./secrets/certinel.pem', 'wb') as w:
+        w.write(
+            cert.public_bytes(serialization.Encoding.PEM)
+        )
 
 
 def safer_replace(src, dest) -> None:
@@ -153,7 +203,45 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
     except Exception as e:
         logger.error(exception_format(e))
         return {}
-
+    
+def invert_jeson(jeson):
+    result = {}
+    for k, k2 in jeson.items():
+        for k21, k22 in k2.items():
+            result.setdefault(k21, {})[k] = k22
+    return result
+    
+def get_tba_coprs(event_key, api_key):
+    coprs = {}
+    try:
+        if tba_health() and not (api_key == None or api_key.strip() == ""):
+            logger.info(
+                f"Fetch https://www.thebluealliance.com/api/v3/event/{event_key}/coprs"
+            )
+            coprs = requests.get(
+                f"https://www.thebluealliance.com/api/v3/event/{event_key}/coprs",
+                {'X-TBA-Auth-Key': api_key},
+            ).json()
+            coprs = invert_jeson(coprs)
+            for team in list(coprs.keys()):
+                coprs[team.removeprefix('frc')] = coprs.pop(team)
+            add_jsons_to_cache({"coprs": coprs})
+        else:
+            if os.path.exists("config/tba-cache.json"):
+                with open('config/tba-cache.json') as r:
+                    js = json.load(r)
+                    if "coprs" in js:
+                        coprs = js["coprs"]
+                    else:
+                        logger.error("Error: no wifi or tba cache or invalid api key")
+                        return {}
+            else:
+                logger.error("Error: no wifi or tba cache or invalid api key")
+                return {}
+        return coprs
+    except Exception as e:
+        logger.error(exception_format(e))
+        return {}
 
 def get_tba_opr(event_key, api_key, year, teams):
     """returns a dictionary of each team to their cooresponding opr at their last competition"""
@@ -316,6 +404,7 @@ def load_tba_data(event_key, api_key, year):
         schedule,
         get_tba_ranks(event_key, api_key, teams),
         get_tba_opr(event_key, api_key, year, teams),
+        get_tba_coprs(event_key, api_key),
         get_event_team_oprs(event_key, api_key),
     )
 

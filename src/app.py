@@ -602,12 +602,10 @@ def create_app():  # cursed but whatever
         where `?x` is the url parameter named `x`"""
         if not request.args["mkey"]:
             return "", 400  # bad request
-        team = (
-            request.args["team"] or -1
-        )  # just gets the next 3 matches if team == None
         curr_match = request.args["mkey"]
         foundit = False  # whether it has found the curr_match yet
         next_3 = []
+        team = int(app.config["TEAM"])
         for m in processor._sched:
             if foundit:
                 if (
@@ -617,10 +615,10 @@ def create_app():  # cursed but whatever
                 if (
                     team == -1  # if team == -1, just get the next 3
                     or (
-                        ("frc" + team) in m["b"]
+                        ("frc" + str(team)) in m["b"]
                     )  # if team in this match, return it (blue)
                     or (
-                        ("frc" + team) in m["r"]
+                        ("frc" + str(team)) in m["r"]
                     )  # if team in this match, return it (red)
                 ):
                     next_3.append(m["k"])
@@ -843,7 +841,8 @@ def create_app():  # cursed but whatever
                     processor._sched,
                     processor._ranks,
                     processor._oprs,
-                    processor._curr_oprs,
+                    processor._coprs,
+                    processor._curr_oprs
                 ) = apputils.load_tba_data(
                     app.config["EVENT_KEY"], auth_key, app.config["YEAR"].split("_")[0]
                 )
@@ -893,6 +892,7 @@ def create_app():  # cursed but whatever
                     processor.config_data,
                     processor._oprs[team],
                     processor._curr_oprs[team],
+                    processor._coprs[team]
                 )[processor.config_data["p-metric"]["source"]]
         return jsonify({"score": round(sum)})
 
@@ -936,7 +936,8 @@ def create_app():  # cursed but whatever
                     processor._sched,
                     processor._ranks,
                     processor._oprs,
-                    processor._curr_oprs,
+                    processor._coprs,
+                    processor._curr_oprs
                 ) = apputils.load_tba_data(
                     app.config["EVENT_KEY"], auth_key, app.config["YEAR"].split("_")[0]
                 )  # event key may have changed
@@ -1014,7 +1015,10 @@ def create_app():  # cursed but whatever
 # =======================================================
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "pwd":
-        apputils.generate_admin()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "pwd":
+            apputils.generate_admin()
+        elif sys.argv[1] == "sign":
+            apputils.generate_ssl_sign()
     else:
         create_app().run(port=5001, use_reloader=False)  # debug run python

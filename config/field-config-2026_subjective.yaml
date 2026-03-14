@@ -109,6 +109,12 @@ subjective-svd-fields:
 compute-fields: []
 team-fields: [] 
 match-fields: []
+copr-keys:
+  - Hub Auto Fuel Count
+  - Hub Teleop Fuel Count
+  - Hub Total Fuel Count
+  - autoTowerPoints
+  - endGameTowerPoints
 data-tests:
   - name: Team/Match Number greater than 0
     expression: $TN > 0 & $MN > 0

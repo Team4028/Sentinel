@@ -31,7 +31,7 @@ class TeamStruct:
                     merged[k].append(v)
         self.data = dict(merged)
 
-    def output_dict(self, config, _opr, _curr_opr):
+    def output_dict(self, config, _opr, _curr_opr, _coprs):
         """Get all of the team data as a dictionary, unwrapping DataFields to get averages and such"""
         data = {
             "Rank": self.data["Rank"][0],
@@ -40,6 +40,8 @@ class TeamStruct:
             "Last OPR": _opr,
         }
         # the | operator for dicts in python combines dicts with different entries (OR's them)
+        for field in config["copr"]:
+            data |= DataField(field, _coprs[field], []).objectify()
         for field in config["svd"]:
             data |= (
                 DataField(field["name"], self.data[field["name"]], []).objectify()
@@ -125,7 +127,7 @@ class Processor:
     """Main class of data calculation, handles all calculation basically"""
 
     def __init__(
-        self, outpath, chunk_size, teams, sched, ranks, oprs, curr_oprs, config_data
+        self, outpath, chunk_size, teams, sched, ranks, oprs, coprs, curr_oprs, config_data
     ) -> None:
         self.chunk_size = chunk_size
         self.outpath = outpath
@@ -135,6 +137,7 @@ class Processor:
         self._matches = {}
         self._ranks = ranks
         self._oprs = oprs
+        self._coprs = coprs
         self._curr_oprs = curr_oprs
         self.config_data = config_data
 
@@ -176,7 +179,7 @@ class Processor:
         u_ranks = Processor.round_sigfigs(
             (u_ranks - u_ranks.min()) / (u_ranks.max() - u_ranks.min()) * 100
         )
-        stability = S.max() / S.min()
+        stability = S.max() / S.min() if S.min() > 0 else np.inf
         variation_score = np.zeros(len(S))  # less = more consistent
         for i in range(len(S)):
             variation_score[i] = Processor.round_sigfigs(
@@ -210,7 +213,7 @@ class Processor:
             df.append(
                 {"Team": k}
                 | v.output_dict(
-                    self.config_data, self._oprs[str(k)] if str(k) in self._oprs else 0, self._curr_oprs[str(k)] if str(k) in self._curr_oprs else 0
+                    self.config_data, self._oprs[str(k)] if str(k) in self._oprs else 0, self._curr_oprs[str(k)] if str(k) in self._curr_oprs else 0, self._coprs[str(k)] if str(k) in self._coprs else {}
                 )
             )
         pd.DataFrame(df).to_csv(outfile, index=False)
@@ -227,6 +230,7 @@ class Processor:
                         self.config_data,
                         self._oprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._oprs else 0,
                         self._curr_oprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._curr_oprs else 0,
+                        self._coprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._coprs else 0
                     )[
                         self.config_data["p-metric"]["source"]
                     ]
@@ -249,7 +253,7 @@ class Processor:
                     }
                     if int(team) in self._teams:
                         teamO = self._teams[int(team)].output_dict(
-                            self.config_data, self._oprs[team] if team in self._oprs else 0, self._curr_oprs[team] if team in self._curr_oprs else 0
+                            self.config_data, self._oprs[team] if team in self._oprs else 0, self._curr_oprs[team] if team in self._curr_oprs else 0, self._coprs[team] if team in self._coprs else 0
                         )
                         for field in self.config_data["deep-predict"]:
                             dat |= {

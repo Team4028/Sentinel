@@ -4,7 +4,7 @@ USE_HTTPS=false
 mkdir -p /app/log/gunicorn
 
 
-if [ "$USE_HTTPS" = "true" ]; then
+if [ "$USE_HTTPS" -eq "true" ]; then
     mkdir -p /app/secrets
     if [ ! -f "/app/secrets/sentinel-key.pem" ]; then
         python src/app.py sign

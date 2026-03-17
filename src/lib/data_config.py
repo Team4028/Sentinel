@@ -386,7 +386,7 @@ def parse_equation(equation: str, df: pd.DataFrame):
             if (
                 i == 0
                 or get_last_nowhitespace(equation, i) in OPERATOR_STRINGS
-                or equation[i - 1] in ["(", "[", "{"]
+                or get_last_nowhitespace(equation, i) in ["(", "[", "{"]
                 or (i - 4 >= 0 and equation[i - 4] == "@")
             ):
                 if c not in UNOPS:
@@ -417,7 +417,6 @@ def parse_equation(equation: str, df: pd.DataFrame):
             ref_name = ""
             while (
                 (i < len(equation))
-                and (not equation[i] == "$")
                 and (
                     equation[i] not in
                     ["$", "[", "]", "@", *OPERATOR_STRINGS, *PARENS, *LIST_LITERALS]
@@ -462,7 +461,7 @@ def floatize_if_str(x):
 def strize_if_float(x):
     """converts x to a string if it's a float and it can"""
     try:
-        return str(x) if isinstance(x, float) else x
+        return str(x) if isinstance(x, float) or isinstance(x, int) else x
     except ValueError:
         return x
 

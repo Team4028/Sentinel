@@ -69,6 +69,7 @@ jobs:
                   chmod +x scouting-app/run.sh
                   cp ./compose/run.bat scouting-app/run.bat
                   cp ./grafana-dashboard/grafana.ini scouting-app/grafana-dashboard/grafana.ini
+                  zip -r sentinel.zip scouting-app/
 
             - name: Create Release
               id: create_release
@@ -88,7 +89,7 @@ jobs:
               with:
                   upload_url: ${{steps.create_release.outputs.upload_url}}
                   asset_name: sentinel
-                  asset_path: ${{github.workspace}}/scouting-app/**
+                  asset_path: ${{github.workspace}}/sentinel.zip
                   asset_content_type: application/zip
 
             - name: Write comment to summary

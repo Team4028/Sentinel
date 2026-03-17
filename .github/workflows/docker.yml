@@ -1,11 +1,11 @@
-name: Build Docker Image
+name: Release Sentinel
 
 # run it manually
 on:
     workflow_dispatch:
         inputs:
             version:
-                description: "Version to release as (no v)"
+                description: "Version to release as"
                 required: true
                 type: string
                 default: ""
@@ -26,7 +26,7 @@ jobs:
         permissions: write-all
         uses: ./.github/workflows/unittest.yml
 
-    build:
+    build-and-release:
         name: Build Docker images -- ${{inputs.comment}}
         runs-on: ubuntu-latest # ofc
         needs: test
@@ -76,8 +76,8 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
               with:
-                  tag_name: v${{inputs.version}}
-                  release_name: Sentinel-v${{inputs.version}}
+                  tag_name: ${{inputs.version}}
+                  release_name: Sentinel-${{inputs.version}}
                   body: |
                   draft: false
                   prerelease: ${{inputs.prerelease}}
@@ -88,7 +88,7 @@ jobs:
               with:
                   upload_url: ${{steps.create_release.outputs.upload_url}}
                   asset_name: sentinel
-                  asset_path: scouting-app/**
+                  asset_path: ${{github.workspace}}/scouting-app/**
                   asset_content_type: application/zip
 
             - name: Write comment to summary

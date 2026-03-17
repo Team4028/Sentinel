@@ -122,7 +122,7 @@
             if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") { // override Ctrl+S to save
                 ev.preventDefault(); // stop Ctrl+S from doing what it normally does
                 saveYAML();
-            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace") {
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace" && document.activeElement.id !== "editor") {
                 ev.preventDefault();
                 window.location.href = "{{url_for('main')}}";
             }

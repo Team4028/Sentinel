@@ -314,6 +314,13 @@
             }
         }
 
+        window.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Backspace" && document.activeElement.tagName.toLowerCase() !== "input") {
+                e.preventDefault();
+                window.location.href = "{{url_for('main')}}";
+            }
+        });
+
 
         fileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];

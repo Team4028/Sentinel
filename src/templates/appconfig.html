@@ -165,6 +165,11 @@
             </label>
         </div>
         <label
+            title="Base URL for the server hosting the grafana container associated with this app">
+            Grafana Url
+            <input type="text" id="graf-url">
+        </label>
+        <label
             title="Size in bytes of the maximum amount of csv data that the processor can load into memory at a time">
             CSV Parsing Chunk Size (bytes)
             <input type="number" id="chunksize">
@@ -265,6 +270,7 @@
         const newUN = document.getElementById("new-un");
         const newPWD = document.getElementById("new-pwd");
         const teamNum = document.getElementById("teamNumber");
+        const grafUrl = document.getElementById("graf-url");
 
         async function tbaKeyCheckHealth() {
             const res = await fetch(`{{url_for('main')}}test-tba-key/${tbakey.value.trim()}`, {
@@ -285,6 +291,7 @@
             eventKey.value = json["EVENT_KEY"];
             acolor.value = json["ACCENT_COLOR"];
             tcolor.value = json["TEXT_COLOR"];
+            grafUrl.value = json["GRAFANA_URL"];
             chunkSize.value = json["CHUNK_SIZE"];
             year.value = json["YEAR"];
             teamNum.value = parseInt(json["TEAM"]);
@@ -361,6 +368,15 @@
             }
         }
 
+        grafUrl.addEventListener('input', () => {
+            if (!grafUrl.value.startsWith("http://")) {
+                if (grafUrl.value === "http:/")
+                    grafUrl.value += "/";
+                else
+                    grafUrl.value = "http://" + grafUrl.value;
+            }
+        });
+
         async function saveCfg() {
             statusDiv.style.color = "#aaa";
             statusDiv.innerText = "Setting TBA key...";
@@ -390,6 +406,7 @@
                 "EVENT_KEY": eventKey.value,
                 "ACCENT_COLOR": acolor.value,
                 "TEXT_COLOR": tcolor.value,
+                "GRAFANA_URL": grafUrl.value,
                 "CHUNK_SIZE": parseInt(chunkSize.value),
                 "YEAR": year.value,
                 "TEAM": teamNum.value.toString(),
@@ -401,7 +418,7 @@
                 "PHOTO_STORAGE": picDir.value,
                 "METRIC_OUTPUT_FILENAME": metricFile.value,
                 "NEXT_N_MATCHES_NUMBER": parseInt(nextN.value),
-            }
+            };
 
             document.documentElement.style.setProperty("--accent", acolor.value);
             document.documentElement.style.setProperty("--text", tcolor.value);
@@ -438,7 +455,7 @@
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "p") {
                 ev.preventDefault();
                 setCred();
-            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace") {
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace" && document.activeElement.tagName.toLowerCase() !== "input") {
                 ev.preventDefault();
                 window.location.href = "{{url_for('main')}}";
             }

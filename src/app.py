@@ -79,10 +79,6 @@ def create_app():  # cursed but whatever
     if os.getenv("container", None) is not None:
         is_docker = True
 
-    GRAFANA_BASE_URL = (
-        "http://localhost:3005/d/" if is_docker else "http://localhost:3000/d/"
-    )  # local testing
-
     def render_template_style(template, **context):
         """Renders the input template with the given context and also the accent and text colors of the app"""
         return render_template(
@@ -131,6 +127,7 @@ def create_app():  # cursed but whatever
         processor = Processor(
             app.config["OUT_DIR"],
             app.config["CHUNK_SIZE"],
+            None,
             None,
             None,
             None,
@@ -394,7 +391,7 @@ def create_app():  # cursed but whatever
             "home.html",
             headers=json.dumps(processor.config_data["headers"]).replace("\uffef", ""),
             inp_data=json.dumps(csv_data).replace("\\", "\\\\"),
-            graf_url=GRAFANA_BASE_URL.removesuffix("/d/"),
+            graf_url=app.config["GRAFANA_URL"],
         )
 
     # OPEN (need to log in before you can be logged in)
@@ -906,7 +903,7 @@ def create_app():  # cursed but whatever
                 sorted([int(x) for x in processor._teamsAt]),
             ),
             dashes=json.dumps(DASHBOARD_UIDS),
-            grafana_base=GRAFANA_BASE_URL,
+            grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
 
     # RESTRICTED (overwrites app config = bad)

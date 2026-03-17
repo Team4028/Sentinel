@@ -4,6 +4,16 @@ name: Build Docker Image
 on:
     workflow_dispatch:
         inputs:
+            version:
+                description: "Version to release as (no v)"
+                required: true
+                type: string
+                default: ""
+            prerelease:
+                description: "Is this pre?"
+                required: true
+                type: boolean
+                default: false
             comment:
                 description: "Reason for build/changes since last build/etc."
                 required: false
@@ -15,7 +25,7 @@ jobs:
         name: Run unit tests
         permissions: write-all
         uses: ./.github/workflows/unittest.yml
-        
+
     build:
         name: Build Docker images -- ${{inputs.comment}}
         runs-on: ubuntu-latest # ofc
@@ -24,10 +34,10 @@ jobs:
         steps:
             - name: Check out repo
               uses: actions/checkout@v4
-            
+
             - name: Set up docker build
               uses: docker/setup-buildx-action@v3
-            
+
             - name: Make Zip Directory
               run: mkdir -p scouting-app/grafana-dashboard
 
@@ -35,41 +45,53 @@ jobs:
             - name: Build Scouting Backend
               uses: docker/build-push-action@v6
               with:
-                context: ${{github.workspace }}
-                file: ./dockerimage/dockerfile
-                tags: scouting:latest
-                outputs: type=docker,dest=scouting-app/scouting.tar
+                  context: ${{github.workspace }}
+                  file: ./dockerimage/dockerfile
+                  tags: scouting:latest
+                  outputs: type=docker,dest=scouting-app/scouting.tar
 
               # build the grafana docker image
             - name: Build Grafana Frontend
               uses: docker/build-push-action@v6
               with:
-                context: ${{github.workspace}}
-                file: ./grafana-dashboard/dockerfile
-                tags: grafana-scouting:latest
-                outputs: type=docker,dest=scouting-app/grafana-scouting.tar
+                  context: ${{github.workspace}}
+                  file: ./grafana-dashboard/dockerfile
+                  tags: grafana-scouting:latest
+                  outputs: type=docker,dest=scouting-app/grafana-scouting.tar
 
             - name: Prepare additional archive utilities
-              # copy all of the necessary files from the repo to the runner 
+              # copy all of the necessary files from the repo to the runner
               run: |
-                cp ./compose.yaml scouting-app
-                cp ./compose/.env scouting-app/.env
-                cp ./compose/run.sh scouting-app/run.sh
-                cp ./compose/mount.bat scouting-app/mount.bat
-                chmod +x scouting-app/run.sh
-                cp ./compose/run.bat scouting-app/run.bat
-                cp ./grafana-dashboard/grafana.ini scouting-app/grafana-dashboard/grafana.ini
+                  cp ./compose.yaml scouting-app
+                  cp ./compose/.env scouting-app/.env
+                  cp ./compose/run.sh scouting-app/run.sh
+                  cp ./compose/mount.bat scouting-app/mount.bat
+                  chmod +x scouting-app/run.sh
+                  cp ./compose/run.bat scouting-app/run.bat
+                  cp ./grafana-dashboard/grafana.ini scouting-app/grafana-dashboard/grafana.ini
 
-              # zip up and export all of the things
-            - name: Upload Archive
-              uses: actions/upload-artifact@v4
+            - name: Create Release
+              id: create_release
+              uses: actions/create-release@v1
+              env:
+                  GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
               with:
-                name: scouting-app
-                path: scouting-app/**
-                include-hidden-files: true
-            
+                  tag_name: v${{inputs.version}}
+                  release_name: Sentinel-v${{inputs.version}}
+                  body: |
+                  draft: false
+                  prerelease: ${{inputs.prerelease}}
+            - name: Upload Release
+              uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+              with:
+                  upload_url: ${{steps.create_release.outputs.upload_url}}
+                  asset_name: sentinel
+                  asset_path: scouting-app/**
+                  asset_content_type: application/zip
+
             - name: Write comment to summary
               run: |
-                echo "## COMMENT ##" >> $GITHUB_STEP_SUMMARY
-                echo "${{inputs.comment}}" >> $GITHUB_STEP_SUMMARY
-            
+                  echo "## COMMENT ##" >> $GITHUB_STEP_SUMMARY
+                  echo "${{inputs.comment}}" >> $GITHUB_STEP_SUMMARY

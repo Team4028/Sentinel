@@ -41,7 +41,8 @@ class TeamStruct:
         }
         # the | operator for dicts in python combines dicts with different entries (OR's them)
         for field in config["copr"]:
-            data |= DataField(field, _coprs[field], []).objectify()
+            if field in _coprs:
+                data |= DataField(field, _coprs[field], []).objectify()
         for field in config["svd"]:
             data |= (
                 DataField(field["name"], self.data[field["name"]], []).objectify()

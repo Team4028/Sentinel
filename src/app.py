@@ -729,6 +729,16 @@ def create_app():  # cursed but whatever
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
+        
+    @app.post('/clear-datain-spreadsheet')
+    @login_required
+    @require_admin
+    def clear_datain():
+        try:
+            os.remove(infile)
+            return "", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
 
     # RESTRICTED (can edit field-config = bad (technically not but still))
     @app.get("/edit")

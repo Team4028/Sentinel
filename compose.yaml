@@ -5,7 +5,7 @@ services:
     container_name: sentinel
     profiles: [prod] # already exists
     ports:
-      - "443:443"
+      - "5000:5000"
     device_cgroup_rules:
       - 'c 188:* rmw'
     volumes:
@@ -22,7 +22,7 @@ services:
     container_name: sentinel
     profiles: [localbuild] # build it yourself
     ports:
-      - "443:443"
+      - "5000:5000"
     device_cgroup_rules:
       - 'c 188:* rmw'
     volumes:

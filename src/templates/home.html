@@ -455,7 +455,7 @@
          * Check if there's actually a file selected, and enable the upload button if there is
          */
         function updateUploadEnabled() {
-            uploadBtn.disabled = !((selectedFile || textInput.value.trim().length > 0) && (textInput.value.match(new RegExp(',', 'g')) || []).length === headers.length - 1);
+            uploadBtn.disabled = !(selectedFile || ((textInput.value.trim().length > 0 && textInput.value.match(new RegExp(',', 'g')) || []).length === headers.length - 1));
         }
 
         dropZone.addEventListener("click", () => fileInput.click()); // passthrough from normal div to file selector

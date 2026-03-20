@@ -283,6 +283,7 @@
                 <option title="output.csv-morepredict.csv" value="output.csv-morepredict.csv">Future Match Stats
                 </option>
                 <option title="output.csv-predict.csv" value="output.csv-predict.csv">Match Predictions</option>
+                <option title="pit-scouting.csv" value="output.csv-pit-scouting.csv">Pit Scouting</option>
                 <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
             </select>
             <button id="send-it" class="btn">Download</button>
@@ -344,7 +345,8 @@
         const headers = JSON.parse(`{{headers|safe}}`);
         const data_init = JSON.parse(`{{inp_data|safe}}`);
         for (const data_init_row of data_init) {
-            data.push(Object.assign({}, ...Papa.parse(data_init_row, { delimiter: ",", quotes: true, skipEmptyLines: true }).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
+            if (data_init_row != "")
+                data.push(Object.assign({}, ...Papa.parse(data_init_row, { delimiter: ",", quotes: true, skipEmptyLines: true,  }).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
         }
         let lockTab = false;
         const table = new Tabulator('#table', {
@@ -453,7 +455,7 @@
          * Check if there's actually a file selected, and enable the upload button if there is
          */
         function updateUploadEnabled() {
-            uploadBtn.disabled = !(selectedFile || textInput.value.trim().length > 0);
+            uploadBtn.disabled = !((selectedFile || textInput.value.trim().length > 0) && (textInput.value.match(new RegExp(',', 'g')) || []).length === headers.length - 1);
         }
 
         dropZone.addEventListener("click", () => fileInput.click()); // passthrough from normal div to file selector
@@ -534,6 +536,7 @@
                 const end = textInput.selectionEnd;
                 textInput.value = textInput.value.substring(0, start) + "," + textInput.value.substring(end);
                 textInput.selectionStart = textInput.selectionEnd = start + 1;
+                updateUploadEnabled();
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "b") {
                 ev.preventDefault();
                 lockTab = !lockTab;

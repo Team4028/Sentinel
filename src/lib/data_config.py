@@ -116,6 +116,7 @@ def lex_config(year: str):
         "deep-predict": [],
         "copr": [],
         "tests": [],
+        "pre-tests": [],
     }
     if data:
         for k, v in GRAFANA_DATA_PANELS.items():
@@ -163,6 +164,14 @@ def lex_config(year: str):
         if "data-tests" in data:
             for test in data["data-tests"]:
                 config["tests"].append(
+                    {
+                        "name": test["name"],
+                        "expr": test["expression"],
+                    }
+                )
+        if "prelim-tests" in data:
+            for test in data["prelim-tests"]:
+                config["pre-tests"].append(
                     {
                         "name": test["name"],
                         "expr": test["expression"],

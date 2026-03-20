@@ -231,7 +231,7 @@ class Processor:
                         self.config_data,
                         self._oprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._oprs else 0,
                         self._curr_oprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._curr_oprs else 0,
-                        self._coprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._coprs else 0
+                        self._coprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._coprs else {}
                     )[
                         self.config_data["p-metric"]["source"]
                     ]
@@ -254,11 +254,12 @@ class Processor:
                     }
                     if int(team) in self._teams:
                         teamO = self._teams[int(team)].output_dict(
-                            self.config_data, self._oprs[team] if team in self._oprs else 0, self._curr_oprs[team] if team in self._curr_oprs else 0, self._coprs[team] if team in self._coprs else 0
+                            self.config_data, self._oprs[team] if team in self._oprs else 0, self._curr_oprs[team] if team in self._curr_oprs else 0, self._coprs[team] if team in self._coprs else {}
                         )
                         for field in self.config_data["deep-predict"]:
-                            dat |= {
-                                field["name"]: teamO[field["source"]]
+                            if field["source"] in teamO:
+                                dat |= {
+                                    field["name"]: teamO[field["source"]]
                             }  # append the relevant datas
                     else:
                         for field in self.config_data["deep-predict"]:
@@ -338,11 +339,28 @@ class Processor:
         self._matches.clear()
 
         with pd.read_csv(
-            data_filepath, chunksize=self.chunk_size, iterator=True
+            data_filepath, chunksize=self.chunk_size, iterator=True,
         ) as reader:
             first = True
             tn, mn = self.config_data["tn"], self.config_data["mn"]
             for chunk in reader:  # read in chunks in case big
+                chunk["Pre-filter-keep"] = True
+                for i in range(len(self.config_data["pre-tests"])):
+                    logger.info(
+                        f"Performing pre-test: {self.config_data["pre-tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["pre-tests"]) - (i + 1)))}]"
+                    )
+                    chunk["Pre-filter-keep"] = (chunk["Pre-filter-keep"]) & (
+                        eval_beakscript(
+                            self.config_data["pre-tests"][i]["expr"],
+                            chunk,
+                            "Data Test " + self.config_data["pre-tests"][i]["name"],
+                        )
+                    )
+                chunk = chunk.loc[
+                    chunk["Pre-filter-keep"] == True
+                ]  # remove values that didn't pass the test (my English grade)
+                chunk.drop(columns=["Pre-filter-keep"], inplace=True)
+
                 if len(self.config_data["preproc"]) > 0:
 
                     def apply_preproc_row(row: pd.Series, prep) -> list[pd.Series]:

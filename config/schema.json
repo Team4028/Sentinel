@@ -228,6 +228,22 @@
                 ]
             }
         },
+        "prelim-tests": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the test"
+                    },
+                    "expression": {
+                        "type": "string",
+                        "description": "a beakscript expression that evaluates to a boolean that defines filters for bad data -- before anything else"
+                    }
+                }
+            }
+        },
         "data-tests": {
             "type": "array",
             "items": {

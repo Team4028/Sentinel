@@ -18,6 +18,7 @@ else:
     )
     serial_port = "/dev/ttyUSB0"
 local = None
+is_meshing = True
 
 
 def on_receive(packet, f):
@@ -46,11 +47,10 @@ def send_mesh_test(message: str):
 
 
 def send_message(m):
-    global local
-    if local:
-        local.sendText(m)
-    else:
-        send_mesh_test(m)
+    send_mesh_test(m)
+
+def get_is_meshed():
+    return is_meshing
 
 
 def send_command(cmd, pw_sha):
@@ -70,10 +70,12 @@ def main(f):
         local = SerialInterface(serial_port)
         logger.info(f"SerialInterface setup for listening on port {serial_port}")
     except Exception as e:
+        pub.unsubAll("meshtastic.receive")
         local = None
-        logger.error(
-            f"Error opening port {serial_port}: {e}\nThis channel will remain open for testing purposes."
-        )
+        is_meshing = False
+        # logger.error(
+        #     f"Error opening port {serial_port}: {e}\nThis channel will remain open for testing purposes."
+        # )
     try:  # listen forever
         while True:
             sys.stdout.flush()

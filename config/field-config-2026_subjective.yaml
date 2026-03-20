@@ -21,6 +21,8 @@ headers:
     desc: Team 1 Defense
   - name: T1D
     desc: Team 1 Played Defense
+  - name: T1VALUE
+    desc: Team 1 Vibe-Based attibuted lemons upon examination (VALUE)
   - name: T2
     desc: Team 2 Number
   - name: ISPDT2
@@ -37,6 +39,8 @@ headers:
     desc: Team 2 Defense
   - name: T2D
     desc: Team 2 Played Defense
+  - name: T2VALUE
+    desc: Team 1 Vibe-Based attibuted lemons upon examination (VALUE)
   - name: T3
     desc: Team 3 Number
   - name: ISPDT3
@@ -53,6 +57,12 @@ headers:
     desc: Team 3 Defense
   - name: T3D
     desc: Team 3 Played Defense
+  - name: T3VALUE
+    desc: Team 1 Vibe-Based attibuted lemons upon examination (VALUE)
+  - name: AlliBallsAuto
+    desc: Scoreboard total auto balls
+  - name: AlliBallsTele
+    desc: Scoreboard total tele balls
   - name: EID
     desc: Event ID
 
@@ -61,15 +71,15 @@ match-header-name: MN
 
 preproc-operations:
   - name: Split Team Row
-    new-headers: [MN, TC, SI, TN, ISPD, SSPD, ACC, DS, HC, DF, CT, EID]
+    new-headers: [MN, TC, SI, TN, ISPD, SSPD, ACC, DS, HC, DF, CT, VL, EID]
     operation: >-
       {
-        {$MN, $AC, $SI, $T1, *($?T2 - $?T1), ($T2DF / $T2D) - ($T1DF / $T1D), $T2, $EID},
-        {$MN, $AC, $SI, $T1, *($?T3 - $?T1), ($T3DF / $T3D) - ($T1DF / $T1D), $T3, $EID},
-        {$MN, $AC, $SI, $T2, *($?T1 - $?T2), ($T1DF / $T1D) - ($T2DF / $T2D), $T1, $EID},
-        {$MN, $AC, $SI, $T2, *($?T3 - $?T2), ($T3DF / $T3D) - ($T2DF / $T2D), $T3, $EID},
-        {$MN, $AC, $SI, $T3, *($?T1 - $?T3), ($T1DF / $T1D) - ($T3DF / $T3D), $T1, $EID},
-        {$MN, $AC, $SI, $T3, *($?T2 - $?T3), ($T2DF / $T2D) - ($T3DF / $T3D), $T2, $EID}
+        {$MN, $AC, $SI, $T1, *($?T2 - $?T1), ($T2DF / $T2D) - ($T1DF / $T1D), $T2, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T1, *($?T3 - $?T1), ($T3DF / $T3D) - ($T1DF / $T1D), $T3, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T2, *($?T1 - $?T2), ($T1DF / $T1D) - ($T2DF / $T2D), $T1, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T2, *($?T3 - $?T2), ($T3DF / $T3D) - ($T2DF / $T2D), $T3, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T3, *($?T1 - $?T3), ($T1DF / $T1D) - ($T3DF / $T3D), $T1, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T3, *($?T2 - $?T3), ($T2DF / $T2D) - ($T3DF / $T3D), $T2, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID}
       }
 
 filter-unique-fields: [MN, SI, TN, CT] # SI lets multiple people scout the same alliance
@@ -107,7 +117,12 @@ subjective-svd-fields:
     stability:
 
 compute-fields: []
-team-fields: [] 
+team-fields:
+  - name: Vibe Lemons
+    derive: $VL
+    avg:
+    max:
+    fil:
 match-fields: []
 copr-keys:
   - Hub Auto Fuel Count
@@ -115,13 +130,16 @@ copr-keys:
   - Hub Total Fuel Count
   - autoTowerPoints
   - endGameTowerPoints
+prelim-tests:
+  - name: Match Number greater than 0
+    expression: $MN > 0
+  - name: Alliance color valid
+    expression: B ` $AC | R ` $AC
 data-tests:
-  - name: Team/Match Number greater than 0
-    expression: $TN > 0 & $MN > 0
+  - name: Team Number greater than 0
+    expression: $TN > 0
   - name: Team Color is valid
     expression: B ` $TC | R ` $TC
-  - name: Year is valid
-    expression: "'2026' ` $EID"
 depth-predict-fields: []
 predict-metric:
   name: OPR

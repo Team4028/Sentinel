@@ -286,7 +286,7 @@ def create_app():  # cursed but whatever
                 elif app.config["RESTRICT_APPEND_LEVEL"] == 1:
                     app.logger.info(f"Adding notification for data {lines_to_write}")
                     send_change_notification(lines_to_write)
-        if not sending:
+        if not sending or mesh.get_is_meshed():
             processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
             app.logger.info("Finished processing data.")
             reload_js()
@@ -897,9 +897,9 @@ def create_app():  # cursed but whatever
             if int(team) in processor._teams:
                 sum += processor._teams[int(team)].output_dict(
                     processor.config_data,
-                    processor._oprs[team],
-                    processor._curr_oprs[team],
-                    processor._coprs[team]
+                    processor._oprs[team] if team in processor._oprs else 0,
+                    processor._curr_oprs[team] if team in processor._curr_oprs else 0,
+                    processor._coprs[team] if team in processor._coprs else {}
                 )[processor.config_data["p-metric"]["source"]]
         return jsonify({"score": round(sum)})
 

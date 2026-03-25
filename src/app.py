@@ -10,6 +10,8 @@ from flask import (
     redirect,
 )
 from flask_login import login_user, login_required, logout_user, current_user
+from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 
 try:  # janky import stuff: running src/app.py and running scouting_app.py via gunicorn lead to different import paths
@@ -17,13 +19,13 @@ try:  # janky import stuff: running src/app.py and running scouting_app.py via g
     import lib.mesh as mesh
     from lib.data_config import lex_config
     import apputils
-    from auth import BigBrother, LoginForm, require_admin, init_loginm_app
+    from auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app
 except ModuleNotFoundError:
     from src.lib.data_main import Processor
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
     import src.apputils as apputils
-    from src.auth import BigBrother, LoginForm, require_admin, init_loginm_app
+    from src.auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app
 import csv
 import os
 import json
@@ -43,6 +45,7 @@ from jinja2 import Environment, FileSystemLoader
 def create_app():  # cursed but whatever
     """Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy"""
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
     # setup logging
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -59,9 +62,12 @@ def create_app():  # cursed but whatever
         f.stem.split("-", 2)[-1] for f in Path("./config").glob("field-config-*.yaml")
     ]
     admin_login = {}
+    viewer_login = {}
     config_file = os.path.join("config", f"field-config-{app.config["YEAR"]}.yaml")
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = False
+
+    last_tba_fetch = 0
 
     notification_queue = []
 
@@ -88,6 +94,12 @@ def create_app():  # cursed but whatever
             **context,
         )
 
+    def do_data_processing():
+        processor.proccess_data(infile)
+        app.logger.info("Finished processing data.")
+        reload_js()
+        
+
     # =======================================================
     # Ensure directories on gitignore are present
     # =======================================================
@@ -106,35 +118,21 @@ def create_app():  # cursed but whatever
     # Load Auth Keys
     # =======================================================
 
-    admin_login, app.config["SECRET_KEY"], auth_key = apputils.read_secrets()
+    admin_login, viewer_login, app.config["SECRET_KEY"], auth_key = apputils.read_secrets()
 
     # =======================================================
     # Parse field config and setup processor
     # =======================================================
-    try:
-        processor = Processor(
-            app.config["OUT_DIR"],
-            app.config["CHUNK_SIZE"],
-            *apputils.load_tba_data(
-                app.config["EVENT_KEY"], auth_key, app.config["YEAR"].split("_")[0]
-            ),
-            lex_config(app.config["YEAR"]),
-        )  # what's wrong with my copy of python why are their pointers (it's just the unpack operator)
-    except Exception as e:
-        app.logger.error(
-            f"Error collecting tba data: {apputils.exception_format(e)}"
-        )  # assume that the load_tba_data is what failed because lex_config has seperate error handling
-        processor = Processor(
-            app.config["OUT_DIR"],
-            app.config["CHUNK_SIZE"],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            lex_config(app.config["YEAR"]),
-        )
+    processor = Processor(
+        app.config["OUT_DIR"],
+        app.config["BASE_OUTPUT_FILENAME"],
+        app.config["TBA_FETCH_PERIOD_MIN"],
+        app.config["EVENT_KEY"],
+        auth_key,
+        app.config["YEAR"].split("_")[0] if "_" in app.config["YEAR"] else app.config["YEAR"],
+        app.config["CHUNK_SIZE"],
+        lex_config(app.config["YEAR"]),
+    )  # what's wrong with my copy of python why are their pointers (it's just the unpack operator)
 
     infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])
     js = None  # load the json file into mem so we don't have to read it every time its requested
@@ -148,7 +146,7 @@ def create_app():  # cursed but whatever
     # set up the login manager
     init_loginm_app(app)
 
-    def compile_scouting_dashboard():
+    def compile_scouting_dashboard(url: str):
         """Uses jinja templating to create dashboard jsons for provisioning that cast all of the number fields to numbers"""
         env = Environment(loader=FileSystemLoader("."))
         for path in Path("./src/templates").glob("*.ji"):
@@ -159,7 +157,10 @@ def create_app():  # cursed but whatever
                 (title, "".join(w[0].lower() for w in title.split()))
                 for title in processor.config_data["dash-panel"][fname].keys()
             ]
-            template_vars = {}
+            template_vars = {
+                "sentinel_url": url,
+                "grafana_url": app.config["GRAFANA_URL"],
+            }
             for abbr in abbrs:
                 template_vars |= {
                     abbr[1]
@@ -177,7 +178,7 @@ def create_app():  # cursed but whatever
                 shutil.copy(out_path, "/var/lib/grafana/dashboards/")
 
     try:
-        processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
+        processor.proccess_data(infile)
         app.logger.info("inital processing success")
     except Exception as e:
         app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
@@ -264,9 +265,7 @@ def create_app():  # cursed but whatever
                     outf.write(("" if firstLine else "\n") + line.strip())
                     firstLine = False
         apputils.safer_replace(temp_path, infile)
-        processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
-        app.logger.info("Finished processing data.")
-        reload_js()
+        do_data_processing()
 
     def append_lines_nofile(lines_to_write: list[str], sending: bool = False):
         """Appends `lines_to_write` to the input csv and reprocesses the data. <br>
@@ -287,9 +286,7 @@ def create_app():  # cursed but whatever
                     app.logger.info(f"Adding notification for data {lines_to_write}")
                     send_change_notification(lines_to_write)
         if not sending or mesh.get_is_meshed():
-            processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
-            app.logger.info("Finished processing data.")
-            reload_js()
+            do_data_processing()
 
     def save_photo(filestorage, team: str):
         """saves the given filestorage to PHOTO_STORAGE/{team}.ext where ext is the extension of filestorage"""
@@ -323,7 +320,7 @@ def create_app():  # cursed but whatever
         else:
             lines = [message]
             append_lines_nofile(lines)
-            reload_js()
+            reload_js() # TODO: is this call redundant?
 
     def mesh_listen():
         """Binds `handle_mesh_line` to the meshtastic port (listens for meshages)"""
@@ -341,11 +338,22 @@ def create_app():  # cursed but whatever
         else:
             app.logger.info(f"Service worker polled queue")
 
+
     @app.errorhandler(Exception)
     def handle_exception(e):
         """Dampens the app's explosion"""
         app.logger.exception(f"Unhandled Exception: {apputils.exception_format(e)}")
         return f"Internal server error: {apputils.exception_format(e)}", 500
+
+    @app.errorhandler(401)
+    def handle_401(e):
+        app.logger.warning(f"Tried to access page without login: {e.description}")
+        return f"Error: unauthorized", 401
+    
+    @app.errorhandler(403)
+    def handle_403(e):
+        app.logger.warning(f"Tried to access restricted page: {e.description}")
+        return f"Error: restricted", 403
 
     @app.errorhandler(404)
     def handle_404(e):
@@ -378,7 +386,6 @@ def create_app():  # cursed but whatever
     # RESTRICTED
     @app.route("/")
     @login_required
-    @require_admin
     def main():
         """Renders homepage html template, passes the public key to the client to bind the service worker"""
         csv_data = []
@@ -400,11 +407,19 @@ def create_app():  # cursed but whatever
         """Sends login page and validates login un/pw"""
         form = LoginForm()
         if form.validate_on_submit():
+            username = form.username.data
+            password = form.password.data.strip()
             if (
-                form.username.data == admin_login["un"]
-                and form.password.data.strip() == admin_login["pwd"]
+                username == admin_login["un"]
+                and password == admin_login["pwd"]
             ):
                 login_user(BigBrother())
+                return "Login Successful", 200
+            elif (
+                username == viewer_login["un"]
+                and password == viewer_login["pwd"]
+            ):
+                login_user(Winston())
                 return "Login Successful", 200
             else:
                 return "Invalid Credentials", 401
@@ -413,7 +428,7 @@ def create_app():  # cursed but whatever
     @app.get("/我是谁")
     def whoami():
         if current_user.is_authenticated:
-            return jsonify({"logged_in": True, "username": current_user.id})
+            return jsonify({"logged_in": True, "username": current_user.id, "admin": current_user.is_admin})
         return jsonify({"logged_in": False})
 
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
@@ -431,13 +446,11 @@ def create_app():  # cursed but whatever
     
     @app.get('/pit')
     @login_required
-    @require_admin
     def pit_scout():
         return render_template_style('pit-scouting.html')
     
     @app.post('/submit-pit')
     @login_required
-    @require_admin
     def save_pit():
         if request and request.json:
             try:
@@ -483,9 +496,7 @@ def create_app():  # cursed but whatever
                 d_file = request.files["data"]
                 if d_file.filename != "":
                     d_file.save(infile)  # saves the file
-                    processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
-                    app.logger.info("Finished processing data.")
-                    reload_js()
+                    do_data_processing()
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -493,7 +504,6 @@ def create_app():  # cursed but whatever
     # RESTRICTED (uploads files = writes to server directory = bad)
     @app.post("/upload-photo")
     @login_required
-    @require_admin
     def upload_photo():
         """Save a photo for the cooresponding team"""
         try:
@@ -516,15 +526,13 @@ def create_app():  # cursed but whatever
         return send_file(f)
 
     # RESTRICTED (not as bad, but still requires decent processing power)
-    @app.route("/reproc")
+    @app.post("/reproc")
     @login_required
     @require_admin
     def reprocess():
         """Reprocesses the data with no additional inputs; for testing or manual csv changes"""
         try:
-            processor.proccess_data(infile, app.config["BASE_OUTPUT_FILENAME"])
-            app.logger.info("Finished processing data.")
-            reload_js()
+            do_data_processing()
             return "Data reloaded."
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -767,11 +775,7 @@ def create_app():  # cursed but whatever
             with open(config_file, "w") as f:  # save
                 f.write(data)
             processor.config_data = lex_config(app.config["YEAR"])  # reload config data
-            processor.proccess_data(
-                infile, app.config["BASE_OUTPUT_FILENAME"]
-            )  # reprocess
-            app.logger.info("Finished processing data.")
-            reload_js()
+            do_data_processing()
             return jsonify({"ok": True, "message": "Saved"})
         except Exception as e:
             return jsonify({"ok": False, "message": str(e)})
@@ -836,23 +840,15 @@ def create_app():  # cursed but whatever
     @require_admin
     def set_tba_key():
         """verifies the inputted api key sent via json["key"], applies it and writes it to key.txt, and reprocesses data"""
-        nonlocal auth_key
+        nonlocal auth_key, last_tba_fetch
         try:
             if request.json and request.json["key"]:
                 auth_key = request.json["key"].strip()
                 if not apputils.test_tba_key(auth_key):  # health check
                     return "Bad TBA key", 400
                 apputils.set_auth_key(auth_key)
-                (
-                    processor._teamsAt,
-                    processor._sched,
-                    processor._ranks,
-                    processor._oprs,
-                    processor._coprs,
-                    processor._curr_oprs
-                ) = apputils.load_tba_data(
-                    app.config["EVENT_KEY"], auth_key, app.config["YEAR"].split("_")[0]
-                )
+                processor.periodic_calls.fire(lambda s: app.logger.info(f"\t{s}"))
+                last_tba_fetch = time.time()
                 return "", 200
             else:
                 return "Invalid Request", 400
@@ -874,16 +870,32 @@ def create_app():  # cursed but whatever
                     if "pwd" in request.json
                     else admin_login["pwd"]
                 )
-                apputils.change_un_pwd(app.config["SECRET_KEY"], un, pwd)
+                apputils.change_un_pwd_admin(app.config["SECRET_KEY"], un, pwd)
                 admin_login = {"un": un, "pwd": pwd}
                 return "Password change successful", 200
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Invalid Request", 400
+    
+    @app.post('/set-viewer-creds')
+    @login_required
+    @require_admin
+    def set_viewer_creds():
+        nonlocal viewer_login
+        if request and request.json:
+            try:
+                un = request.json.get('un', viewer_login["un"])
+                pwd = (apputils.line_str_hash(request.json["pwd"]) if "pwd" in request.json else viewer_login["pwd"])
+                apputils.change_un_pwd_viewer(app.config["SECRET_KEY"], un, pwd)
+                viewer_login = { "un": un, "pwd": pwd }
+                return "Password change successful", 200
+            except Exception as e:
+                return apputils.exception_format(e), 500
+        return "Invalid Request", 400
+
 
     @app.get("/calc-team-score")
     @login_required
-    @require_admin
     def calc_team_score():
         teams = [app.config["TEAM"]]
         if "pick1" in request.args:
@@ -904,6 +916,7 @@ def create_app():  # cursed but whatever
         return jsonify({"score": round(sum)})
 
     @app.get("/picklist")
+    @login_required
     def picklist():
         return render_template_style(
             "picklist.html",
@@ -922,6 +935,7 @@ def create_app():  # cursed but whatever
     @require_admin
     def save_app_config():
         """Consumes an app configuration json, saves it, and applies it"""
+        nonlocal last_tba_fetch
         if request and request.json:
             try:
                 with open(
@@ -938,20 +952,12 @@ def create_app():  # cursed but whatever
                     or app.config["EVENT_KEY"] != last_id
                 ):
                     apputils.clear_tba_cache()
-                (
-                    processor._teamsAt,
-                    processor._sched,
-                    processor._ranks,
-                    processor._oprs,
-                    processor._coprs,
-                    processor._curr_oprs
-                ) = apputils.load_tba_data(
-                    app.config["EVENT_KEY"], auth_key, app.config["YEAR"].split("_")[0]
-                )  # event key may have changed
+                processor.periodic_calls.fire(lambda s: app.logger.info(f"\t{s}"))
+                last_tba_fetch = time.time()
                 if apputils.data_in_exists(app):
                     try:
                         processor.proccess_data(
-                            infile, app.config["BASE_OUTPUT_FILENAME"]
+                            infile
                         )  # updated processor, so this
                         app.logger.info("Finished processing data.")
                         reload_js()
@@ -969,7 +975,6 @@ def create_app():  # cursed but whatever
     # RESTRICTED (save bandwidth)
     @app.get("/download/<file>")
     @login_required
-    @require_admin
     def dload(file):
         """Sends a stream using the `stream` helper for the requested file to download it"""
         if not file:

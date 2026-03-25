@@ -1,13 +1,48 @@
 'use strict';
 
 let cid = crypto.randomUUID();
+let curr_interval = null;
+
+function checkNotifications() {
+    fetch("/notifyq", {
+        method: "GET",
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Cid': cid
+        }
+    }).then(res => {
+        if (res.ok && res.status === 200) // do nothing if 204
+            res.json().then(json => {
+                console.log(`SEND ${JSON.stringify(json)}`);
+                if ("title" in json) {
+                    const title = json["title"];
+                    delete json.title;
+                    self.registration.showNotification(title, json);
+                }
+            }).catch(() => { });
+    }).catch((e) => { console.log(`Error: ${e}`) });
+}
 
 self.addEventListener('install', function () {
     console.log('Service Worker installing.');
 });
 
-self.addEventListener('activate', function () {
+self.addEventListener('activate', async function () {
     console.log('Service Worker activating.');
+});
+
+self.addEventListener("message", async function (m) {
+    console.log(`SW -- ${m.data}`)
+    if (Object.keys(m.data).includes("data") && m.data.data === "Wake Up") {
+        if (curr_interval) {
+            clearInterval(curr_interval);
+            curr_interval = null;
+        }
+        let js = await(await fetch("/我是谁")).json();
+        if (js["logged_in"] && js["admin"])
+            curr_interval = setInterval(checkNotifications, 1000);
+    }
 });
 
 self.addEventListener("notificationclick", event => {
@@ -49,24 +84,3 @@ self.addEventListener("notificationclick", event => {
         });
     }
 });
-
-setInterval(() => {
-    fetch("/notifyq", {
-        method: "GET",
-        credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Cid': cid
-        }
-    }).then(res => {
-        if (res.ok && res.status === 200) // do nothing if 204
-            res.json().then(json => {
-                console.log(`SEND ${JSON.stringify(json)}`);
-                if ("title" in json) {
-                    const title = json["title"];
-                    delete json.title;
-                    self.registration.showNotification(title, json);
-                }
-            }).catch(() => { });
-    }).catch((e) => { console.log(`Error: ${e}`) });
-}, 1000);

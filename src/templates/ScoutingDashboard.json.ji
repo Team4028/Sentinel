@@ -87,7 +87,7 @@
           "root_selector": "",
           "source": "url",
           "type": "json",
-          "url": "http://host.docker.internal:5000/percent",
+          "url": "{{sentinel_url}}/percent",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -300,7 +300,7 @@
             {
               "targetBlank": true,
               "title": "Team View",
-              "url": "http://host.docker.internal:3005/d/adcj6r4/team-view?var-TeamSelector=${__data.fields.Team}"
+              "url": "{{grafana_url}}/d/adcj6r4/team-view?var-TeamSelector=${__data.fields.Team}"
             }
           ],
           "mappings": [],
@@ -455,7 +455,7 @@
                 {
                   "targetBlank": true,
                   "title": "Team View",
-                  "url": "http://host.docker.internal:3005/d/adcj6r4/team-view?var-TeamSelector=${__data.fields.Team}"
+                  "url": "{{grafana_url}}/d/adcj6r4/team-view?var-TeamSelector=${__data.fields.Team}"
                 }
               ],
               "mappings": [],
@@ -579,7 +579,7 @@
                 {
                   "targetBlank": true,
                   "title": "Team View",
-                  "url": "http://host.docker.internal:3005/d/adcj6r4/team-view?var-TeamSelector=${__data.fields.Team}"
+                  "url": "{{grafana_url}}/d/adcj6r4/team-view?var-TeamSelector=${__data.fields.Team}"
                 }
               ],
               "mappings": [],
@@ -732,7 +732,7 @@
                 {
                   "targetBlank": true,
                   "title": "Team View",
-                  "url": "http://host.docker.internal:3005/d/adcj6r4/team-view?var-TeamSelector=${__data.fields.Team}"
+                  "url": "{{grafana_url}}/d/adcj6r4/team-view?var-TeamSelector=${__data.fields.Team}"
                 }
               ],
               "mappings": [],
@@ -957,7 +957,7 @@
             "root_selector": "",
             "source": "url",
             "type": "json",
-            "url": "http://host.docker.internal:5000/next-3",
+            "url": "{{sentinel_url}}/next-3",
             "url_options": {
               "data": "",
               "method": "GET",

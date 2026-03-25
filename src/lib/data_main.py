@@ -1,4 +1,6 @@
-import math
+import time
+from typing import Any, Callable, TypeVar
+
 import pandas as pd
 import os
 import json
@@ -6,12 +8,15 @@ import numpy as np
 
 try:
     from lib.data_config import eval_beakscript, FANCY_FIL
+    import apputils
 except ModuleNotFoundError:
     from src.lib.data_config import eval_beakscript, FANCY_FIL
+    import src.apputils
 from collections import defaultdict
 from collections.abc import Iterable
 import logging
 from scipy.linalg import svd
+import statbotics
 
 logger = logging.getLogger(__name__)
 
@@ -124,23 +129,133 @@ class MatchStruct:
         return data
 
 
+ET = TypeVar("ET", bound=Callable)
+
+
+class Event[ET]:
+
+    def __is_iterable(x):
+        try:
+            iter(x)
+            return True
+        except TypeError:
+            return False
+
+    def __init__(self, name: str = ""):
+        self._handlers = []
+        self.name = name
+
+    def __iadd__(self, f: ET | list[ET]):
+        if Event.__is_iterable(f):
+            self._handlers.extend(f)
+        else:
+            self._handlers.append(f)
+        return self
+
+    def __isub__(self, f: ET | list[ET]):
+        if Event.__is_iterable(f):
+            self._handlers.extend(f)
+        else:
+            self._handlers.remove(f)
+        return self
+
+    def fire(self, logging_callback: Callable[[str], None], *args, **kwargs):
+        for i, f in enumerate(self._handlers):
+            if logging_callback != None:
+                logging_callback(
+                    f"{self.name} [{i + 1}/{len(self._handlers)}]: {f.__name__}"
+                )
+            f(*args, **kwargs)
+
+
+class ObjectHolder[T]:
+    """Pass-by-reference for noobs"""
+
+    def __init__(self, object: T):
+        self.obj = object
+
+
 class Processor:
     """Main class of data calculation, handles all calculation basically"""
 
+    last_fetch_timestamp = 0
+
     def __init__(
-        self, outpath, chunk_size, teams, sched, ranks, oprs, coprs, curr_oprs, config_data
+        self,
+        outpath,
+        outname,
+        period_min,
+        event_key,
+        tba_key,
+        year,
+        chunk_size,
+        config_data,
     ) -> None:
         self.chunk_size = chunk_size
         self.outpath = outpath
-        self._teamsAt = teams
-        self._sched = sched
+        self.outname = outname
+        self.period_min = period_min
+        self._teamsAt = []
+        self._sched = []
+        self.event_key, self.tba_key, self.year = event_key, tba_key, year
         self._teams: dict[str, TeamStruct] = {}
+        self.sb = statbotics.Statbotics()
         self._matches = {}
-        self._ranks = ranks
-        self._oprs = oprs
-        self._coprs = coprs
-        self._curr_oprs = curr_oprs
+        self._ranks = {}
+        self._oprs = {}
+        self._coprs = {}
+        self._curr_oprs = {}
+        self._epas = {}
         self.config_data = config_data
+        self.periodic_calls = Event[Callable[[], None]]("Periodic calls")
+        self.chunk_processing_routine = Event[
+            Callable[[ObjectHolder[pd.DataFrame]], None]
+        ]("Processing Routine")
+        self.post_process_routine = Event[Callable[[], None]]("Post-processing Routine")
+
+        self.periodic_calls += [
+            self.load_remote_data,
+            self.predict_matches,
+            self.statbotics_analysis,
+            self.match_predict_depth,
+            self.reset_fetch_timestamp,
+        ]
+
+        self.chunk_processing_routine += [
+            self.pre_filter_chunk,
+            self.pre_process_chunk,
+            self.drop_duplicates_chunk,
+            self.filter_chunk,
+            self.compute_fields_chunk,
+            self.build_teams_chunk,
+            self.svd_data_chunk,
+            self.team_proc_chunk,
+            self.match_proc_chunk,
+        ]
+
+        self.post_process_routine += [self.output_teams, self.output_matches]
+
+    def reset_fetch_timestamp(self):
+        self.last_fetch_timestamp = time.time()
+
+    def load_remote_data(self):
+        try:
+            (
+                self._teamsAt,
+                self._sched,
+                self._ranks,
+                self._oprs,
+                self._coprs,
+                self._curr_oprs,
+            ) = apputils.load_tba_data(self.event_key, self.tba_key, self.year)
+            self._epas = {
+                s["team"]: s["epa"]["total_points"]["mean"]
+                for s in self.sb.get_team_events(
+                    event="2026paca", limit=1000, fields=["team", "epa"]
+                )
+            }
+        except Exception as e:
+            logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
     def mad_filter(
         data, c=2
@@ -168,7 +283,9 @@ class Processor:
         matrix = np.zeros((arrLen, arrLen))
         teamkeys = list(self._teams.keys())
         team_index = {team: idx for idx, team in enumerate(teamkeys)}
-        grouped = (stat.groupby([tn_field, compteamname])[stat.columns[2]].mean().fillna(0))
+        grouped = (
+            stat.groupby([tn_field, compteamname])[stat.columns[2]].mean().fillna(0)
+        )
         for (t1, t2), value in grouped.items():
             if t1 in team_index and t2 in team_index:
                 i = team_index[t1]
@@ -201,8 +318,15 @@ class Processor:
             2,  # use 2 because %
         )
 
-    def output_teams(self, outfile) -> None:
+    def get_team_epa(self, team):
+        try:
+            return self.sb.get_team_year(team, 2026)["epa"]["total_points"]["mean"]
+        except:
+            return 0
+
+    def output_teams(self) -> None:
         """writes all of the calculated team data (averages, etc.) to the outfile"""
+        outfile = os.path.join(self.outpath, self.outname + "-teams.csv")
         df = []
         for (
             k,
@@ -213,8 +337,12 @@ class Processor:
             # bind each team to the dict serialization of its cooresponding struct
             df.append(
                 {"Team": k}
+                | {"EPA": self._epas[k] if k in self._epas else 0.0}
                 | v.output_dict(
-                    self.config_data, self._oprs[str(k)] if str(k) in self._oprs else 0, self._curr_oprs[str(k)] if str(k) in self._curr_oprs else 0, self._coprs[str(k)] if str(k) in self._coprs else {}
+                    self.config_data,
+                    self._oprs[str(k)] if str(k) in self._oprs else 0,
+                    self._curr_oprs[str(k)] if str(k) in self._curr_oprs else 0,
+                    self._coprs[str(k)] if str(k) in self._coprs else {},
                 )
             )
         pd.DataFrame(df).to_csv(outfile, index=False)
@@ -229,9 +357,21 @@ class Processor:
                         int(key.removeprefix("frc"))
                     ].output_dict(
                         self.config_data,
-                        self._oprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._oprs else 0,
-                        self._curr_oprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._curr_oprs else 0,
-                        self._coprs[key.removeprefix("frc")] if key.removeprefix("frc") in self._coprs else {}
+                        (
+                            self._oprs[key.removeprefix("frc")]
+                            if key.removeprefix("frc") in self._oprs
+                            else 0
+                        ),
+                        (
+                            self._curr_oprs[key.removeprefix("frc")]
+                            if key.removeprefix("frc") in self._curr_oprs
+                            else 0
+                        ),
+                        (
+                            self._coprs[key.removeprefix("frc")]
+                            if key.removeprefix("frc") in self._coprs
+                            else {}
+                        ),
                     )[
                         self.config_data["p-metric"]["source"]
                     ]
@@ -240,8 +380,9 @@ class Processor:
                 score.append(0)
         return score
 
-    def match_predict_depth(self, outfile) -> None:
+    def match_predict_depth(self) -> None:
         """Write in-depth match prediction (things like deep climb and cycles, info about the teams playing) to outfile"""
+        outfile = os.path.join(self.outpath, self.outname + "-morepredict.csv")
         df = []
         for match in self._sched:
             for color in ["b", "r"]:
@@ -254,21 +395,44 @@ class Processor:
                     }
                     if int(team) in self._teams:
                         teamO = self._teams[int(team)].output_dict(
-                            self.config_data, self._oprs[team] if team in self._oprs else 0, self._curr_oprs[team] if team in self._curr_oprs else 0, self._coprs[team] if team in self._coprs else {}
+                            self.config_data,
+                            self._oprs[team] if team in self._oprs else 0,
+                            self._curr_oprs[team] if team in self._curr_oprs else 0,
+                            self._coprs[team] if team in self._coprs else {},
                         )
                         for field in self.config_data["deep-predict"]:
                             if field["source"] in teamO:
                                 dat |= {
                                     field["name"]: teamO[field["source"]]
-                            }  # append the relevant datas
+                                }  # append the relevant datas
                     else:
                         for field in self.config_data["deep-predict"]:
                             dat |= {field["name"]: 0}
                     df.append(dat)
         pd.DataFrame(df).to_csv(outfile, index=False)
 
-    def predict_matches(self, outfile) -> None:
+    def statbotics_analysis(self) -> None:
+        outfile = os.path.join(self.outpath, self.outname + "-statbotics.csv")
+        df = []
+        stat = self.sb.get_matches(event=self.event_key)
+        for match in stat:
+            df.append(
+                {
+                    "Match": match["key"],
+                    "Red 1": match["alliances"]["red"]["team_keys"][0],
+                    "Red 2": match["alliances"]["red"]["team_keys"][1],
+                    "Red 3": match["alliances"]["red"]["team_keys"][2],
+                    "Blue 1": match["alliances"]["blue"]["team_keys"][0],
+                    "Blue 2": match["alliances"]["blue"]["team_keys"][1],
+                    "Blue 3": match["alliances"]["blue"]["team_keys"][2],
+                }
+                | match["pred"]
+            )
+        pd.DataFrame(df).to_csv(outfile, index=False)
+
+    def predict_matches(self) -> None:
         """Predicts the score contributions, overall score, and winner of each match, writing to outfile"""
+        outfile = os.path.join(self.outpath, self.outname + "-predict.csv")
         df = []
         for match in self._sched:
             for color in ["b", "r"]:
@@ -304,12 +468,14 @@ class Processor:
 
     def write_other_metrics(self, outfile) -> None:
         """writes the json other metrics (right now only percent teams scouted) to the outfile"""
+        outfile = os.path.join(self.outpath, "other-metrics.json")
         with open(outfile, "w") as w:
             json.dump(
                 {"Percent Teams Scouted": self.get_percent_scouted()}, w, indent=4
             )
 
-    def output_matches(self, outfile) -> None:
+    def output_matches(self) -> None:
+        outfile = os.path.join(self.outpath, self.outname + "-matches.csv")
         """outputs the match data (what each team in each match did) to the outfile"""
         df = []
         for k, v in self._matches.items():
@@ -329,8 +495,235 @@ class Processor:
             data_filepath, index=False
         )
 
-    def proccess_data(self, data_filepath: str, outname) -> None:
+    def pre_filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        df.obj["Pre-filter-keep"] = True
+        for i in range(len(self.config_data["pre-tests"])):
+            logger.info(
+                f"Performing pre-test: {self.config_data["pre-tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["pre-tests"]) - (i + 1)))}]"
+            )
+            df.obj["Pre-filter-keep"] = (df.obj["Pre-filter-keep"]) & (
+                eval_beakscript(
+                    self.config_data["pre-tests"][i]["expr"],
+                    df.obj,
+                    "Data Test " + self.config_data["pre-tests"][i]["name"],
+                )
+            )
+        df.obj = df.obj.loc[
+            df.obj["Pre-filter-keep"] == True
+        ]  # remove values that didn't pass the test (my English grade)
+        df.obj.drop(columns=["Pre-filter-keep"], inplace=True)
+
+    def pre_process_chunk(self, df: ObjectHolder[pd.DataFrame]):
+
+        if len(self.config_data["preproc"]) > 0:
+
+            def apply_preproc_row(row: pd.Series, prep) -> list[pd.Series]:
+                new_rho = eval_beakscript(
+                    prep["op"], row, "Preprocessor Function " + prep["name"]
+                )
+                if isinstance(new_rho, pd.Series):
+                    if len(new_rho) > 0 and isinstance(new_rho.iloc[0], pd.Series):
+                        return list(
+                            new_rho
+                        )  # if series of series, return list of series
+                    return [
+                        new_rho
+                    ]  # else return 1 element list of series (the series)
+                if isinstance(new_rho, (list, tuple)):
+                    return list(new_rho)
+                raise TypeError(
+                    f"Error: unsupported return type for preproc function {prep["name"]}: {type(new_rho)}"
+                )
+
+            for i in range(len(self.config_data["preproc"])):
+                last_cols = df.obj.columns
+                logger.info(
+                    f"Performing preprocess operation: {self.config_data["preproc"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["preproc"]) - (i + 1)))}]"
+                )
+                exp = (
+                    df.obj.apply(
+                        lambda row: apply_preproc_row(
+                            row, self.config_data["preproc"][i]
+                        ),
+                        axis=1,
+                    )
+                    .explode()
+                    .reset_index(drop=True)
+                )
+                df.obj = pd.DataFrame(exp.tolist())
+                if "new-headers" in self.config_data["preproc"][i]:
+                    df.obj.columns = self.config_data["preproc"][i]["new-headers"]
+                else:
+                    df.obj.columns = last_cols
+
+    def drop_duplicates_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        # if MN and TN are the same, there are two instances of the same team in the same match, so it's a duplicate row
+        if len(self.config_data["uniques"]) > 0:
+            dupes = df.obj.duplicated(subset=self.config_data["uniques"], keep=False)
+            if dupes.any():
+                logger.warning(
+                    "Warning: duplicate teams for the following matches:\n\t"
+                    + "\n\t".join(
+                        str(
+                            df.obj[dupes][self.config_data["uniques"]].drop_duplicates()
+                        ).split("\n")
+                    )
+                )
+                logger.info("Filtering out...")
+            df.obj = df.obj.drop_duplicates(
+                subset=self.config_data["uniques"], keep="first"
+            )  # remove the duplicates
+
+    def filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        df.obj["filter-keep"] = True
+        for i in range(len(self.config_data["tests"])):
+            logger.info(
+                f"Performing test: {self.config_data["tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1)))}]"
+            )
+            df.obj["filter-keep"] = (df.obj["filter-keep"]) & (
+                eval_beakscript(
+                    self.config_data["tests"][i]["expr"],
+                    df.obj,
+                    "Data Test " + self.config_data["tests"][i]["name"],
+                )
+            )
+        df.obj = df.obj.loc[
+            df.obj["filter-keep"] == True
+        ]  # remove values that didn't pass the test (my English grade)
+        df.obj.drop(columns=["filter-keep"], inplace=True)
+
+    def compute_fields_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        for comp in self.config_data["compute"]:
+            # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
+            # this works because beakscript fully supports pd.DataFrame's, of which chunk is one
+            df.obj[comp["name"]] = eval_beakscript(
+                comp["eq"], df.obj, "Compute Field " + comp["name"]
+            )
+
+    def build_teams_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        for team in df.obj[self.config_data["tn"]].unique():
+            self._teams |= {int(team): TeamStruct()}
+
+    def svd_data_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        tn, mn = self.config_data["tn"], self.config_data["mn"]
+        for subj in self.config_data["svd"]:
+            u, v, s = self.get_svd_analysis(
+                df.obj[[self.config_data["tn"], subj["comp-team"], subj["source"]]],
+                subj["comp-team"],
+                tn,
+            )
+            svd_rank = []
+            svd_var = []
+
+            # make sorting
+            ks = np.array(list(u.keys()))
+            vs = np.array(list(u.values()))
+            sorted_i = np.argsort(vs)
+            sorted_v = vs[sorted_i]
+            dense_ranks = np.zeros_like(vs, dtype=int)
+            curr_rank = 0
+            dense_ranks[sorted_i[0]] = curr_rank
+            for i in range(1, len(vs)):
+                if sorted_v[i] != sorted_v[i - 1]:
+                    curr_rank += 1
+                dense_ranks[sorted_i[i]] = curr_rank
+            ranks = dict(zip(ks, dense_ranks))
+
+            for team in df.obj[tn]:
+                svd_rank.append(u[team])
+                svd_var.append(v[team])
+            df.obj[f"{subj["name"]}"] = svd_rank
+            if "variance-score" in subj["augs"]:
+                df.obj[f"{subj["name"]} Variance"] = svd_var
+            if "stability" in subj["augs"]:
+                df.obj[f"{subj["name"]} Stabillity"] = [
+                    s for _ in range(len(df.obj[tn]))
+                ]
+            for team in df.obj[tn].unique():
+                self._teams[int(team)].extend_data(
+                    {
+                        f"{subj["name"]}": ranks[team] + 1,
+                        f"{subj["name"]} Variance": v[team],
+                    }
+                )
+
+    def team_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        for team in df.obj[
+            self.config_data["tn"]
+        ].unique():  # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
+            team_data = {}
+            if int(team) in self._ranks:
+                team_data["Rank"], team_data["Average RP"] = self._ranks[int(team)]
+            else:
+                team_data["Rank"], team_data["Average RP"] = (None, None)
+            for field in self.config_data["teams"]:
+                # call the beakscript functions for the derived fields where the TN == team
+                val = eval_beakscript(
+                    field["derive"],
+                    df.obj.loc[df.obj[self.config_data["tn"]] == team],
+                    "Team Field " + field["name"],
+                )
+                if isinstance(val, pd.Series):
+                    val = val.tolist()  # pythonify the pandas datatypes
+                team_data[field["name"]] = val  # write the field to the csv
+            self._teams[int(team)].extend_data(
+                team_data
+            )  # add the data to the appropriate team struct
+
+    def match_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        tn, mn = self.config_data["tn"], self.config_data["mn"]
+        for match in df.obj[mn].unique():  # same thing as teams
+            row = df.obj.loc[
+                df.obj[mn] == match
+            ]  # row is actually 6 rows up here to be used for static fields
+            static_fields = {}
+            for field in self.config_data[
+                "matches"
+            ]:  # parse static fields before breaking down match by team
+                if "static" in field:
+                    val = eval_beakscript(
+                        field["derive"],
+                        row,
+                        "Static Match Field" + field["name"],
+                    )
+                    if isinstance(val, pd.Series):
+                        val = val.tolist()
+
+                    static_fields |= {field["name"]: val}
+            for i, team in enumerate(
+                df.obj.loc[df.obj[mn] == match, tn].unique()
+            ):  # the .unique is uneccesary but safe
+                data = {}
+                for field in self.config_data["matches"]:
+                    row = df.obj.loc[(df.obj[tn] == team) & (df.obj[mn] == match)]
+                    if "static" in field:
+                        continue
+                    # get derived fields for matches
+                    val = eval_beakscript(
+                        field["derive"],
+                        row.iloc[0],
+                        "Match Field" + field["name"],
+                    )
+                    if isinstance(val, pd.Series):
+                        val = val.tolist()
+                    data[field["name"]] = val
+                for f, fv in static_fields.items():
+                    if isinstance(fv, Iterable) and not isinstance(fv, (str, bytes)):
+                        data[f] = fv[i]
+                    else:
+                        data[f] = fv
+                self._matches.setdefault(match, MatchStruct()).add_team_data(
+                    int(team), data
+                )
+
+    def proccess_data(self, data_filepath: str) -> None:
         """Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files"""
+
+        if ((time.time() - self.last_fetch_timestamp) / 60 >= self.period_min) or (
+            self._teamsAt == None or self._sched == None
+        ):
+            self.periodic_calls.fire(lambda s: logger.info(f"\t{s}"))
+            self.last_fetch_timestamp = time.time()
 
         if self._teamsAt == None or self._sched == None:
             raise Exception("Error: Missing TBA Key: Please add one in settings")
@@ -339,244 +732,24 @@ class Processor:
         self._matches.clear()
 
         with pd.read_csv(
-            data_filepath, chunksize=self.chunk_size, iterator=True,
+            data_filepath,
+            chunksize=self.chunk_size,
+            iterator=True,
         ) as reader:
             first = True
-            tn, mn = self.config_data["tn"], self.config_data["mn"]
             for chunk in reader:  # read in chunks in case big
-                chunk["Pre-filter-keep"] = True
-                for i in range(len(self.config_data["pre-tests"])):
-                    logger.info(
-                        f"Performing pre-test: {self.config_data["pre-tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["pre-tests"]) - (i + 1)))}]"
-                    )
-                    chunk["Pre-filter-keep"] = (chunk["Pre-filter-keep"]) & (
-                        eval_beakscript(
-                            self.config_data["pre-tests"][i]["expr"],
-                            chunk,
-                            "Data Test " + self.config_data["pre-tests"][i]["name"],
-                        )
-                    )
-                chunk = chunk.loc[
-                    chunk["Pre-filter-keep"] == True
-                ]  # remove values that didn't pass the test (my English grade)
-                chunk.drop(columns=["Pre-filter-keep"], inplace=True)
-
-                if len(self.config_data["preproc"]) > 0:
-
-                    def apply_preproc_row(row: pd.Series, prep) -> list[pd.Series]:
-                        new_rho = eval_beakscript(
-                            prep["op"], row, "Preprocessor Function " + prep["name"]
-                        )
-                        if isinstance(new_rho, pd.Series):
-                            if len(new_rho) > 0 and isinstance(
-                                new_rho.iloc[0], pd.Series
-                            ):
-                                return list(
-                                    new_rho
-                                )  # if series of series, return list of series
-                            return [
-                                new_rho
-                            ]  # else return 1 element list of series (the series)
-                        if isinstance(new_rho, (list, tuple)):
-                            return list(new_rho)
-                        raise TypeError(
-                            f"Error: unsupported return type for preproc function {prep["name"]}: {type(new_rho)}"
-                        )
-
-                    for i in range(len(self.config_data["preproc"])):
-                        last_cols = chunk.columns
-                        logger.info(
-                            f"Performing preprocess operation: {self.config_data["preproc"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["preproc"]) - (i + 1)))}]"
-                        )
-                        exp = (
-                            chunk.apply(
-                                lambda row: apply_preproc_row(
-                                    row, self.config_data["preproc"][i]
-                                ),
-                                axis=1,
-                            )
-                            .explode()
-                            .reset_index(drop=True)
-                        )
-                        chunk = pd.DataFrame(exp.tolist())
-                        if "new-headers" in self.config_data["preproc"][i]:
-                            chunk.columns = self.config_data["preproc"][i][
-                                "new-headers"
-                            ]
-                        else:
-                            chunk.columns = last_cols
-                # if MN and TN are the same, there are two instances of the same team in the same match, so it's a duplicate row
-                if len(self.config_data["uniques"]) > 0:
-                    dupes = chunk.duplicated(
-                        subset=self.config_data["uniques"], keep=False
-                    )
-                    if dupes.any():
-                        logger.warning(
-                            "Warning: duplicate teams for the following matches:\n\t"
-                            + "\n\t".join(
-                                str(
-                                    chunk[dupes][
-                                        self.config_data["uniques"]
-                                    ].drop_duplicates()
-                                ).split("\n")
-                            )
-                        )
-                        logger.info("Filtering out...")
-                    chunk = chunk.drop_duplicates(
-                        subset=self.config_data["uniques"], keep="first"
-                    )  # remove the duplicates
-                chunk["filter-keep"] = True
-                for i in range(len(self.config_data["tests"])):
-                    logger.info(
-                        f"Performing test: {self.config_data["tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1)))}]"
-                    )
-                    chunk["filter-keep"] = (chunk["filter-keep"]) & (
-                        eval_beakscript(
-                            self.config_data["tests"][i]["expr"],
-                            chunk,
-                            "Data Test " + self.config_data["tests"][i]["name"],
-                        )
-                    )
-                chunk = chunk.loc[
-                    chunk["filter-keep"] == True
-                ]  # remove values that didn't pass the test (my English grade)
-                chunk.drop(columns=["filter-keep"], inplace=True)
-                for comp in self.config_data["compute"]:
-                    # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
-                    # this works because beakscript fully supports pd.DataFrame's, of which chunk is one
-                    chunk[comp["name"]] = eval_beakscript(
-                        comp["eq"], chunk, "Compute Field " + comp["name"]
-                    )
-                for team in chunk[tn].unique():
-                    self._teams |= {int(team): TeamStruct()}
-                for subj in self.config_data["svd"]:
-                    u, v, s = self.get_svd_analysis(
-                        chunk[[tn, subj["comp-team"], subj["source"]]],
-                        subj["comp-team"],
-                        tn
-                    )
-                    svd_rank = []
-                    svd_var = []
-
-                    # make sorting
-                    ks = np.array(list(u.keys()))
-                    vs = np.array(list(u.values()))
-                    sorted_i = np.argsort(vs)
-                    sorted_v = vs[sorted_i]
-                    dense_ranks = np.zeros_like(vs, dtype=int)
-                    curr_rank = 0
-                    dense_ranks[sorted_i[0]] = curr_rank
-                    for i in range(1, len(vs)):
-                        if sorted_v[i] != sorted_v[i - 1]:
-                            curr_rank += 1
-                        dense_ranks[sorted_i[i]] = curr_rank
-                    ranks = dict(zip(ks, dense_ranks))
-
-                    for team in chunk[tn]:
-                        svd_rank.append(u[team])
-                        svd_var.append(v[team])
-                    chunk[f"{subj["name"]}"] = svd_rank
-                    if "variance-score" in subj["augs"]:
-                        chunk[f"{subj["name"]} Variance"] = svd_var
-                    if "stability" in subj["augs"]:
-                        chunk[f"{subj["name"]} Stabillity"] = [
-                            s for _ in range(len(chunk[tn]))
-                        ]
-                    for team in chunk[tn].unique():
-                        self._teams[int(team)].extend_data(
-                            {
-                                f"{subj["name"]}": ranks[team] + 1,
-                                f"{subj["name"]} Variance": v[team],
-                            }
-                        )
-
-                for team in chunk[
-                    tn
-                ].unique():  # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
-                    team_data = {}
-                    if int(team) in self._ranks:
-                        team_data["Rank"], team_data["Average RP"] = self._ranks[
-                            int(team)
-                        ]
-                    else:
-                        team_data["Rank"], team_data["Average RP"] = (None, None)
-                    for field in self.config_data["teams"]:
-                        # call the beakscript functions for the derived fields where the TN == team
-                        val = eval_beakscript(
-                            field["derive"],
-                            chunk.loc[chunk[tn] == team],
-                            "Team Field " + field["name"],
-                        )
-                        if isinstance(val, pd.Series):
-                            val = val.tolist()  # pythonify the pandas datatypes
-                        team_data[field["name"]] = val  # write the field to the csv
-                    self._teams[int(team)].extend_data(
-                        team_data
-                    )  # add the data to the appropriate team struct
-                for match in chunk[mn].unique():  # same thing as teams
-                    row = chunk.loc[
-                        chunk[mn] == match
-                    ]  # row is actually 6 rows up here to be used for static fields
-                    static_fields = {}
-                    for field in self.config_data[
-                        "matches"
-                    ]:  # parse static fields before breaking down match by team
-                        if "static" in field:
-                            val = eval_beakscript(
-                                field["derive"],
-                                row,
-                                "Static Match Field" + field["name"],
-                            )
-                            if isinstance(val, pd.Series):
-                                val = val.tolist()
-
-                            static_fields |= {field["name"]: val}
-                    for i, team in enumerate(
-                        chunk.loc[chunk[mn] == match, tn].unique()
-                    ):  # the .unique is uneccesary but safe
-                        data = {}
-                        for field in self.config_data["matches"]:
-                            row = chunk.loc[(chunk[tn] == team) & (chunk[mn] == match)]
-                            if "static" in field:
-                                continue
-                            # get derived fields for matches
-                            val = eval_beakscript(
-                                field["derive"],
-                                row.iloc[0],
-                                "Match Field" + field["name"],
-                            )
-                            if isinstance(val, pd.Series):
-                                val = val.tolist()
-                            data[field["name"]] = val
-                        for f, fv in static_fields.items():
-                            if isinstance(fv, Iterable) and not isinstance(
-                                fv, (str, bytes)
-                            ):
-                                data[f] = fv[i]
-                            else:
-                                data[f] = fv
-                        self._matches.setdefault(match, MatchStruct()).add_team_data(
-                            int(team), data
-                        )
+                chunk_holder = ObjectHolder(chunk)
+                self.chunk_processing_routine.fire(
+                    lambda s: logger.info(f"\t{s}"), chunk_holder
+                )
                 logger.info("Writing chunk...")
                 # write the main csv
                 chunk.to_csv(
-                    os.path.join(self.outpath, outname),
+                    os.path.join(self.outpath, self.outname),
                     index=False,
                     header=first,
                 )
                 first = False
         # write all the other files
-        logger.info("Writing teams...")
-        self.output_teams(os.path.join(self.outpath, outname + "-teams.csv"))
-        logger.info("Writing matches...")
-        self.output_matches(os.path.join(self.outpath, outname + "-matches.csv"))
-        logger.info("Writing predictions...")
-        self.predict_matches(os.path.join(self.outpath, outname + "-predict.csv"))
-        logger.info("Writing deep predictions...")
-        self.match_predict_depth(
-            os.path.join(self.outpath, outname + "-morepredict.csv")
-        )
-        logger.info("Writing other metrics...")
-        self.write_other_metrics(os.path.join(self.outpath, "other-metrics.json"))
+        self.post_process_routine.fire(lambda s: logger.info(f"\t{s}"))
         logger.info("Done!!!!")

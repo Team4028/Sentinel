@@ -3,6 +3,7 @@
     "ACCENT_COLOR": "#8307b0",
     "TEXT_COLOR": "#ffffff",
     "GRAFANA_URL": "http://grafana.beaksquad.dev",
+    "TBA_FETCH_PERIOD_MIN": 10,
     "CHUNK_SIZE": 10000,
     "YEAR": "2026_subjective",
     "TEAM": "4028",

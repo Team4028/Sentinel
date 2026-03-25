@@ -21,11 +21,14 @@ def require_admin(f):
 
 
 class BigBrother(UserMixin):
-    """The admin user"""
-
+    """ The admin user """
     id = "admin"
     is_admin = True
 
+class Winston(UserMixin):
+    """ Viewer user """
+    id = "viewer"
+    is_admin = False
 
 class LoginForm(FlaskForm):
     """Form used on the login page to log in"""
@@ -48,4 +51,6 @@ def init_loginm_app(app: Flask) -> None:
 def load_user(user_id) -> UserMixin | None:
     if user_id == "admin":
         return BigBrother()
+    elif user_id == "viewer":
+        return Winston()
     return None

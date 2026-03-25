@@ -4,7 +4,7 @@ import secrets
 import shutil
 import traceback
 from typing import Any, Generator
-from pandas import api
+import statbotics
 import requests
 from datetime import date
 import re
@@ -42,7 +42,27 @@ def generate_default_admin() -> tuple[str, str, str]:
         f.write("admin" + "\n" + pwd + "\n" + sec)
     return ("admin", pwd, sec)
 
+def generate_viewer() -> tuple[str, str]:
+    """Generates viewer credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt"""
+    os.makedirs("secrets", exist_ok=True)  # ensure secrets directory exists
+    un = input("Enter username: ")
+    pwd = line_str_hash(input("Enter password: "))  # hash pw into sha256
+    with open("./secrets/viewer.txt", "w") as f:
+        f.write(un + "\n" + pwd)  # save
+    return (un, pwd)
+
+
+def generate_default_viewer() -> tuple[str, str]:
+    """Generates default viewer credentials so as not to rely on input()"""
+    os.makedirs("secrets", exist_ok=True)
+    pwd = line_str_hash("smith")
+    with open("./secrets/viewer.txt", "w") as f:
+        f.write("john" + "\n" + pwd)
+    return ("john", pwd)
+
+
 def generate_ssl_sign():
+    """ useless, just use reverse-proxy with nginx for https """
     domains = ["sentinel.beaksquad.dev", "localhost"]
     key = rsa.generate_private_key(
         public_exponent=65537,
@@ -342,7 +362,7 @@ def get_tba_ranks(event_key, api_key, teams):
         return {}
 
 
-def load_tba_data(event_key, api_key, year):
+def load_tba_data(event_key, api_key, year) -> tuple[list[Any], list[dict[str, Any]], (dict | dict[Any, tuple[Any, Any]]), Any, (dict | Any), (dict[Any, Any] | Any)]:
     """Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule)"""
     didnt_read = True
     if os.path.exists("config/tba-cache.json"):
@@ -412,6 +432,7 @@ def load_tba_data(event_key, api_key, year):
 def read_secrets():
     """Reads the different secrets of the repo: admin creds, flask secret key, and tba auth key in that order"""
     admin_login = {}
+    viewer_login = {}
 
     if os.path.exists("./secrets/admin.txt"):
         with open("./secrets/admin.txt", "r") as r:
@@ -421,13 +442,20 @@ def read_secrets():
     else:
         admin_login["un"], admin_login["pwd"], key = generate_default_admin()
 
+    if os.path.exists("./secrets/viewer.txt"):
+        with open("./secrets/viewer.txt", 'r') as r:
+            viewer_login["un"] = r.readline().strip()
+            viewer_login["pwd"] = r.readline().strip()
+    else:
+        viewer_login["un"], viewer_login["pwd"] = generate_default_viewer()
+
     if os.path.exists("./secrets/key.txt"):
         with open("./secrets/key.txt", "r") as f:
             auth_key = f.read().strip()
     else:
         auth_key = ""
 
-    return (admin_login, key, auth_key)
+    return (admin_login, viewer_login, key, auth_key)
 
 
 def set_auth_key(key: str) -> None:
@@ -443,10 +471,16 @@ def data_in_exists(app) -> bool:
     )
 
 
-def change_un_pwd(current_secret_key: str, newun: str, newpwd: str) -> None:
+def change_un_pwd_admin(current_secret_key: str, newun: str, newpwd: str) -> None:
     """updates the username and password"""
     os.makedirs("./secrets", exist_ok=True)
     with open("./secrets/admin.txt", "w") as f:
+        f.write("\n".join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
+
+def change_un_pwd_viewer(current_secret_key: str, newun: str, newpwd: str) -> None:
+    """updates the username and password"""
+    os.makedirs("./secrets", exist_ok=True)
+    with open("./secrets/viewer.txt", "w") as f:
         f.write("\n".join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
 
 

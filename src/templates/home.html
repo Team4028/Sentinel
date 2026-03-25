@@ -211,6 +211,17 @@
             border-radius: 4px;
         }
 
+        #status {
+            color: #aaa;
+            background-color: #111;
+            padding: 5px;
+            border-radius: 10px;
+        }
+
+        #status:empty {
+            background: rgba(100, 0, 0, 0);
+        }
+
         .logout-btn {
             display: inline-block;
             align-items: center;
@@ -335,7 +346,7 @@
         </div>
 
         <!-- Status text -->
-        <div id="status" style="color: black;"></div>
+        <div id="status"></div>
 
     </div>
 
@@ -514,7 +525,11 @@
                 method: "POST"
             }).then(async res => {
                 progressBar.style.width = "100%";
-                statusText.innerText = `[${new Date().toLocaleString()}] ` + await res.text();
+                console.log(res.status);
+                if (res.status === 401 || res.status === 403)
+                    statusText.innerText = `[${new Date().toLocaleString()}] Auth error, are you logged in as admin?`;
+                else
+                    statusText.innerText = `[${new Date().toLocaleString()}] ` + await res.text();
             });
         }
 

@@ -40,7 +40,7 @@
       "options": {
         "alt_field": "",
         "autofit": false,
-        "baseUrl": "http://host.docker.internal:5000/team-photo?team=",
+        "baseUrl": "{{sentinel_url}}/team-photo?team=",
         "height": "75",
         "icon_field": "Team",
         "open_url": {

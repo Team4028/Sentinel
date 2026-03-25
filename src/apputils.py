@@ -42,6 +42,7 @@ def generate_default_admin() -> tuple[str, str, str]:
         f.write("admin" + "\n" + pwd + "\n" + sec)
     return ("admin", pwd, sec)
 
+
 def generate_viewer() -> tuple[str, str]:
     """Generates viewer credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt"""
     os.makedirs("secrets", exist_ok=True)  # ensure secrets directory exists
@@ -62,20 +63,19 @@ def generate_default_viewer() -> tuple[str, str]:
 
 
 def generate_ssl_sign():
-    """ useless, just use reverse-proxy with nginx for https """
+    """useless, just use reverse-proxy with nginx for https"""
     domains = ["sentinel.beaksquad.dev", "localhost"]
-    key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Ohio"),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, "Local"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "FRC 4028 The Beak Squad"),
+            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "Robotics"),
+            x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
+        ]
     )
-    subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME, u"US"),
-        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"Ohio"),
-        x509.NameAttribute(NameOID.LOCALITY_NAME, u"Local"),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"FRC 4028 The Beak Squad"),
-        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, u"Robotics"),
-        x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
-    ])
 
     san = x509.SubjectAlternativeName([x509.DNSName(d) for d in domains])
 
@@ -91,19 +91,17 @@ def generate_ssl_sign():
         .sign(key, hashes.SHA256())
     )
 
-    with open("./secrets/sentinel-key.pem", 'wb') as w:
+    with open("./secrets/sentinel-key.pem", "wb") as w:
         w.write(
             key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=serialization.NoEncryption()
+                encryption_algorithm=serialization.NoEncryption(),
             )
         )
-    
-    with open('./secrets/certinel.pem', 'wb') as w:
-        w.write(
-            cert.public_bytes(serialization.Encoding.PEM)
-        )
+
+    with open("./secrets/certinel.pem", "wb") as w:
+        w.write(cert.public_bytes(serialization.Encoding.PEM))
 
 
 def safer_replace(src, dest) -> None:
@@ -205,7 +203,7 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
                 {"X-TBA-Auth-Key": api_key},
             ).json()
             for x, y in fetch_oprs["oprs"].items():
-                oprs |= {x.removeprefix("frc"): round(float(y), 3)}
+                oprs |= {int(x.removeprefix("frc")): round(float(y), 3)}
             add_jsons_to_cache({"curr_oprs": oprs})
         else:
             if os.path.exists("config/tba-cache.json"):
@@ -223,14 +221,16 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
     except Exception as e:
         logger.error(exception_format(e))
         return {}
-    
+
+
 def invert_jeson(jeson):
     result = {}
     for k, k2 in jeson.items():
         for k21, k22 in k2.items():
             result.setdefault(k21, {})[k] = k22
     return result
-    
+
+
 def get_tba_coprs(event_key, api_key):
     coprs = {}
     try:
@@ -240,15 +240,15 @@ def get_tba_coprs(event_key, api_key):
             )
             coprs = requests.get(
                 f"https://www.thebluealliance.com/api/v3/event/{event_key}/coprs",
-                {'X-TBA-Auth-Key': api_key},
+                {"X-TBA-Auth-Key": api_key},
             ).json()
             coprs = invert_jeson(coprs)
             for team in list(coprs.keys()):
-                coprs[team.removeprefix('frc')] = coprs.pop(team)
+                coprs[int(team.removeprefix("frc"))] = coprs.pop(team)
             add_jsons_to_cache({"coprs": coprs})
         else:
             if os.path.exists("config/tba-cache.json"):
-                with open('config/tba-cache.json') as r:
+                with open("config/tba-cache.json") as r:
                     js = json.load(r)
                     if "coprs" in js:
                         coprs = js["coprs"]
@@ -263,18 +263,25 @@ def get_tba_coprs(event_key, api_key):
         logger.error(exception_format(e))
         return {}
 
+
 def get_tba_opr(event_key, api_key, year, teams):
     """returns a dictionary of each team to their cooresponding opr at their last competition"""
     oprs = {}
     try:
         didnt_read = True
-        if os.path.exists("config/tba-cache.json"):  # use cache first because lots of data
+        if os.path.exists(
+            "config/tba-cache.json"
+        ):  # use cache first because lots of data
             with open("config/tba-cache.json", "r") as r:
                 js = json.load(r)
                 if "oprs" in js:
                     oprs = js["oprs"]
                     didnt_read = False
-        if didnt_read and tba_health() and not (api_key == None or api_key.strip() == ""):
+        if (
+            didnt_read
+            and tba_health()
+            and not (api_key == None or api_key.strip() == "")
+        ):
             for team in teams:
                 opr = 0.0
                 logger.info(
@@ -300,13 +307,16 @@ def get_tba_opr(event_key, api_key, year, teams):
                     logger.info(
                         f"Fetch: https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs"
                     )
-                    opr = float(
-                        requests.get(
-                            f"https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs",
-                            headers={"X-TBA-Auth-Key": api_key},
-                        ).json()["oprs"][f"frc{team}"]
-                    )  # get the teams opr from that event
-                oprs |= {team: round(opr, 3)}
+                    try:
+                        opr = float(
+                            requests.get(
+                                f"https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs",
+                                headers={"X-TBA-Auth-Key": api_key},
+                            ).json()["oprs"][f"frc{team}"]
+                        )  # get the teams opr from that event
+                    except KeyError:
+                        opr = 0.0
+                oprs |= {int(team): round(opr, 3)}
             add_jsons_to_cache({"oprs": oprs})
         elif didnt_read:
             logger.error("Error: no wifi or tba cache or invalid api key")
@@ -362,7 +372,32 @@ def get_tba_ranks(event_key, api_key, teams):
         return {}
 
 
-def load_tba_data(event_key, api_key, year) -> tuple[list[Any], list[dict[str, Any]], (dict | dict[Any, tuple[Any, Any]]), Any, (dict | Any), (dict[Any, Any] | Any)]:
+class TBAData:
+    def __init__(
+        self,
+        teams=[],
+        schedule={},
+        ranks={},
+        opr={},
+        copr={},
+        curr_oprs={},
+    ):
+        self.teams = teams
+        self.schedule = schedule
+        self.ranks = ranks
+        self.opr = opr
+        self.copr = copr
+        self.curr_oprs = curr_oprs
+
+
+def load_tba_data(event_key, api_key, year) -> tuple[
+    list[Any],
+    list[dict[str, Any]],
+    (dict | dict[Any, tuple[Any, Any]]),
+    Any,
+    (dict | Any),
+    (dict[Any, Any] | Any),
+]:
     """Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule)"""
     didnt_read = True
     if os.path.exists("config/tba-cache.json"):
@@ -411,15 +446,25 @@ def load_tba_data(event_key, api_key, year) -> tuple[list[Any], list[dict[str, A
         [
             {
                 "k": x["key"],
-                "r": x["alliances"]["red"]["team_keys"],
-                "b": x["alliances"]["blue"]["team_keys"],
+                "r": list(
+                    map(
+                        lambda team: team.removeprefix("frc"),
+                        x["alliances"]["red"]["team_keys"],
+                    )
+                ),
+                "b": list(
+                    map(
+                        lambda team: team.removeprefix("frc"),
+                        x["alliances"]["blue"]["team_keys"],
+                    )
+                ),
             }
             for x in schedJson
         ],
         key=sched_sorter,
     )
 
-    return (
+    return TBAData(
         teams,
         schedule,
         get_tba_ranks(event_key, api_key, teams),
@@ -443,7 +488,7 @@ def read_secrets():
         admin_login["un"], admin_login["pwd"], key = generate_default_admin()
 
     if os.path.exists("./secrets/viewer.txt"):
-        with open("./secrets/viewer.txt", 'r') as r:
+        with open("./secrets/viewer.txt", "r") as r:
             viewer_login["un"] = r.readline().strip()
             viewer_login["pwd"] = r.readline().strip()
     else:
@@ -476,6 +521,7 @@ def change_un_pwd_admin(current_secret_key: str, newun: str, newpwd: str) -> Non
     os.makedirs("./secrets", exist_ok=True)
     with open("./secrets/admin.txt", "w") as f:
         f.write("\n".join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
+
 
 def change_un_pwd_viewer(current_secret_key: str, newun: str, newpwd: str) -> None:
     """updates the username and password"""

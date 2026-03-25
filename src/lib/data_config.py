@@ -138,11 +138,6 @@ def lex_config(year: str):
         config["uniques"] = data["filter-unique-fields"]
         if 'copr-keys' in data:
             config['copr'] = data['copr-keys']
-            for cpr in data["copr-keys"]:
-                config["deep-predict"].append({
-                    "name": cpr,
-                    "source": cpr
-                })
         if "subjective-svd-fields" in data:
             for field in data["subjective-svd-fields"]:
                 config["svd"].append(
@@ -190,10 +185,7 @@ def lex_config(year: str):
             config["deep-predict"].append(
                 {"name": field["name"], "source": field["source"]}
             )
-        config["deep-predict"].append({
-            "name": "OPR",
-            "source": "OPR"
-        })
+    logger.info(f"Successfully loaded config for year: {year}")
     return config
 
 

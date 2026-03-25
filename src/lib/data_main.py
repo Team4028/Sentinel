@@ -1,3 +1,7 @@
+from enum import Enum
+from functools import reduce
+import operator
+import sqlite3
 import time
 from typing import Any, Callable, TypeVar
 
@@ -36,18 +40,10 @@ class TeamStruct:
                     merged[k].append(v)
         self.data = dict(merged)
 
-    def output_dict(self, config, _opr, _curr_opr, _coprs):
+    def output_dict(self, config):
         """Get all of the team data as a dictionary, unwrapping DataFields to get averages and such"""
-        data = {
-            "Rank": self.data["Rank"][0],
-            "Average RP": self.data["Average RP"][0],
-            "OPR": _curr_opr,
-            "Last OPR": _opr,
-        }
+        data = {}
         # the | operator for dicts in python combines dicts with different entries (OR's them)
-        for field in config["copr"]:
-            if field in _coprs:
-                data |= DataField(field, _coprs[field], []).objectify()
         for field in config["svd"]:
             data |= (
                 DataField(field["name"], self.data[field["name"]], []).objectify()
@@ -178,6 +174,18 @@ class ObjectHolder[T]:
 class Processor:
     """Main class of data calculation, handles all calculation basically"""
 
+    class SqliteFiles(Enum):
+        MATCHES = "matches"
+        TEAMS = "teams"
+
+        def get_filepath(self) -> str:
+            match self:
+                case self.MATCHES:
+                    return "matches.db"
+                case self.TEAMS:
+                    return "teams.db"
+            return ""
+
     last_fetch_timestamp = 0
 
     def __init__(
@@ -195,19 +203,16 @@ class Processor:
         self.outpath = outpath
         self.outname = outname
         self.period_min = period_min
-        self._teamsAt = []
-        self._sched = []
+        self._tba_data = apputils.TBAData()
         self.event_key, self.tba_key, self.year = event_key, tba_key, year
         self._teams: dict[str, TeamStruct] = {}
         self.sb = statbotics.Statbotics()
+        self._sb_epas = {}
+        self._sb_matches = []
         self._matches = {}
-        self._ranks = {}
-        self._oprs = {}
-        self._coprs = {}
-        self._curr_oprs = {}
         self._epas = {}
         self.config_data = config_data
-        self.periodic_calls = Event[Callable[[], None]]("Periodic calls")
+        self.periodic_calls = Event[Callable[[], None]]("Periodic Fetch Routine")
         self.chunk_processing_routine = Event[
             Callable[[ObjectHolder[pd.DataFrame]], None]
         ]("Processing Routine")
@@ -215,9 +220,10 @@ class Processor:
 
         self.periodic_calls += [
             self.load_remote_data,
-            self.predict_matches,
-            self.statbotics_analysis,
-            self.match_predict_depth,
+            self.write_match_schedule_file,
+            self.write_teams_file,
+            self.write_statbotics_analytics,
+            self.write_team_tba_data_file,
             self.reset_fetch_timestamp,
         ]
 
@@ -233,29 +239,450 @@ class Processor:
             self.match_proc_chunk,
         ]
 
-        self.post_process_routine += [self.output_teams, self.output_matches]
+        self.post_process_routine += [
+            self.write_match_predictions_file,
+            self.write_match_depth_predictions,
+            self.write_statbotics_epa,
+            self.write_match_fields,
+            self.write_team_fields,
+        ]
+
+        self.sql_fields = {
+            f"{Processor.SqliteFiles.MATCHES.value}": [
+                "Red_1",
+                "Red_2",
+                "Red_3",
+                "Blue_1",
+                "Blue_2",
+                "Blue_3",
+                "Predict_R1_Score",
+                "Predict_R2_Score",
+                "Predict_R3_Score",
+                "Predict_B1_Score",
+                "Predict_B2_Score",
+                "Predict_B3_Score",
+                "Predict_Red_Score",
+                "Predict_Blue_Score",
+                "Predict_Winner",
+                "Statbotics_winner",
+                "Statbotics_red_win_prob",
+                "Statbotics_red_Score",
+                "Statbotics_blue_Score",
+                "Statbotics_red_energized_rp",
+                "Statbotics_blue_energized_rp",
+                "Statbotics_red_supercharged_rp",
+                "Statbotics_blue_supercharged_rp",
+                "Statbotics_red_traversal_rp",
+                "Statbotics_blue_traversal_rp",
+                "Statbotics_red_rp_1",
+                "Statbotics_blue_rp_1",
+                "Statbotics_red_rp_2",
+                "Statbotics_blue_rp_2",
+                "Statbotics_red_rp_3",
+                "Statbotics_blue_rp_3",
+            ],
+            f"{Processor.SqliteFiles.MATCHES.value}_depth_predictions": [
+                "attr_name",
+                "attr_value",
+            ],
+            f"{Processor.SqliteFiles.MATCHES.value}_fields": [
+                "field_name",
+                "field_value",
+            ],
+            f"{Processor.SqliteFiles.TEAMS.value}": [
+                "EPA",
+                "Rank",
+                "Average_RP",
+                "OPR",
+                "Last_OPR",
+            ],
+            f"{Processor.SqliteFiles.TEAMS.value}_fields": [
+                "field_name",
+                "field_value",
+            ],
+        }
+
+        # Create Tables
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+        ) as conn:
+            conn.executescript(
+                f"""
+                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.MATCHES.value} (
+                    Match TEXT PRIMARY KEY,
+                    Red_1 INT,
+                    Red_2 INT,
+                    Red_3 INT,
+                    Blue_1 INT,
+                    Blue_2 INT,
+                    Blue_3 INT,
+                    Predict_R1_Score REAL,
+                    Predict_R2_Score REAL,
+                    Predict_R3_Score REAL,
+                    Predict_B1_Score REAL,
+                    Predict_B2_Score REAL,
+                    Predict_B3_Score REAL,
+                    Predict_Red_Score REAL,
+                    Predict_Blue_Score REAL,
+                    Predict_Winner TEXT,
+                    Statbotics_winner TEXT,
+                    Statbotics_red_win_prob REAL,
+                    Statbotics_red_Score REAL,
+                    Statbotics_blue_Score REAL,
+                    Statbotics_red_energized_rp REAL,
+                    Statbotics_blue_energized_rp REAL,
+                    Statbotics_red_supercharged_rp REAL,
+                    Statbotics_blue_supercharged_rp REAL,
+                    Statbotics_red_traversal_rp REAL,
+                    Statbotics_blue_traversal_rp REAL,
+                    Statbotics_red_rp_1 REAL,
+                    Statbotics_blue_rp_1 REAL,
+                    Statbotics_red_rp_2 REAL,
+                    Statbotics_blue_rp_2 REAL,
+                    Statbotics_red_rp_3 REAL,
+                    Statbotics_blue_rp_3 REAL
+                );
+
+                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.MATCHES.value}_depth_predictions (
+                    match_key TEXT NOT NULL REFERENCES {Processor.SqliteFiles.MATCHES.value}(Match),
+                    team_key INT,
+                    attr_name TEXT,
+                    attr_value TEXT,
+                    PRIMARY KEY (match_key, team_key, attr_name)
+                );
+
+                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.MATCHES.value}_fields (
+                    match_key TEXT NOT NULL REFERENCES {Processor.SqliteFiles.MATCHES.value}(Match),
+                    team_key INT,
+                    field_name TEXT,
+                    field_value TEXT,
+                    PRIMARY KEY (match_key, team_key, field_name)
+                );
+            """
+            )
+            conn.commit()
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+        ) as conn:
+            conn.executescript(
+                f"""
+                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.TEAMS.value} (
+                    Team INT PRIMARY KEY,
+                    EPA REAL,
+                    Rank REAL,
+                    Average_RP REAL,
+                    OPR REAL,
+                    Last_OPR REAL
+                );
+
+                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.TEAMS.value}_fields (
+                    team_key INT NOT NULL REFERENCES {Processor.SqliteFiles.TEAMS.value}(Team),
+                    field_name TEXT,
+                    field_value TEXT,
+                    PRIMARY KEY (team_key, field_name)
+                );
+            """
+            )
+            conn.commit()
 
     def reset_fetch_timestamp(self):
         self.last_fetch_timestamp = time.time()
 
     def load_remote_data(self):
         try:
-            (
-                self._teamsAt,
-                self._sched,
-                self._ranks,
-                self._oprs,
-                self._coprs,
-                self._curr_oprs,
-            ) = apputils.load_tba_data(self.event_key, self.tba_key, self.year)
-            self._epas = {
+            self._tba_data = apputils.load_tba_data(
+                self.event_key, self.tba_key, self.year
+            )
+            self._sb_epas = {
                 s["team"]: s["epa"]["total_points"]["mean"]
                 for s in self.sb.get_team_events(
                     event="2026paca", limit=1000, fields=["team", "epa"]
                 )
             }
+            self._sb_matches = self.sb.get_matches(event=self.event_key)
         except Exception as e:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
+
+    def write_match_schedule_file(self):
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+        ) as conn:
+            matches = []
+            for match in self._tba_data.schedule:
+                matches.append(
+                    {
+                        "Match": match["k"],
+                    }
+                    | {f"Red_{i + 1}": v for i, v in enumerate(match["r"])}
+                    | {f"Blue_{i + 1}": v for i, v in enumerate(match["b"])}
+                )
+            all_fields = self.sql_fields[Processor.SqliteFiles.MATCHES.value]
+            fields_not_writing_to = [
+                x for x in all_fields if x not in matches[0].keys()
+            ]
+            for match in matches:
+                conn.execute(
+                    f"""
+                    INSERT OR REPLACE INTO {Processor.SqliteFiles.MATCHES.value} (Match, {", ".join(all_fields)}) VALUES (?, {", ".join(['?'] * len(all_fields))}) 
+                """,
+                    [
+                        match["Match"],
+                        match["Red_1"],
+                        match["Red_2"],
+                        match["Red_3"],
+                        match["Blue_1"],
+                        match["Blue_2"],
+                        match["Blue_3"],
+                    ]
+                    + [None] * len(fields_not_writing_to),
+                )
+            conn.commit()
+
+    def write_teams_file(self):
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+        ) as conn:
+            all_fields = self.sql_fields[Processor.SqliteFiles.TEAMS.value]
+            for team in self._tba_data.teams:
+                conn.execute(
+                    f"""
+                    INSERT OR REPLACE INTO {Processor.SqliteFiles.TEAMS.value} (Team, {", ".join(all_fields)}) VALUES (?, {", ".join(['?'] * len(all_fields))})
+                """,
+                    [team] + [None] * len(all_fields),
+                )
+            conn.commit()
+
+    def write_team_tba_data_file(self):
+        df = []
+        for team in self._tba_data.teams:
+            rank, avg_rp = (
+                self._tba_data.ranks[team]
+                if team in self._tba_data.ranks
+                else (None, None)
+            )
+            df.append(
+                {
+                    "Team": team,
+                    "Rank": rank,
+                    "Average_RP": avg_rp,
+                    "OPR": (
+                        self._tba_data.curr_oprs[team]
+                        if team in self._tba_data.curr_oprs
+                        else None
+                    ),
+                    "Last_OPR": (
+                        self._tba_data.opr[team] if team in self._tba_data.opr else None
+                    ),
+                }
+            )
+
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+        ) as conn:
+            for team in df:
+                conn.execute(
+                    f"""
+                    UPDATE {Processor.SqliteFiles.TEAMS.value}
+                    SET Rank = ?, Average_RP = ?, OPR = ?, Last_OPR = ?
+                    WHERE Team = ?
+                """,
+                    (
+                        team["Rank"],
+                        team["Average_RP"],
+                        team["OPR"],
+                        team["Last_OPR"],
+                        team["Team"],
+                    ),
+                )
+            conn.commit()
+
+    def write_team_fields(self):
+        df = []
+        for (
+            k,
+            v,
+        ) in (
+            self._teams.items()
+        ):  # _teams is a dict with team: TeamStruct (ex. {422: TeamData()})
+            # bind each team to the dict serialization of its cooresponding struct
+            df.append({"Team": k} | v.output_dict(self.config_data))
+
+        if len(df) <= 0:
+            logger.warning("No team fields")
+            return
+
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+        ) as conn:
+            fields_to_write = list(df[0].keys())
+            fields_to_write.remove("Team")
+            for team in df:
+                for field in fields_to_write:
+                    conn.execute(
+                        f"""
+                        INSERT OR REPLACE INTO {Processor.SqliteFiles.TEAMS.value}_fields (team_key, field_name, field_value) VALUES (?, ?, ?)
+                    """,
+                        (team["Team"], field, str(team[field])),
+                    )
+
+    def write_match_predictions_file(self):
+        df = []
+        for match in self._tba_data.schedule:
+            score = [
+                self.get_match_pred_score(match, "b"),
+                self.get_match_pred_score(match, "r"),
+            ]
+            colors_pretty = ["Blue", "Red"]
+            df.append(
+                {
+                    "Match": match["k"],
+                }
+                | reduce(
+                    operator.or_,
+                    [
+                        {
+                            f"Predict_{color.upper()}1_Score": round(score[i][0], 3),
+                            f"Predict_{color.upper()}2_Score": round(score[i][1], 3),
+                            f"Predict_{color.upper()}3_Score": round(score[i][2], 3),
+                            f"Predict_{colors_pretty[i]}_Score": round(
+                                sum(score[i]), 3
+                            ),
+                        }
+                        for i, color in enumerate(["b", "r"])
+                    ],
+                )  # trust
+                | {"Predict_Winner": "blue" if sum(score[0]) > sum(score[1]) else "red"}
+            )
+
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+        ) as conn:
+            fields_to_write = list(df[0].keys())
+            fields_to_write.remove("Match")
+            for match in df:
+                conn.execute(
+                    f"""
+                    UPDATE matches
+                    SET {", ".join([f"{x} = ?" for x in fields_to_write])}
+                    WHERE Match = ?
+                """,
+                    [*(list(match.values())[1:]), match["Match"]],
+                )
+            conn.commit()
+
+    def write_statbotics_analytics(self):
+        df = []
+        for match in self._sb_matches:
+            df.append(
+                {
+                    "Match": match["key"],
+                }
+                | match["pred"]
+            )
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+        ) as conn:
+            fields_to_write = list(df[0].keys())
+            fields_to_write.remove("Match")
+            for match in df:
+                conn.execute(
+                    f"""
+                    UPDATE matches
+                    SET {", ".join([f"Statbotics_{x} = ?" for x in fields_to_write])}
+                    WHERE Match = ?
+                """,
+                    [*(list(match.values())[1:]), match["Match"]],
+                )
+            conn.commit()
+
+    def write_statbotics_epa(self):
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+        ) as conn:
+            for team in self._tba_data.teams:
+                conn.execute(
+                    f"""
+                    UPDATE {Processor.SqliteFiles.TEAMS.value}
+                    SET EPA = ?
+                    WHERE Team = ?
+                """,
+                    (
+                        self._sb_epas[team] if team in self._sb_epas else 0,
+                        team,
+                    ),
+                )
+            conn.commit()
+
+    def write_match_fields(self):
+        df = []
+        for k, v in self._matches.items():
+            for matTeam in v.output_dict(self.config_data):
+                if int(k) <= len(self._tba_data.schedule):
+                    df.append({"Match": self._tba_data.schedule[int(k) - 1]['k']} | matTeam)
+
+        if len(df) <= 0:
+            return
+
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+        ) as conn:
+            fields_to_write = list(df[0].keys())
+            fields_to_write.remove("Match")
+            fields_to_write.remove("Team")
+            for match in df:
+                for field in fields_to_write:
+                    conn.execute(
+                        f"""
+                        INSERT OR REPLACE INTO {Processor.SqliteFiles.MATCHES.value}_fields (match_key, team_key, field_name, field_value) VALUES (?, ?, ?, ?)
+                    """,
+                        (match["Match"], match["Team"], field, str(match[field])),
+                    )
+            conn.commit()
+
+    def write_match_depth_predictions(self):
+        df = []
+        for match in self._tba_data.schedule:
+            for color in ["b", "r"]:
+                for i in range(3):
+                    team = match[color][i].removeprefix("frc")
+                    dat = {
+                        "Match": match["k"],
+                        "Color": color,
+                        "Team": team,
+                    } | {"OPR": self._tba_data.curr_oprs[int(team)]}
+                    for copr in self.config_data["copr"]:
+                        dat |= {copr: self._tba_data.copr[int(team)][copr]}
+                    if int(team) in self._teams:
+                        teamO = self._teams[int(team)].output_dict(self.config_data)
+                        for field in self.config_data["deep-predict"]:
+                            if field["source"] in teamO:
+                                dat |= {
+                                    field["name"]: teamO[field["source"]]
+                                }  # append the relevant datas
+                    else:
+                        for field in self.config_data["deep-predict"]:
+                            dat |= {field["name"]: 0}
+                    df.append(dat)
+
+        if len(df) <= 0:
+            logger.warning("No depth predictions")
+            return
+
+        with sqlite3.connect(
+            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+        ) as conn:
+            fields_to_write = list(df[0].keys())
+            fields_to_write.remove("Match")
+            fields_to_write.remove("Team")
+            for match in df:
+                for field in fields_to_write:
+                    conn.execute(
+                        f"""
+                        INSERT OR REPLACE INTO {Processor.SqliteFiles.MATCHES.value}_depth_predictions (match_key, team_key, attr_name, attr_value) VALUES (?, ?, ?, ?)
+                    """,
+                        (match["Match"], match["Team"], field, str(match[field])),
+                    )
+            conn.commit()
 
     def mad_filter(
         data, c=2
@@ -313,8 +740,8 @@ class Processor:
     def get_percent_scouted(self) -> float:
         """gets the percentage of teams scouted in the current comp"""
         return round(
-            len([x for x in self._teams.keys() if x in self._teamsAt])
-            / len(self._teamsAt),
+            len([x for x in self._teams.keys() if x in self._tba_data.teams])
+            / len(self._tba_data.teams),
             2,  # use 2 because %
         )
 
@@ -324,147 +751,28 @@ class Processor:
         except:
             return 0
 
-    def output_teams(self) -> None:
-        """writes all of the calculated team data (averages, etc.) to the outfile"""
-        outfile = os.path.join(self.outpath, self.outname + "-teams.csv")
-        df = []
-        for (
-            k,
-            v,
-        ) in (
-            self._teams.items()
-        ):  # _teams is a dict with team: TeamStruct (ex. {422: TeamData()})
-            # bind each team to the dict serialization of its cooresponding struct
-            df.append(
-                {"Team": k}
-                | {"EPA": self._epas[k] if k in self._epas else 0.0}
-                | v.output_dict(
-                    self.config_data,
-                    self._oprs[str(k)] if str(k) in self._oprs else 0,
-                    self._curr_oprs[str(k)] if str(k) in self._curr_oprs else 0,
-                    self._coprs[str(k)] if str(k) in self._coprs else {},
-                )
-            )
-        pd.DataFrame(df).to_csv(outfile, index=False)
-
     def get_match_pred_score(self, match, c):
         """Gets the predicted match score based on the prediction-metric specified in the config yaml"""
         score = []
         for key in match[c]:
-            if int(key.removeprefix("frc")) in self._teams:
-                score.append(
-                    self._teams[  # use the TeamStruct -> dict to get the data
-                        int(key.removeprefix("frc"))
-                    ].output_dict(
-                        self.config_data,
-                        (
-                            self._oprs[key.removeprefix("frc")]
-                            if key.removeprefix("frc") in self._oprs
-                            else 0
-                        ),
-                        (
-                            self._curr_oprs[key.removeprefix("frc")]
-                            if key.removeprefix("frc") in self._curr_oprs
-                            else 0
-                        ),
-                        (
-                            self._coprs[key.removeprefix("frc")]
-                            if key.removeprefix("frc") in self._coprs
-                            else {}
-                        ),
-                    )[
-                        self.config_data["p-metric"]["source"]
-                    ]
-                )  # use prediction metric source
+            this_score = 0
+            source_string = self.config_data["p-metric"]["source"]
+            if source_string == "OPR":
+                this_score = self._tba_data.curr_oprs[int(key.removeprefix("frc"))]
+            elif source_string == "Last_OPR":
+                this_score = self._tba_data.opr[int(key.removeprefix("frc"))]
+            elif source_string in self.config_data["copr"]:
+                this_score = self._tba_data.copr[int(key.removeprefix("frc"))]
+            elif source_string == "EPA":
+                this_score = self._sb_epas[int(key.removeprefix("frc"))]
+            elif int(key.removeprefix("frc")) in self._teams:
+                this_score = self._teams[int(key.removeprefix("frc"))].output_dict(
+                    self.config_data
+                )[source_string]
             else:
-                score.append(0)
+                this_score = 0
+            score.append(this_score)  # use prediction metric source
         return score
-
-    def match_predict_depth(self) -> None:
-        """Write in-depth match prediction (things like deep climb and cycles, info about the teams playing) to outfile"""
-        outfile = os.path.join(self.outpath, self.outname + "-morepredict.csv")
-        df = []
-        for match in self._sched:
-            for color in ["b", "r"]:
-                for i in range(3):
-                    team = match[color][i].removeprefix("frc")
-                    dat = {
-                        "Match": match["k"],
-                        "Color": color,
-                        "Team": team,
-                    }
-                    if int(team) in self._teams:
-                        teamO = self._teams[int(team)].output_dict(
-                            self.config_data,
-                            self._oprs[team] if team in self._oprs else 0,
-                            self._curr_oprs[team] if team in self._curr_oprs else 0,
-                            self._coprs[team] if team in self._coprs else {},
-                        )
-                        for field in self.config_data["deep-predict"]:
-                            if field["source"] in teamO:
-                                dat |= {
-                                    field["name"]: teamO[field["source"]]
-                                }  # append the relevant datas
-                    else:
-                        for field in self.config_data["deep-predict"]:
-                            dat |= {field["name"]: 0}
-                    df.append(dat)
-        pd.DataFrame(df).to_csv(outfile, index=False)
-
-    def statbotics_analysis(self) -> None:
-        outfile = os.path.join(self.outpath, self.outname + "-statbotics.csv")
-        df = []
-        stat = self.sb.get_matches(event=self.event_key)
-        for match in stat:
-            df.append(
-                {
-                    "Match": match["key"],
-                    "Red 1": match["alliances"]["red"]["team_keys"][0],
-                    "Red 2": match["alliances"]["red"]["team_keys"][1],
-                    "Red 3": match["alliances"]["red"]["team_keys"][2],
-                    "Blue 1": match["alliances"]["blue"]["team_keys"][0],
-                    "Blue 2": match["alliances"]["blue"]["team_keys"][1],
-                    "Blue 3": match["alliances"]["blue"]["team_keys"][2],
-                }
-                | match["pred"]
-            )
-        pd.DataFrame(df).to_csv(outfile, index=False)
-
-    def predict_matches(self) -> None:
-        """Predicts the score contributions, overall score, and winner of each match, writing to outfile"""
-        outfile = os.path.join(self.outpath, self.outname + "-predict.csv")
-        df = []
-        for match in self._sched:
-            for color in ["b", "r"]:
-                score = self.get_match_pred_score(match, color)
-                df.append(
-                    {
-                        "Match": match["k"],
-                        "Teams": " + ".join(
-                            map(lambda x: x.removeprefix("frc"), match[color])
-                        )
-                        + f" ({"Blue" if color == "b" else "Red"})",
-                        "1 Score": round(score[0]),
-                        "2 Score": round(score[1]),
-                        "3 Score": round(score[2]),
-                        "Score": round(sum(score)),
-                        # kind of weird because of grafana hackery, uses nan to better convert to a grafana boolean.
-                        # there are seperate df entries for each color, and so this will be 1 if this color won and nan if they lost
-                        "Won": (
-                            1
-                            if (
-                                sum(score)
-                                > sum(
-                                    self.get_match_pred_score(
-                                        match, "b" if color == "r" else "r"
-                                    )
-                                )
-                            )
-                            else float("nan")
-                        ),
-                    }
-                )
-        pd.DataFrame(df).to_csv(outfile, index=False)
 
     def write_other_metrics(self, outfile) -> None:
         """writes the json other metrics (right now only percent teams scouted) to the outfile"""
@@ -473,21 +781,6 @@ class Processor:
             json.dump(
                 {"Percent Teams Scouted": self.get_percent_scouted()}, w, indent=4
             )
-
-    def output_matches(self) -> None:
-        outfile = os.path.join(self.outpath, self.outname + "-matches.csv")
-        """outputs the match data (what each team in each match did) to the outfile"""
-        df = []
-        for k, v in self._matches.items():
-            for matTeam in v.output_dict(self.config_data):
-                df.append(
-                    {
-                        "Match": k
-                        # '|' combines the dicts
-                    }
-                    | matTeam
-                )
-        pd.DataFrame(df).to_csv(outfile, index=False)
 
     def delete_match_scouter(data_filepath: str, mn: str, si: str) -> None:
         df = pd.read_csv(data_filepath)
@@ -499,7 +792,7 @@ class Processor:
         df.obj["Pre-filter-keep"] = True
         for i in range(len(self.config_data["pre-tests"])):
             logger.info(
-                f"Performing pre-test: {self.config_data["pre-tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["pre-tests"]) - (i + 1)))}]"
+                f"\tPerforming pre-test: {self.config_data["pre-tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["pre-tests"]) - (i + 1)))}]"
             )
             df.obj["Pre-filter-keep"] = (df.obj["Pre-filter-keep"]) & (
                 eval_beakscript(
@@ -538,7 +831,7 @@ class Processor:
             for i in range(len(self.config_data["preproc"])):
                 last_cols = df.obj.columns
                 logger.info(
-                    f"Performing preprocess operation: {self.config_data["preproc"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["preproc"]) - (i + 1)))}]"
+                    f"\tPerforming preprocess operation: {self.config_data["preproc"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["preproc"]) - (i + 1)))}]"
                 )
                 exp = (
                     df.obj.apply(
@@ -557,19 +850,18 @@ class Processor:
                     df.obj.columns = last_cols
 
     def drop_duplicates_chunk(self, df: ObjectHolder[pd.DataFrame]):
-        # if MN and TN are the same, there are two instances of the same team in the same match, so it's a duplicate row
         if len(self.config_data["uniques"]) > 0:
             dupes = df.obj.duplicated(subset=self.config_data["uniques"], keep=False)
             if dupes.any():
                 logger.warning(
-                    "Warning: duplicate teams for the following matches:\n\t"
-                    + "\n\t".join(
+                    "Warning: duplicate teams for the following matches:\n\t\t"
+                    + "\n\t\t".join(
                         str(
                             df.obj[dupes][self.config_data["uniques"]].drop_duplicates()
                         ).split("\n")
                     )
                 )
-                logger.info("Filtering out...")
+                logger.info("\tFiltering out...")
             df.obj = df.obj.drop_duplicates(
                 subset=self.config_data["uniques"], keep="first"
             )  # remove the duplicates
@@ -578,7 +870,7 @@ class Processor:
         df.obj["filter-keep"] = True
         for i in range(len(self.config_data["tests"])):
             logger.info(
-                f"Performing test: {self.config_data["tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1)))}]"
+                f"\tPerforming test: {self.config_data["tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1)))}]"
             )
             df.obj["filter-keep"] = (df.obj["filter-keep"]) & (
                 eval_beakscript(
@@ -605,7 +897,7 @@ class Processor:
             self._teams |= {int(team): TeamStruct()}
 
     def svd_data_chunk(self, df: ObjectHolder[pd.DataFrame]):
-        tn, mn = self.config_data["tn"], self.config_data["mn"]
+        tn = self.config_data["tn"]
         for subj in self.config_data["svd"]:
             u, v, s = self.get_svd_analysis(
                 df.obj[[self.config_data["tn"], subj["comp-team"], subj["source"]]],
@@ -652,10 +944,6 @@ class Processor:
             self.config_data["tn"]
         ].unique():  # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
             team_data = {}
-            if int(team) in self._ranks:
-                team_data["Rank"], team_data["Average RP"] = self._ranks[int(team)]
-            else:
-                team_data["Rank"], team_data["Average RP"] = (None, None)
             for field in self.config_data["teams"]:
                 # call the beakscript functions for the derived fields where the TN == team
                 val = eval_beakscript(
@@ -720,12 +1008,12 @@ class Processor:
         """Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files"""
 
         if ((time.time() - self.last_fetch_timestamp) / 60 >= self.period_min) or (
-            self._teamsAt == None or self._sched == None
+            self._tba_data.teams == None or self._tba_data.schedule == None
         ):
-            self.periodic_calls.fire(lambda s: logger.info(f"\t{s}"))
+            self.periodic_calls.fire(logger.info)
             self.last_fetch_timestamp = time.time()
 
-        if self._teamsAt == None or self._sched == None:
+        if self._tba_data.teams == None or self._tba_data.schedule == None:
             raise Exception("Error: Missing TBA Key: Please add one in settings")
 
         self._teams.clear()
@@ -739,9 +1027,7 @@ class Processor:
             first = True
             for chunk in reader:  # read in chunks in case big
                 chunk_holder = ObjectHolder(chunk)
-                self.chunk_processing_routine.fire(
-                    lambda s: logger.info(f"\t{s}"), chunk_holder
-                )
+                self.chunk_processing_routine.fire(logger.info, chunk_holder)
                 logger.info("Writing chunk...")
                 # write the main csv
                 chunk.to_csv(
@@ -751,5 +1037,5 @@ class Processor:
                 )
                 first = False
         # write all the other files
-        self.post_process_routine.fire(lambda s: logger.info(f"\t{s}"))
+        self.post_process_routine.fire(logger.info)
         logger.info("Done!!!!")

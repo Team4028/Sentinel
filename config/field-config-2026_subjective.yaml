@@ -71,15 +71,15 @@ match-header-name: MN
 
 preproc-operations:
   - name: Split Team Row
-    new-headers: [MN, TC, SI, TN, ISPD, SSPD, ACC, DS, HC, DF, CT, VL, EID]
+    new-headers: [MN, TC, SI, TN, ISPD, SSPD, ACC, DS, HC, CT, DF, D, VL, EID]
     operation: >-
       {
-        {$MN, $AC, $SI, $T1, *($?T2 - $?T1), ($T2DF / $T2D) - ($T1DF / $T1D), $T2, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T1, *($?T3 - $?T1), ($T3DF / $T3D) - ($T1DF / $T1D), $T3, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T2, *($?T1 - $?T2), ($T1DF / $T1D) - ($T2DF / $T2D), $T1, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T2, *($?T3 - $?T2), ($T3DF / $T3D) - ($T2DF / $T2D), $T3, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T3, *($?T1 - $?T3), ($T1DF / $T1D) - ($T3DF / $T3D), $T1, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T3, *($?T2 - $?T3), ($T2DF / $T2D) - ($T3DF / $T3D), $T2, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID}
+        {$MN, $AC, $SI, $T1, *($?T2 - $?T1), $T2, $T1DF, $T1D, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T1, *($?T3 - $?T1), $T3, $T1DF, $T1D, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T2, *($?T1 - $?T2), $T1, $T2DF, $T2D, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T2, *($?T3 - $?T2), $T3, $T2DF, $T2D, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T3, *($?T1 - $?T3), $T1, $T3DF, $T3D, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
+        {$MN, $AC, $SI, $T3, *($?T2 - $?T3), $T2, $T3DF, $T3D, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID}
       }
 
 filter-unique-fields: [MN, SI, TN, CT] # SI lets multiple people scout the same alliance
@@ -105,11 +105,6 @@ subjective-svd-fields:
     compare-team-source: CT
     variance-score:
     stability:
-  - name: Defense
-    source: DF
-    compare-team-source: CT
-    variance-score:
-    stability:
   - name: Hopper Capacity
     source: HC
     compare-team-source: CT
@@ -123,7 +118,16 @@ team-fields:
     avg:
     max:
     fil:
-match-fields: []
+  - name: Defensive Rating
+    derive: $DF[D = 1]
+    avg:
+    max:
+    fil:
+  - name: Matches Playing Defense
+    derive: "@len$DF[D = 1]"
+match-fields:
+  - name: Vibe Lemons
+    derive: $VL
 copr-keys:
   - Hub Auto Fuel Count
   - Hub Teleop Fuel Count

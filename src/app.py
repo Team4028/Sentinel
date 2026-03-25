@@ -67,8 +67,6 @@ def create_app():  # cursed but whatever
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = False
 
-    last_tba_fetch = 0
-
     notification_queue = []
 
     # check docker
@@ -840,15 +838,14 @@ def create_app():  # cursed but whatever
     @require_admin
     def set_tba_key():
         """verifies the inputted api key sent via json["key"], applies it and writes it to key.txt, and reprocesses data"""
-        nonlocal auth_key, last_tba_fetch
+        nonlocal auth_key
         try:
             if request.json and request.json["key"]:
                 auth_key = request.json["key"].strip()
                 if not apputils.test_tba_key(auth_key):  # health check
                     return "Bad TBA key", 400
                 apputils.set_auth_key(auth_key)
-                processor.periodic_calls.fire(lambda s: app.logger.info(f"\t{s}"))
-                last_tba_fetch = time.time()
+                processor.periodic_calls.fire(app.logger.info)
                 return "", 200
             else:
                 return "Invalid Request", 400
@@ -935,7 +932,6 @@ def create_app():  # cursed but whatever
     @require_admin
     def save_app_config():
         """Consumes an app configuration json, saves it, and applies it"""
-        nonlocal last_tba_fetch
         if request and request.json:
             try:
                 with open(
@@ -952,8 +948,7 @@ def create_app():  # cursed but whatever
                     or app.config["EVENT_KEY"] != last_id
                 ):
                     apputils.clear_tba_cache()
-                processor.periodic_calls.fire(lambda s: app.logger.info(f"\t{s}"))
-                last_tba_fetch = time.time()
+                processor.periodic_calls.fire(app.logger.info)
                 if apputils.data_in_exists(app):
                     try:
                         processor.proccess_data(

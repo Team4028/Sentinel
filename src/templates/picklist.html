@@ -197,7 +197,7 @@
     <script>
         const dashes = JSON.parse(`{{dashes | safe}}`);
         const h2 = document.getElementById("score");
-        document.getElementById("data").src = `{{grafana_base}}${dashes["ScoutingDashboard.json"]}/scouting-dashboard?orgId=1&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s&viewPanel=panel-10`
+        document.getElementById("data").src = `{{grafana_base}}${dashes["Full Team Data.json"]}/full-team-data?orgId=1&from=now-6h&to=now&kiosk&refresh=30s&timezone=browser&viewPanel=panel-1`
         const search = document.getElementById("ateam-search");
         const select = document.getElementById("ateam");
         const listElement = document.getElementById("queuelist");
@@ -273,7 +273,7 @@
         document.getElementById('initTeam').onclick = function (e) {
             if (e.target === this) {
                 const ifr = document.createElement("iframe");
-                ifr.src = `{{grafana_base}}${dashes["TeamView.json"]}/team-view?orgId=1&var-TeamSelector={{initTeam}}&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s`;
+                ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=4028&kiosk&refresh=30s`;
                 ifr.width = "300px";
                 ifr.height = "300px";
                 ifr.frameBorder = "0";
@@ -304,7 +304,7 @@
             li.onclick = function (e) {
                 if (e.target === this) {
                     const ifr = document.createElement("iframe");
-                    ifr.src = `{{grafana_base}}${dashes["TeamView.json"]}/team-view?orgId=1&var-TeamSelector=${li.querySelector(".line-text").innerText}&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s`;
+                    ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=4028&kiosk&refresh=30s`;
                     ifr.width = "300px";
                     ifr.height = "300px";
                     ifr.frameBorder = "0";
@@ -370,7 +370,7 @@
                     li.onclick = function (e) {
                         if (e.target === this) {
                             const ifr = document.createElement("iframe");
-                            ifr.src = `{{grafana_base}}${dashes["TeamView.json"]}/team-view?orgId=1&var-TeamSelector=${team}&from=now-5m&to=now&timezone=browser&kiosk&refresh=30s`;
+                            ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=4028&kiosk&refresh=30s`;
                             ifr.width = "300px";
                             ifr.height = "300px";
                             ifr.frameBorder = "0";

@@ -183,7 +183,7 @@ def create_app():  # cursed but whatever
         app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
 
     DASHBOARD_UIDS = {}
-    for dash in ["ScoutingDashboard.json", "TeamView.json"]:
+    for dash in ["Prematch.json", "Full Team Data.json", "Statbotics Viz.json", "Team View.json"]: # TODO: make this a grep
         with open(
             (
                 f"/var/lib/grafana/dashboards/{dash}"

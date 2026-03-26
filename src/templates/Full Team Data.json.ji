@@ -1,0 +1,179 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 7,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 22,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "cellHeight": "sm",
+        "frameIndex": 2,
+        "frozenColumns": {
+          "left": 1
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT *\nFROM teams",
+          "queryType": "table",
+          "rawQueryText": "SELECT *\nFROM teams",
+          "refId": "B",
+          "timeColumns": []
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT *\r\nFROM teams_fields",
+          "queryType": "table",
+          "rawQueryText": "SELECT *\r\nFROM teams_fields",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "Team Data",
+      "transformations": [
+        {
+          "filter": {
+            "id": "byRefId",
+            "options": "/^(?:A)$/"
+          },
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "field_name",
+            "rowField": "team_key",
+            "valueField": "field_value"
+          }
+        },
+        {
+          "filter": {
+            "id": "byRefId",
+            "options": "/^(?:)$/"
+          },
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^(team_key).*",
+            "renamePattern": "Team"
+          }
+        },
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "Team",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {% for header, type in td_headers %}{
+                "destinationType": "{{type}}",
+                "targetField": "{{header}}"
+              }{% if not loop.last %},
+              {% endif %}{% endfor %}
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Team"
+              }
+            ]
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Full Team Data",
+  "uid": "adhckkc",
+  "version": 7
+}

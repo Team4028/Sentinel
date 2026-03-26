@@ -174,18 +174,6 @@ class ObjectHolder[T]:
 class Processor:
     """Main class of data calculation, handles all calculation basically"""
 
-    class SqliteFiles(Enum):
-        MATCHES = "matches"
-        TEAMS = "teams"
-
-        def get_filepath(self) -> str:
-            match self:
-                case self.MATCHES:
-                    return "matches.db"
-                case self.TEAMS:
-                    return "teams.db"
-            return ""
-
     last_fetch_timestamp = 0
 
     def __init__(
@@ -202,6 +190,7 @@ class Processor:
         self.chunk_size = chunk_size
         self.outpath = outpath
         self.outname = outname
+        self.database_name = "sentinel.db" # TODO: make setting for this
         self.period_min = period_min
         self._tba_data = apputils.TBAData()
         self.event_key, self.tba_key, self.year = event_key, tba_key, year
@@ -248,7 +237,7 @@ class Processor:
         ]
 
         self.sql_fields = {
-            f"{Processor.SqliteFiles.MATCHES.value}": [
+            "matches": [
                 "Red_1",
                 "Red_2",
                 "Red_3",
@@ -281,22 +270,30 @@ class Processor:
                 "Statbotics_red_rp_3",
                 "Statbotics_blue_rp_3",
             ],
-            f"{Processor.SqliteFiles.MATCHES.value}_depth_predictions": [
+            "matches_depth_predictions": [
                 "attr_name",
                 "attr_value",
             ],
-            f"{Processor.SqliteFiles.MATCHES.value}_fields": [
+            "matches_fields": [
                 "field_name",
                 "field_value",
             ],
-            f"{Processor.SqliteFiles.TEAMS.value}": [
+            "teams": [
                 "EPA",
                 "Rank",
                 "Average_RP",
                 "OPR",
                 "Last_OPR",
+                "Country",
+                "State",
+                "City",
+                "Name",
+                "School",
+                "RookieYear",
+                "PostalCode",
+                "Website"
             ],
-            f"{Processor.SqliteFiles.TEAMS.value}_fields": [
+            "teams_fields": [
                 "field_name",
                 "field_value",
             ],
@@ -304,11 +301,11 @@ class Processor:
 
         # Create Tables
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             conn.executescript(
                 f"""
-                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.MATCHES.value} (
+                CREATE TABLE IF NOT EXISTS matches (
                     Match TEXT PRIMARY KEY,
                     Red_1 INT,
                     Red_2 INT,
@@ -343,40 +340,41 @@ class Processor:
                     Statbotics_blue_rp_3 REAL
                 );
 
-                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.MATCHES.value}_depth_predictions (
-                    match_key TEXT NOT NULL REFERENCES {Processor.SqliteFiles.MATCHES.value}(Match),
+                CREATE TABLE IF NOT EXISTS matches_depth_predictions (
+                    match_key TEXT NOT NULL REFERENCES matches(Match),
                     team_key INT,
                     attr_name TEXT,
                     attr_value TEXT,
                     PRIMARY KEY (match_key, team_key, attr_name)
                 );
 
-                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.MATCHES.value}_fields (
-                    match_key TEXT NOT NULL REFERENCES {Processor.SqliteFiles.MATCHES.value}(Match),
+                CREATE TABLE IF NOT EXISTS matches_fields (
+                    match_key TEXT NOT NULL REFERENCES matches(Match),
                     team_key INT,
                     field_name TEXT,
                     field_value TEXT,
                     PRIMARY KEY (match_key, team_key, field_name)
                 );
-            """
-            )
-            conn.commit()
-        with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
-        ) as conn:
-            conn.executescript(
-                f"""
-                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.TEAMS.value} (
+
+                CREATE TABLE IF NOT EXISTS teams (
                     Team INT PRIMARY KEY,
                     EPA REAL,
                     Rank REAL,
                     Average_RP REAL,
                     OPR REAL,
-                    Last_OPR REAL
+                    Last_OPR REAL,
+                    Country TEXT,
+                    State TEXT,
+                    City TEXT,
+                    Name TEXT,
+                    School TEXT,
+                    RookieYear INT,
+                    PostalCode TEXT,
+                    Website TEXT
                 );
 
-                CREATE TABLE IF NOT EXISTS {Processor.SqliteFiles.TEAMS.value}_fields (
-                    team_key INT NOT NULL REFERENCES {Processor.SqliteFiles.TEAMS.value}(Team),
+                CREATE TABLE IF NOT EXISTS teams_fields (
+                    team_key INT NOT NULL REFERENCES teams(Team),
                     field_name TEXT,
                     field_value TEXT,
                     PRIMARY KEY (team_key, field_name)
@@ -394,7 +392,7 @@ class Processor:
                 self.event_key, self.tba_key, self.year
             )
             self._sb_epas = {
-                s["team"]: s["epa"]["total_points"]["mean"]
+                s["team"]: round(s["epa"]["total_points"]["mean"], 1)
                 for s in self.sb.get_team_events(
                     event="2026paca", limit=1000, fields=["team", "epa"]
                 )
@@ -405,7 +403,7 @@ class Processor:
 
     def write_match_schedule_file(self):
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             matches = []
             for match in self._tba_data.schedule:
@@ -416,14 +414,14 @@ class Processor:
                     | {f"Red_{i + 1}": v for i, v in enumerate(match["r"])}
                     | {f"Blue_{i + 1}": v for i, v in enumerate(match["b"])}
                 )
-            all_fields = self.sql_fields[Processor.SqliteFiles.MATCHES.value]
+            all_fields = self.sql_fields["matches"]
             fields_not_writing_to = [
                 x for x in all_fields if x not in matches[0].keys()
             ]
             for match in matches:
                 conn.execute(
                     f"""
-                    INSERT OR REPLACE INTO {Processor.SqliteFiles.MATCHES.value} (Match, {", ".join(all_fields)}) VALUES (?, {", ".join(['?'] * len(all_fields))}) 
+                    INSERT OR REPLACE INTO matches (Match, {", ".join(all_fields)}) VALUES (?, {", ".join(['?'] * len(all_fields))}) 
                 """,
                     [
                         match["Match"],
@@ -440,15 +438,21 @@ class Processor:
 
     def write_teams_file(self):
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
-            all_fields = self.sql_fields[Processor.SqliteFiles.TEAMS.value]
+            all_fields = self.sql_fields["teams"]
             for team in self._tba_data.teams:
+                data = []
+                for field in all_fields:
+                    if field in list(self._tba_data.team_info.values())[0].keys():
+                        data.append(self._tba_data.team_info[team][field])
+                    else:
+                        data.append(None)
                 conn.execute(
                     f"""
-                    INSERT OR REPLACE INTO {Processor.SqliteFiles.TEAMS.value} (Team, {", ".join(all_fields)}) VALUES (?, {", ".join(['?'] * len(all_fields))})
+                    INSERT OR REPLACE INTO teams (Team, {", ".join(all_fields)}) VALUES (?, {", ".join(['?'] * len(all_fields))})
                 """,
-                    [team] + [None] * len(all_fields),
+                    [team] + data,
                 )
             conn.commit()
 
@@ -477,12 +481,12 @@ class Processor:
             )
 
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             for team in df:
                 conn.execute(
                     f"""
-                    UPDATE {Processor.SqliteFiles.TEAMS.value}
+                    UPDATE teams
                     SET Rank = ?, Average_RP = ?, OPR = ?, Last_OPR = ?
                     WHERE Team = ?
                 """,
@@ -512,7 +516,7 @@ class Processor:
             return
 
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Team")
@@ -520,7 +524,7 @@ class Processor:
                 for field in fields_to_write:
                     conn.execute(
                         f"""
-                        INSERT OR REPLACE INTO {Processor.SqliteFiles.TEAMS.value}_fields (team_key, field_name, field_value) VALUES (?, ?, ?)
+                        INSERT OR REPLACE INTO teams_fields (team_key, field_name, field_value) VALUES (?, ?, ?)
                     """,
                         (team["Team"], field, str(team[field])),
                     )
@@ -555,7 +559,7 @@ class Processor:
             )
 
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
@@ -580,7 +584,7 @@ class Processor:
                 | match["pred"]
             )
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
@@ -597,12 +601,12 @@ class Processor:
 
     def write_statbotics_epa(self):
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.TEAMS.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             for team in self._tba_data.teams:
                 conn.execute(
                     f"""
-                    UPDATE {Processor.SqliteFiles.TEAMS.value}
+                    UPDATE teams
                     SET EPA = ?
                     WHERE Team = ?
                 """,
@@ -624,7 +628,7 @@ class Processor:
             return
 
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
@@ -633,7 +637,7 @@ class Processor:
                 for field in fields_to_write:
                     conn.execute(
                         f"""
-                        INSERT OR REPLACE INTO {Processor.SqliteFiles.MATCHES.value}_fields (match_key, team_key, field_name, field_value) VALUES (?, ?, ?, ?)
+                        INSERT OR REPLACE INTO matches_fields (match_key, team_key, field_name, field_value) VALUES (?, ?, ?, ?)
                     """,
                         (match["Match"], match["Team"], field, str(match[field])),
                     )
@@ -649,7 +653,9 @@ class Processor:
                         "Match": match["k"],
                         "Color": color,
                         "Team": team,
-                    } | {"OPR": self._tba_data.curr_oprs[int(team)]}
+                        "OPR": self._tba_data.curr_oprs[int(team)],
+                        "EPA": self._sb_epas[int(team)],
+                    }
                     for copr in self.config_data["copr"]:
                         dat |= {copr: self._tba_data.copr[int(team)][copr]}
                     if int(team) in self._teams:
@@ -669,7 +675,7 @@ class Processor:
             return
 
         with sqlite3.connect(
-            os.path.join(self.outpath, Processor.SqliteFiles.MATCHES.get_filepath())
+            os.path.join(self.outpath, self.database_name)
         ) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
@@ -678,7 +684,7 @@ class Processor:
                 for field in fields_to_write:
                     conn.execute(
                         f"""
-                        INSERT OR REPLACE INTO {Processor.SqliteFiles.MATCHES.value}_depth_predictions (match_key, team_key, attr_name, attr_value) VALUES (?, ?, ?, ?)
+                        INSERT OR REPLACE INTO matches_depth_predictions (match_key, team_key, attr_name, attr_value) VALUES (?, ?, ?, ?)
                     """,
                         (match["Match"], match["Team"], field, str(match[field])),
                     )

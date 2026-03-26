@@ -119,12 +119,12 @@ team-fields:
     max:
     fil:
   - name: Defensive Rating
-    derive: $DF[D = 1]
+    derive: $DF[$D = true]
     avg:
     max:
     fil:
   - name: Matches Playing Defense
-    derive: "@len$DF[D = 1]"
+    derive: "@len$DF[$D = true]"
 match-fields:
   - name: Vibe Lemons
     derive: $VL

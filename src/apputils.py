@@ -203,7 +203,7 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
                 {"X-TBA-Auth-Key": api_key},
             ).json()
             for x, y in fetch_oprs["oprs"].items():
-                oprs |= {int(x.removeprefix("frc")): round(float(y), 3)}
+                oprs |= {int(x.removeprefix("frc")): round(float(y), 1)}
             add_jsons_to_cache({"curr_oprs": oprs})
         else:
             if os.path.exists("config/tba-cache.json"):
@@ -245,6 +245,9 @@ def get_tba_coprs(event_key, api_key):
             coprs = invert_jeson(coprs)
             for team in list(coprs.keys()):
                 coprs[int(team.removeprefix("frc"))] = coprs.pop(team)
+            for team in list(coprs.keys()):
+                for cop in list(coprs[team].keys()):
+                    coprs[team][cop] = round(coprs[team][cop], 1)
             add_jsons_to_cache({"coprs": coprs})
         else:
             if os.path.exists("config/tba-cache.json"):
@@ -316,7 +319,7 @@ def get_tba_opr(event_key, api_key, year, teams):
                         )  # get the teams opr from that event
                     except KeyError:
                         opr = 0.0
-                oprs |= {int(team): round(opr, 3)}
+                oprs |= {int(team): round(opr, 1)}
             add_jsons_to_cache({"oprs": oprs})
         elif didnt_read:
             logger.error("Error: no wifi or tba cache or invalid api key")
@@ -376,6 +379,7 @@ class TBAData:
     def __init__(
         self,
         teams=[],
+        team_info = {},
         schedule={},
         ranks={},
         opr={},
@@ -383,6 +387,7 @@ class TBAData:
         curr_oprs={},
     ):
         self.teams = teams
+        self.team_info = team_info
         self.schedule = schedule
         self.ranks = ranks
         self.opr = opr
@@ -400,11 +405,24 @@ def load_tba_data(event_key, api_key, year) -> tuple[
 ]:
     """Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule)"""
     didnt_read = True
+    team_info = {}
     if os.path.exists("config/tba-cache.json"):
         with open("config/tba-cache.json", "r") as r:
             js = json.load(r)
             if "teams" in js and "matches" in js:
                 teams = [x["team_number"] for x in js["teams"]]
+                team_info = {
+                    x["team_number"]: {
+                        "Country": x["country"],
+                        "State": x["state_prov"],
+                        "City": x["city"],
+                        "Name": x["nickname"], # x["name"] is used for sponsors
+                        "School": x["school_name"],
+                        "RookieYear": x["rookie_year"],
+                        "PostalCode": x["postal_code"], # ???
+                        "Website": x["website"]
+                    } for x in js["teams"]
+                }
                 schedJson = js["matches"]
                 didnt_read = False
     elif didnt_read:
@@ -418,6 +436,18 @@ def load_tba_data(event_key, api_key, year) -> tuple[
             headers={"X-TBA-Auth-Key": api_key},
         ).json()
         teams = [x["team_number"] for x in teamJSON]
+        team_info = {
+            x["team_number"]: {
+                "Country": x["country"],
+                "State": x["state_prov"],
+                "City": x["city"],
+                "Name": x["nickname"], # x["name"] is used for sponsors
+                "School": x["school_name"],
+                "RookieYear": x["rookie_year"],
+                "PostalCode": x["postal_code"], # ???
+                "Website": x["website"]
+            } for x in teamJSON
+        }
         logger.info(
             f"Fetch: https://www.thebluealliance.com/api/v3/event/{event_key}/matches"
         )
@@ -466,6 +496,7 @@ def load_tba_data(event_key, api_key, year) -> tuple[
 
     return TBAData(
         teams,
+        team_info,
         schedule,
         get_tba_ranks(event_key, api_key, teams),
         get_tba_opr(event_key, api_key, year, teams),

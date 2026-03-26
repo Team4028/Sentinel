@@ -158,6 +158,7 @@ def create_app():  # cursed but whatever
             template_vars = {
                 "sentinel_url": url,
                 "grafana_url": app.config["GRAFANA_URL"],
+                "event_prefix": app.config["EVENT_KEY"] + "_",
             }
             for abbr in abbrs:
                 template_vars |= {

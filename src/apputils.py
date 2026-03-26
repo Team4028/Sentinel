@@ -504,6 +504,13 @@ def load_tba_data(event_key, api_key, year) -> tuple[
         get_event_team_oprs(event_key, api_key),
     )
 
+def is_iterable(x):
+        try:
+            iter(x)
+            return True
+        except TypeError:
+            return False
+
 
 def read_secrets():
     """Reads the different secrets of the repo: admin creds, flask secret key, and tba auth key in that order"""

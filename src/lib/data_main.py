@@ -130,27 +130,20 @@ ET = TypeVar("ET", bound=Callable)
 
 class Event[ET]:
 
-    def __is_iterable(x):
-        try:
-            iter(x)
-            return True
-        except TypeError:
-            return False
-
     def __init__(self, name: str = ""):
         self._handlers = []
         self.name = name
 
     def __iadd__(self, f: ET | list[ET]):
-        if Event.__is_iterable(f):
+        if apputils.is_iterable(f):
             self._handlers.extend(f)
         else:
             self._handlers.append(f)
         return self
 
     def __isub__(self, f: ET | list[ET]):
-        if Event.__is_iterable(f):
-            self._handlers.extend(f)
+        if apputils.is_iterable(f):
+            for f2 in f: self._handlers.remove(f2)
         else:
             self._handlers.remove(f)
         return self
@@ -962,6 +955,10 @@ class Processor:
                 )
                 if isinstance(val, pd.Series):
                     val = val.tolist()  # pythonify the pandas datatypes
+                if apputils.is_iterable(val) and not field["iter"]:
+                    val = sum(val) / (1 if len(val) <= 0 else len(val))
+                elif field["iter"]:
+                    val = [val]
                 team_data[field["name"]] = val  # write the field to the csv
             self._teams[int(team)].extend_data(
                 team_data
@@ -986,6 +983,10 @@ class Processor:
                     if isinstance(val, pd.Series):
                         val = val.tolist()
 
+                    if apputils.is_iterable(val) and not field["iter"]:
+                        val = sum(val) / (1 if len(val) <= 0 else len(val))
+                    elif field["iter"]:
+                        val = [val]
                     static_fields |= {field["name"]: val}
             for i, team in enumerate(
                 df.obj.loc[df.obj[mn] == match, tn].unique()
@@ -998,11 +999,15 @@ class Processor:
                     # get derived fields for matches
                     val = eval_beakscript(
                         field["derive"],
-                        row.iloc[0],
+                        row,
                         "Match Field" + field["name"],
                     )
                     if isinstance(val, pd.Series):
                         val = val.tolist()
+                    print(f"{match} -- {team} -- {field["name"]}: {val}")
+                    if apputils.is_iterable(val) and not field["iter"]:
+                        val = sum(val) / (1 if len(val) <= 0 else len(val))
+
                     data[field["name"]] = val
                 for f, fv in static_fields.items():
                     if isinstance(fv, Iterable) and not isinstance(fv, (str, bytes)):

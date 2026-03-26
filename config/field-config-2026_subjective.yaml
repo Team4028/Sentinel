@@ -115,19 +115,23 @@ compute-fields: []
 team-fields:
   - name: Vibe Lemons
     derive: $VL
+    iterable: false
     avg:
     max:
     fil:
   - name: Defensive Rating
     derive: $DF[$D = true]
+    iterable: false
     avg:
     max:
     fil:
   - name: Matches Playing Defense
     derive: "@len$DF[$D = true]"
+    iterable: false
 match-fields:
   - name: Vibe Lemons
     derive: $VL
+    iterable: false
 copr-keys:
   - Hub Auto Fuel Count
   - Hub Teleop Fuel Count

@@ -133,6 +133,10 @@
                         "type": "string",
                         "description": "A beakscript string defining the process by which the elements of this set are obtained"
                     },
+                    "iterable": {
+                        "type": "boolean",
+                        "description": "Whether the returned field should be a list (iterable) or not"
+                    },
                     "avg": {
                         "type": "null",
                         "description": "Creates a field that is the average of this field"
@@ -148,7 +152,8 @@
                 },
                 "required": [
                     "name",
-                    "derive"
+                    "derive",
+                    "iterable"
                 ]
             }
         },
@@ -164,6 +169,10 @@
                     "derive": {
                         "type": "string",
                         "description": "A beakscript string defining the process by which the elements of this set are obtained"
+                    },
+                    "iterable": {
+                        "type": "boolean",
+                        "description": "Whether the returned field should be a list (iterable) or not"
                     },
                     "static": {
                         "type": [
@@ -187,7 +196,8 @@
                 },
                 "required": [
                     "name",
-                    "derive"
+                    "derive",
+                    "iterable"
                 ]
             }
         },

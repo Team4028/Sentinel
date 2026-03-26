@@ -152,6 +152,7 @@ def lex_config(year: str):
                     "name": field["name"],
                     "filters": [x for x in FILTERS if x in field],
                     "derive": field["derive"],
+                    "iter": field["iterable"],
                 }
             )
         if "data-tests" in data:
@@ -176,6 +177,7 @@ def lex_config(year: str):
                     "name": field["name"],
                     "derive": field["derive"],
                     "filters": [x for x in FILTERS if x in field],
+                    "iter": field["iterable"],
                 }
             )
         config["p-metric"] = data["predict-metric"]

@@ -72,71 +72,91 @@ compute-fields:
 team-fields:
     - name: Auton Shots
       derive: $Auton Shots
+      iterable: false
       avg:
       max:
       fil:
     - name: Teleop Shots
       derive: $Teleop Shots
+      iterable: false
       avg:
       max:
       fil:
     - name: Auton Scores
       derive: $Auton Scores
+      iterable: false
       max:
     - name: Teleop Scores
       derive: $Teleop Scores
+      iterable: false
       avg:
       max:
       fil:
     - name: Accuracy
       derive: $Accuracy
+      iterable: false
       avg:
       max:
       fil:
     - name: Flow Rate
       derive: $FR
+      iterable: false
       avg:
       max:
       fil:
     - name: Total Shots
       derive: $Auton Shots,Teleop Shots
+      iterable: false
       max:
     - name: Total Scores
       derive: $Auton Scores,Teleop Scores
+      iterable: false
       max:
     - name: Auton Climb
       derive: $ACL
+      iterable: false
       avg:
     - name: Teleop Climb
       derive: $TCL
+      iterable: false
       avg:
     - name: Score
       derive: $Total Score
+      iterable: false
       avg:
       max:
       fil:
     - name: Defensive Rating
       derive: $DR[$D = 1]
+      iterable: false
       avg:
       max:
     - name: Matches Playing Defense
       derive: "@len$DR[$D = 1]"
+      iterable: false
 
 match-fields:
     - name: Auton Shots
       derive: $Auton Shots
+      iterable: false
     - name: Auton Scores
       derive: Auton Scores
+      iterable: false
     - name: Teleop Shots
       derive: $Teleop Shots
+      iterable: false
     - name: Teleop Scores
       derive: $Teleop Scores
+      iterable: false
     - name: Total Score
       derive: $Total Score
+      iterable: false
     - name: Auton Climb
       derive: $ACL
+      iterable: false
     - name: Teleop Climb
       derive: $TCL
+      iterable: false
 
 predict-metric:
     name: Score

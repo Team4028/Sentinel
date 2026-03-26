@@ -88,15 +88,13 @@ class GrafanaDataPreset(Enum):
     NONE = lambda _: []
 
 
-GRAFANA_DATA_PANELS = {
-    "ScoutingDashboard.json": {
-        "Match Predictions": GrafanaDataPreset.PREMATCH_SCORE,
-        "Team Summary": GrafanaDataPreset.PREMATCH,
+GRAFANA_DATA_PANELS = { # TODO: make this procedural or configurable somehow
+    "Team View.json": {
         "Team Data": GrafanaDataPreset.TEAM,
-        "Match View": GrafanaDataPreset.MATCH,
-        "Team Compare": GrafanaDataPreset.TEAM,
     },
-    "TeamView.json": {"Team View": GrafanaDataPreset.TEAM},
+    "Full Team Data.json": {"Team Data": GrafanaDataPreset.TEAM},
+    "Prematch.json": {},
+    "Statbotics Viz.json": {}
 }
 
 

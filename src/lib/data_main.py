@@ -306,7 +306,8 @@ class Processor:
             conn.executescript(
                 f"""
                 CREATE TABLE IF NOT EXISTS matches (
-                    Match TEXT PRIMARY KEY,
+                    MatchIdx Int PRIMARY KEY,
+                    Match TEXT,
                     Red_1 INT,
                     Red_2 INT,
                     Red_3 INT,
@@ -394,7 +395,7 @@ class Processor:
             self._sb_epas = {
                 s["team"]: round(s["epa"]["total_points"]["mean"], 1)
                 for s in self.sb.get_team_events(
-                    event="2026paca", limit=1000, fields=["team", "epa"]
+                    event=self.event_key, limit=1000, fields=["team", "epa"]
                 )
             }
             self._sb_matches = self.sb.get_matches(event=self.event_key)
@@ -406,9 +407,10 @@ class Processor:
             os.path.join(self.outpath, self.database_name)
         ) as conn:
             matches = []
-            for match in self._tba_data.schedule:
+            for i, match in enumerate(self._tba_data.schedule):
                 matches.append(
                     {
+                        "MatchIdx": i + 1,
                         "Match": match["k"],
                     }
                     | {f"Red_{i + 1}": v for i, v in enumerate(match["r"])}
@@ -421,9 +423,10 @@ class Processor:
             for match in matches:
                 conn.execute(
                     f"""
-                    INSERT OR REPLACE INTO matches (Match, {", ".join(all_fields)}) VALUES (?, {", ".join(['?'] * len(all_fields))}) 
+                    INSERT OR REPLACE INTO matches (MatchIdx, Match, {", ".join(all_fields)}) VALUES (?, ?, {", ".join(['?'] * len(all_fields))}) 
                 """,
                     [
+                        match["MatchIdx"],
                         match["Match"],
                         match["Red_1"],
                         match["Red_2"],

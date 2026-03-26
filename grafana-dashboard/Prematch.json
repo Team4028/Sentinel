@@ -1,0 +1,4482 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 5,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "eq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "neq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 1,
+        "x": 0,
+        "y": 0
+      },
+      "id": 20,
+      "options": {
+        "inlineEditing": false,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            },
+            "image": {
+              "fixed": ""
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "Team",
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "field": "Team",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [
+                {
+                  "oneClick": true,
+                  "targetBlank": true,
+                  "title": "Team",
+                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                }
+              ],
+              "name": "Element 1",
+              "placement": {
+                "height": 69,
+                "left": -85,
+                "rotation": 270,
+                "top": 24,
+                "width": 230
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "fixed": "R1: "
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 2",
+              "placement": {
+                "height": 53,
+                "left": -42,
+                "rotation": 270,
+                "top": 114,
+                "width": 127
+              },
+              "type": "text"
+            }
+          ],
+          "name": "Element 1774456360081",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "none"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT '340' AS Team",
+          "queryType": "table",
+          "rawQueryText": "SELECT '$Current_Match_Red_1' AS Team",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Team"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#B877D9",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "light-red",
+                  "index": 0
+                },
+                "true": {
+                  "color": "dark-red",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 1,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "colorByField": "highlight",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "always",
+        "stacking": "none",
+        "text": {
+          "valueSize": 30
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '340'",
+          "queryType": "table",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_1'",
+          "refId": "A",
+          "timeColumns": []
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '340'",
+          "queryType": "table",
+          "rawQueryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '$Current_Match_Red_1'",
+          "refId": "B",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "boolean",
+                "targetField": "highlight"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "highlight": false
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "field_value": "Vibe Lemons"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "field_value"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 3,
+        "x": 9,
+        "y": 0
+      },
+      "id": 41,
+      "options": {
+        "inlineEditing": true,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [],
+          "name": "Element 1774473903550",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "single"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "eq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "neq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 1,
+        "x": 12,
+        "y": 0
+      },
+      "id": 53,
+      "options": {
+        "inlineEditing": false,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            },
+            "image": {
+              "fixed": ""
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "Team",
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "field": "Team",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [
+                {
+                  "oneClick": true,
+                  "targetBlank": true,
+                  "title": "Team",
+                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                }
+              ],
+              "name": "Element 1",
+              "placement": {
+                "height": 69,
+                "left": -85,
+                "rotation": 270,
+                "top": 24,
+                "width": 230
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "blue"
+                },
+                "size": 40,
+                "text": {
+                  "fixed": "B1: "
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 2",
+              "placement": {
+                "height": 53,
+                "left": -42,
+                "rotation": 270,
+                "top": 114,
+                "width": 127
+              },
+              "type": "text"
+            }
+          ],
+          "name": "Element 1774456360081",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "none"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT '2641' AS Team",
+          "queryType": "table",
+          "rawQueryText": "SELECT '$Current_Match_Blue_1' AS Team",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Team"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#B877D9",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "light-blue",
+                  "index": 0
+                },
+                "true": {
+                  "color": "dark-blue",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 13,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "colorByField": "highlight",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "text": {
+          "valueSize": 30
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '2641'",
+          "queryType": "table",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_1'",
+          "refId": "A",
+          "timeColumns": []
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '2641'",
+          "queryType": "table",
+          "rawQueryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '$Current_Match_Blue_1'",
+          "refId": "B",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "boolean",
+                "targetField": "highlight"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "highlight": false
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "field_value": "Vibe Lemons"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "field_value"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 3,
+        "x": 21,
+        "y": 0
+      },
+      "id": 45,
+      "options": {
+        "inlineEditing": true,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [],
+          "name": "Element 1774473903550",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "single"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 9,
+        "y": 1
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "allValues"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "titleSize": 15,
+          "valueSize": 30
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '340' AND match_key = '2026paca_f1m1' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "queryType": "table",
+          "rawQueryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '$Current_Match_Red_1' AND match_key = '$Current_Match' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "transpose",
+          "options": {
+            "firstFieldName": "Field"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Hub Auto Fuel Count",
+                "OPR",
+                "EPA"
+              ]
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Hub Auto Fuel Count"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "OPR"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "EPA"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "EPA": 1,
+              "Hub Auto Fuel Count": 2,
+              "OPR": 0
+            },
+            "renameByName": {
+              "Hub Auto Fuel Count": "Auto OPR"
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 21,
+        "y": 1
+      },
+      "id": 38,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "allValues"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "titleSize": 15,
+          "valueSize": 30
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '2641' AND match_key = '2026paca_f1m1' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "queryType": "table",
+          "rawQueryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '$Current_Match_Blue_1' AND match_key = '$Current_Match' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "transpose",
+          "options": {
+            "firstFieldName": "Field"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Hub Auto Fuel Count",
+                "OPR",
+                "EPA"
+              ]
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Hub Auto Fuel Count"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "OPR"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "EPA"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "EPA": 1,
+              "Hub Auto Fuel Count": 2,
+              "OPR": 0
+            },
+            "renameByName": {
+              "Hub Auto Fuel Count": "Auto OPR"
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 3,
+        "x": 9,
+        "y": 4
+      },
+      "id": 44,
+      "options": {
+        "inlineEditing": true,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [],
+          "name": "Element 1774473903550",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "single"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 3,
+        "x": 21,
+        "y": 4
+      },
+      "id": 48,
+      "options": {
+        "inlineEditing": true,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [],
+          "name": "Element 1774473903550",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "single"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "eq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "neq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 1,
+        "x": 0,
+        "y": 5
+      },
+      "id": 51,
+      "options": {
+        "inlineEditing": false,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            },
+            "image": {
+              "fixed": ""
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "Team",
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "field": "Team",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [
+                {
+                  "oneClick": true,
+                  "targetBlank": true,
+                  "title": "Team",
+                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                }
+              ],
+              "name": "Element 1",
+              "placement": {
+                "height": 69,
+                "left": -85,
+                "rotation": 270,
+                "top": 24,
+                "width": 230
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "fixed": "R2: "
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 2",
+              "placement": {
+                "height": 53,
+                "left": -42,
+                "rotation": 270,
+                "top": 114,
+                "width": 127
+              },
+              "type": "text"
+            }
+          ],
+          "name": "Element 1774456360081",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "none"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT '3504' AS Team",
+          "queryType": "table",
+          "rawQueryText": "SELECT '$Current_Match_Red_2' AS Team",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Team"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#B877D9",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "light-red",
+                  "index": 0
+                },
+                "true": {
+                  "color": "dark-red",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 1,
+        "y": 5
+      },
+      "id": 2,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "colorByField": "highlight",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "text": {
+          "valueSize": 30
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '3504'",
+          "queryType": "table",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_2'",
+          "refId": "A",
+          "timeColumns": []
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '3504'",
+          "queryType": "table",
+          "rawQueryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '$Current_Match_Red_2'",
+          "refId": "B",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "boolean",
+                "targetField": "highlight"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "highlight": false
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "field_value": "Vibe Lemons"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "field_value"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "eq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "neq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 1,
+        "x": 12,
+        "y": 5
+      },
+      "id": 54,
+      "options": {
+        "inlineEditing": false,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            },
+            "image": {
+              "fixed": ""
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "Team",
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "field": "Team",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [
+                {
+                  "oneClick": true,
+                  "targetBlank": true,
+                  "title": "Team",
+                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                }
+              ],
+              "name": "Element 1",
+              "placement": {
+                "height": 69,
+                "left": -85,
+                "rotation": 270,
+                "top": 24,
+                "width": 230
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "blue"
+                },
+                "size": 40,
+                "text": {
+                  "fixed": "B2: "
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 2",
+              "placement": {
+                "height": 53,
+                "left": -42,
+                "rotation": 270,
+                "top": 114,
+                "width": 127
+              },
+              "type": "text"
+            }
+          ],
+          "name": "Element 1774456360081",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "none"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT '3990' AS Team",
+          "queryType": "table",
+          "rawQueryText": "SELECT '$Current_Match_Blue_2' AS Team",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Team"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#B877D9",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "light-blue",
+                  "index": 0
+                },
+                "true": {
+                  "color": "dark-blue",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 13,
+        "y": 5
+      },
+      "id": 5,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "colorByField": "highlight",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "text": {
+          "valueSize": 30
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '3990'",
+          "queryType": "table",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_2'",
+          "refId": "A",
+          "timeColumns": []
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '3990'",
+          "queryType": "table",
+          "rawQueryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '$Current_Match_Blue_2'",
+          "refId": "B",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "boolean",
+                "targetField": "highlight"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "highlight": false
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "field_value": "Vibe Lemons"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "field_value"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 9,
+        "y": 6
+      },
+      "id": 36,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "allValues"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "titleSize": 15,
+          "valueSize": 30
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '3504' AND match_key = '2026paca_f1m1' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "queryType": "table",
+          "rawQueryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '$Current_Match_Red_2' AND match_key = '$Current_Match' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "transpose",
+          "options": {
+            "firstFieldName": "Field"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Hub Auto Fuel Count",
+                "OPR",
+                "EPA"
+              ]
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Hub Auto Fuel Count"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "OPR"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "EPA"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "EPA": 1,
+              "Hub Auto Fuel Count": 2,
+              "OPR": 0
+            },
+            "renameByName": {
+              "Hub Auto Fuel Count": "Auto OPR"
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 21,
+        "y": 6
+      },
+      "id": 39,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "allValues"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "titleSize": 15,
+          "valueSize": 30
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '3990' AND match_key = '2026paca_f1m1' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "queryType": "table",
+          "rawQueryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '$Current_Match_Blue_2' AND match_key = '$Current_Match' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "transpose",
+          "options": {
+            "firstFieldName": "Field"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Hub Auto Fuel Count",
+                "OPR",
+                "EPA"
+              ]
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Hub Auto Fuel Count"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "OPR"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "EPA"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "EPA": 1,
+              "Hub Auto Fuel Count": 2,
+              "OPR": 0
+            },
+            "renameByName": {
+              "Hub Auto Fuel Count": "Auto OPR"
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 3,
+        "x": 9,
+        "y": 9
+      },
+      "id": 46,
+      "options": {
+        "inlineEditing": true,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [],
+          "name": "Element 1774473903550",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "single"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 3,
+        "x": 21,
+        "y": 9
+      },
+      "id": 49,
+      "options": {
+        "inlineEditing": true,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [],
+          "name": "Element 1774473903550",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "single"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "eq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "neq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 1,
+        "x": 0,
+        "y": 10
+      },
+      "id": 52,
+      "options": {
+        "inlineEditing": false,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            },
+            "image": {
+              "fixed": ""
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "Team",
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "field": "Team",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [
+                {
+                  "oneClick": true,
+                  "targetBlank": true,
+                  "title": "Team",
+                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                }
+              ],
+              "name": "Element 1",
+              "placement": {
+                "height": 69,
+                "left": -85,
+                "rotation": 270,
+                "top": 24,
+                "width": 230
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "fixed": "R3: "
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 2",
+              "placement": {
+                "height": 53,
+                "left": -42,
+                "rotation": 270,
+                "top": 114,
+                "width": 127
+              },
+              "type": "text"
+            }
+          ],
+          "name": "Element 1774456360081",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "none"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT '$Current_Match_Red_3' AS Team",
+          "queryType": "table",
+          "rawQueryText": "SELECT '$Current_Match_Red_3' AS Team",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Team"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#B877D9",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "light-red",
+                  "index": 0
+                },
+                "true": {
+                  "color": "dark-red",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 1,
+        "y": 10
+      },
+      "id": 3,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "colorByField": "highlight",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "text": {
+          "valueSize": 30
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '3015'",
+          "queryType": "table",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_3'",
+          "refId": "A",
+          "timeColumns": []
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '3015'",
+          "queryType": "table",
+          "rawQueryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '$Current_Match_Red_3'",
+          "refId": "B",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "boolean",
+                "targetField": "highlight"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "highlight": false
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "field_value": "Vibe Lemons"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "field_value"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "eq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "op": "neq",
+                "reducer": "lastNotNull",
+                "value": 4028
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 1,
+        "x": 12,
+        "y": 10
+      },
+      "id": 55,
+      "options": {
+        "inlineEditing": false,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            },
+            "image": {
+              "fixed": ""
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "Team",
+                  "fixed": "red"
+                },
+                "size": 40,
+                "text": {
+                  "field": "Team",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [
+                {
+                  "oneClick": true,
+                  "targetBlank": true,
+                  "title": "Team",
+                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                }
+              ],
+              "name": "Element 1",
+              "placement": {
+                "height": 69,
+                "left": -85,
+                "rotation": 270,
+                "top": 24,
+                "width": 230
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "blue"
+                },
+                "size": 40,
+                "text": {
+                  "fixed": "B3: "
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 2",
+              "placement": {
+                "height": 53,
+                "left": -42,
+                "rotation": 270,
+                "top": 114,
+                "width": 127
+              },
+              "type": "text"
+            }
+          ],
+          "name": "Element 1774456360081",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "none"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT '$Current_Match_Blue_3' AS Team",
+          "queryType": "table",
+          "rawQueryText": "SELECT '$Current_Match_Blue_3' AS Team",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Team"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#B877D9",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "light-blue",
+                  "index": 0
+                },
+                "true": {
+                  "color": "dark-blue",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 13,
+        "y": 10
+      },
+      "id": 6,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "colorByField": "highlight",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "text": {
+          "valueSize": 30
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '4028'",
+          "queryType": "table",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_3'",
+          "refId": "A",
+          "timeColumns": []
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '4028'",
+          "queryType": "table",
+          "rawQueryText": "SELECT 'Avg' AS match_key, field_value, true AS highlight FROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key = '$Current_Match_Blue_3'",
+          "refId": "B",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "boolean",
+                "targetField": "highlight"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "highlight": false
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "field_value": "Vibe Lemons"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "field_value"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 9,
+        "y": 11
+      },
+      "id": 37,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "allValues"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "titleSize": 15,
+          "valueSize": 30
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '3015' AND match_key = '2026paca_f1m1' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "queryType": "table",
+          "rawQueryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '$Current_Match_Red_3' AND match_key = '$Current_Match' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "transpose",
+          "options": {
+            "firstFieldName": "Field"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Hub Auto Fuel Count",
+                "OPR",
+                "EPA"
+              ]
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Hub Auto Fuel Count"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "OPR"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "EPA"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "EPA": 1,
+              "Hub Auto Fuel Count": 2,
+              "OPR": 0
+            },
+            "renameByName": {
+              "Hub Auto Fuel Count": "Auto OPR"
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 21,
+        "y": 11
+      },
+      "id": 40,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "allValues"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "titleSize": 15,
+          "valueSize": 30
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '4028' AND match_key = '2026paca_f1m1' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "queryType": "table",
+          "rawQueryText": "SELECT attr_name, attr_value\nFROM matches_depth_predictions\nWHERE team_key = '$Current_Match_Blue_3' AND match_key = '$Current_Match' AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "transpose",
+          "options": {
+            "firstFieldName": "Field"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Hub Auto Fuel Count",
+                "OPR",
+                "EPA"
+              ]
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "Hub Auto Fuel Count"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "OPR"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "EPA"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "EPA": 1,
+              "Hub Auto Fuel Count": 2,
+              "OPR": 0
+            },
+            "renameByName": {
+              "Hub Auto Fuel Count": "Auto OPR"
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 3,
+        "x": 9,
+        "y": 14
+      },
+      "id": 43,
+      "options": {
+        "inlineEditing": true,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [],
+          "name": "Element 1774473903550",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "single"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 3,
+        "x": 21,
+        "y": 14
+      },
+      "id": 50,
+      "options": {
+        "inlineEditing": true,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [],
+          "name": "Element 1774473903550",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "single"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 7,
+        "x": 0,
+        "y": 15
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Predict_Red_Score$/",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Predict_Red_Score\nFROM matches\nWHERE Match = '2026paca_f1m1'",
+          "queryType": "table",
+          "rawQueryText": "SELECT Predict_Red_Score\nFROM matches\nWHERE Match = '$Current_Match'",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "Red Score",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "dark-red",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 60,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 2,
+        "x": 7,
+        "y": 15
+      },
+      "id": 14,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT field_value\nFROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key IN ('340', '3504', '3015')",
+          "queryType": "table",
+          "rawQueryText": "SELECT field_value\nFROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key IN ('$Current_Match_Red_1', '$Current_Match_Red_2', '$Current_Match_Red_3')",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "field_value": "Vibe Lemons"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "field_value"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "transpose",
+          "options": {
+            "firstFieldName": ""
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {}
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Total",
+                "Field"
+              ]
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 9,
+        "y": 15
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT \nSUM(CASE WHEN attr_name = 'OPR' THEN attr_value END) AS OPR,\nSUM(CASE WHEN attr_name = 'EPA' THEN attr_value END) AS EPA,\nSUM(CASE WHEN attr_name = 'Hub Auto Fuel Count' THEN attr_value END) AS 'Auto OPR'\nFROM matches_depth_predictions\nWHERE match_key = '2026paca_f1m1' AND team_key IN ('340', '3504', '3015') AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "queryType": "table",
+          "rawQueryText": "SELECT \nSUM(CASE WHEN attr_name = 'OPR' THEN attr_value END) AS OPR,\nSUM(CASE WHEN attr_name = 'EPA' THEN attr_value END) AS EPA,\nSUM(CASE WHEN attr_name = 'Hub Auto Fuel Count' THEN attr_value END) AS 'Auto OPR'\nFROM matches_depth_predictions\nWHERE match_key = '$Current_Match' AND team_key IN ('$Current_Match_Red_1', '$Current_Match_Red_2', '$Current_Match_Red_3') AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 7,
+        "x": 12,
+        "y": 15
+      },
+      "id": 17,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Predict_Blue_Score$/",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Predict_Blue_Score\nFROM matches\nWHERE Match = '2026paca_f1m1'",
+          "queryType": "table",
+          "rawQueryText": "SELECT Predict_Blue_Score\nFROM matches\nWHERE Match = '$Current_Match'",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "Blue Score",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "dark-blue",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 60,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 2,
+        "x": 19,
+        "y": 15
+      },
+      "id": 18,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT field_value\nFROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key IN ('2641', '3990', '4028')",
+          "queryType": "table",
+          "rawQueryText": "SELECT field_value\nFROM teams_fields\nWHERE field_name = 'Average Vibe Lemons' AND team_key IN ('$Current_Match_Blue_1', '$Current_Match_Blue_2', '$Current_Match_Blue_3')",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "field_value": "Vibe Lemons"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "field_value"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "transpose",
+          "options": {
+            "firstFieldName": ""
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {}
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Total",
+                "Field"
+              ]
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 21,
+        "y": 15
+      },
+      "id": 19,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT \nSUM(CASE WHEN attr_name = 'OPR' THEN attr_value END) AS OPR,\nSUM(CASE WHEN attr_name = 'EPA' THEN attr_value END) AS EPA,\nSUM(CASE WHEN attr_name = 'Hub Auto Fuel Count' THEN attr_value END) AS 'Auto OPR'\nFROM matches_depth_predictions\nWHERE match_key = '2026paca_f1m1' AND team_key IN ('2641', '3990', '4028') AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "queryType": "table",
+          "rawQueryText": "SELECT \nSUM(CASE WHEN attr_name = 'OPR' THEN attr_value END) AS OPR,\nSUM(CASE WHEN attr_name = 'EPA' THEN attr_value END) AS EPA,\nSUM(CASE WHEN attr_name = 'Hub Auto Fuel Count' THEN attr_value END) AS 'Auto OPR'\nFROM matches_depth_predictions\nWHERE match_key = '$Current_Match' AND team_key IN ('$Current_Match_Blue_1', '$Current_Match_Blue_2', '$Current_Match_Blue_3') AND attr_name IN ('OPR', 'EPA', 'Hub Auto Fuel Count')",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "stat"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "2026paca_f1m1",
+          "value": "2026paca_f1m1"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Match\nFROM matches",
+        "name": "Current_Match",
+        "options": [],
+        "query": "SELECT Match\nFROM matches",
+        "refresh": 1,
+        "regex": "",
+        "sort": 7,
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "340",
+          "value": "340"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Red_1\nFROM matches\nWHERE Match = '$Current_Match'",
+        "hide": 2,
+        "name": "Current_Match_Red_1",
+        "options": [],
+        "query": "SELECT Red_1\nFROM matches\nWHERE Match = '$Current_Match'",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "3504",
+          "value": "3504"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Red_2\nFROM matches\nWHERE Match = '$Current_Match'",
+        "hide": 2,
+        "name": "Current_Match_Red_2",
+        "options": [],
+        "query": "SELECT Red_2\nFROM matches\nWHERE Match = '$Current_Match'",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "3015",
+          "value": "3015"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Red_3\nFROM matches\nWHERE Match = '$Current_Match'",
+        "hide": 2,
+        "name": "Current_Match_Red_3",
+        "options": [],
+        "query": "SELECT Red_3\nFROM matches\nWHERE Match = '$Current_Match'",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "2641",
+          "value": "2641"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Blue_1\nFROM matches\nWHERE Match = '$Current_Match'",
+        "hide": 2,
+        "name": "Current_Match_Blue_1",
+        "options": [],
+        "query": "SELECT Blue_1\nFROM matches\nWHERE Match = '$Current_Match'",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "3990",
+          "value": "3990"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Blue_2\nFROM matches\nWHERE Match = '$Current_Match'",
+        "hide": 2,
+        "name": "Current_Match_Blue_2",
+        "options": [],
+        "query": "SELECT Blue_2\nFROM matches\nWHERE Match = '$Current_Match'",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "4028",
+          "value": "4028"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Blue_3\nFROM matches\nWHERE Match = '$Current_Match'",
+        "hide": 2,
+        "name": "Current_Match_Blue_3",
+        "options": [],
+        "query": "SELECT Blue_3\nFROM matches\nWHERE Match = '$Current_Match'",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Prematch",
+  "uid": "advk8k7",
+  "version": 100
+}

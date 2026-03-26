@@ -184,6 +184,12 @@ def create_app():  # cursed but whatever
 
     DASHBOARD_UIDS = {}
     for dash in ["Prematch.json", "Full Team Data.json", "Statbotics Viz.json", "Team View.json"]: # TODO: make this a grep
+        if not os.path.exists(
+            f"/var/lib/grafana/dashboards/{dash}"
+                if is_docker
+                else f"./grafana-dashboard/{dash}"
+        ):
+            compile_scouting_dashboard("http://localhost:5000")
         with open(
             (
                 f"/var/lib/grafana/dashboards/{dash}"

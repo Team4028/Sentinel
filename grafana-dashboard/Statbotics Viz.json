@@ -1,0 +1,718 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 11,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "min": -2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "purple",
+                "value": 4028
+              },
+              {
+                "color": "red",
+                "value": 4029
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 11,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.9,
+        "colorByField": "Team",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "text": {},
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xField": "Team",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Red_1\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n  UNION\n  SELECT Red_2\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n  UNION\n  SELECT Red_3\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n)",
+          "queryType": "table",
+          "rawQueryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Red_1\n  FROM matches\n  WHERE Match = '$Current_Match'\n  UNION\n  SELECT Red_2\n  FROM matches\n  WHERE Match = '$Current_Match'\n  UNION\n  SELECT Red_3\n  FROM matches\n  WHERE Match = '$Current_Match'\n)",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "Red Alliance",
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "min": -2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              },
+              {
+                "color": "purple",
+                "value": 4028
+              },
+              {
+                "color": "blue",
+                "value": 4029
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 11,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.9,
+        "colorByField": "Team",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "text": {},
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xField": "Team",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Blue_1\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n  UNION\n  SELECT Blue_2\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n  UNION\n  SELECT Blue_3\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n)",
+          "queryType": "table",
+          "rawQueryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Blue_1\n  FROM matches\n  WHERE Match = '$Current_Match'\n  UNION\n  SELECT Blue_2\n  FROM matches\n  WHERE Match = '$Current_Match'\n  UNION\n  SELECT Blue_3\n  FROM matches\n  WHERE Match = '$Current_Match'\n)",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "Blue Alliance",
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Statbotics_red_score\nFROM matches\nWHERE Match = '2026paca_f1m1'",
+          "queryType": "table",
+          "rawQueryText": "SELECT Statbotics_red_score\nFROM matches\nWHERE Match = '$Current_Match'",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Red Score",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "unit": "percent"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Statbotics_red_Score"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Blue Win Prob"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Red Win Prob"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 6,
+        "x": 9,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "displayLabels": [
+          "value"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "values": [
+            "percent"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "sort": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Statbotics_red_win_prob\nFROM matches\nWHERE Match = '$Current_Match'",
+          "queryType": "table",
+          "rawQueryText": "SELECT Statbotics_red_win_prob\nFROM matches\nWHERE Match = '$Current_Match'",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Win Probability",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Red Win Prob",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Statbotics_red_win_prob"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "100"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Blue Win Prob",
+            "binary": {
+              "left": {
+                "fixed": "100"
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Red Win Prob"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "Blue Win Prob": 0,
+              "Red Win Prob": 1
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 15,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Statbotics_blue_score\nFROM matches\nWHERE Match = '2026paca_f1m1'",
+          "queryType": "table",
+          "rawQueryText": "SELECT Statbotics_blue_score\nFROM matches\nWHERE Match = '$Current_Match'",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Blue Score",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 0,
+        "y": 16
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT\n  (Statbotics_red_energized_rp + Statbotics_red_supercharged_rp + Statbotics_red_traversal_rp + (CASE WHEN Statbotics_winner = 'red' THEN 3 ELSE 0 END)) AS Expected_Rps\nFROM matches\nWHERE Match = '2026paca_f1m1'",
+          "queryType": "table",
+          "rawQueryText": "SELECT\n  (Statbotics_red_energized_rp + Statbotics_red_supercharged_rp + Statbotics_red_traversal_rp + (CASE WHEN Statbotics_winner = 'red' THEN 3 ELSE 0 END)) AS Expected_Rps\nFROM matches\nWHERE Match = '$Current_Match'",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "Expected RPs",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 15,
+        "y": 16
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT\n  (Statbotics_blue_energized_rp + Statbotics_blue_supercharged_rp + Statbotics_blue_traversal_rp + (CASE WHEN Statbotics_winner = 'blue' THEN 3 ELSE 0 END)) AS Expected_Rps\nFROM matches\nWHERE Match = '$Current_Match'",
+          "queryType": "table",
+          "rawQueryText": "SELECT\n  (Statbotics_blue_energized_rp + Statbotics_blue_supercharged_rp + Statbotics_blue_traversal_rp + (CASE WHEN Statbotics_winner = 'blue' THEN 3 ELSE 0 END)) AS Expected_Rps\nFROM matches\nWHERE Match = '$Current_Match'",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "Expected RPs",
+      "transparent": true,
+      "type": "stat"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "2026paca_f1m1",
+          "value": "2026paca_f1m1"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Match\nFROM matches",
+        "name": "Current_Match",
+        "options": [],
+        "query": "SELECT Match\nFROM matches",
+        "refresh": 1,
+        "regex": "",
+        "sort": 7,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Statbotics Viz",
+  "uid": "adhphw4",
+  "version": 3
+}

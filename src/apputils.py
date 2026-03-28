@@ -1,10 +1,11 @@
 import os
 import hashlib
+from pathlib import Path
 import secrets
 import shutil
 import traceback
 from typing import Any, Generator
-import statbotics
+import base64
 import requests
 from datetime import date
 import re
@@ -328,6 +329,73 @@ def get_tba_opr(event_key, api_key, year, teams):
     except Exception as e:
         logger.error(exception_format(e))
         return {}
+    
+def get_tba_images(api_key, year, photo_dir, teams):
+    for team in teams:
+        logger.info(
+            f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/media/{year}"
+        )
+        pics = requests.get(
+            f"https://www.thebluealliance.com/api/v3/team/frc{team}/media/{year}",
+            headers={"X-TBA-Auth-Key": api_key},
+        ).json()
+        for i, pic in enumerate(pics):
+            output_image_name = os.path.join(photo_dir, f"{team}-tba-{i}")
+            if pic["type"] in ["avatar", "instagram-image"] or os.path.exists(f"{output_image_name}.png") or os.path.exists(f"{output_image_name}.jpeg"): continue
+            if "details" in pic and "image_url" in pic["details"]:
+                img_src = pic["details"]["image_url"]
+                output_image_name += os.path.splitext(img_src)[1]
+                try:
+                    logger.info(f"Fetch: {img_src}")
+                    response = requests.get(img_src, headers={
+                        "User-Agent": "curl/7.88.1", # pretend to be curl to avoid 429
+                        "Accept": "*/*"
+                    }, allow_redirects=False)
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    logger.info(f"Error downloading image: {e}")
+                    continue
+                with open(output_image_name, "wb") as w:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        w.write(chunk)
+                logger.info(f"Downloaded image {output_image_name} from {img_src}")
+            elif pic["direct_url"].strip():
+                img_src = pic["direct_url"]
+                if pic["type"] == "onshape":
+                    output_image_name += ".png"
+                else:
+                    output_image_name += os.path.splitext(img_src)[1]
+                try:
+                    logger.info(f"Fetch: {img_src}")
+                    response = requests.get(img_src, headers={
+                        "User-Agent": "curl/7.88.1", # pretend to be curl to avoid 429
+                        "Accept": "*/*"
+                    }, allow_redirects=False)
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    logger.info(f"Error downloading image: {e}")
+                    continue
+                with open(output_image_name, "wb") as w:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        w.write(chunk)
+                logger.info(f"Downloaded image {output_image_name} from {img_src}")
+            elif "details" in pic and "base64Image" in pic["details"]:
+                img_src = pic["details"]["base64Image"]
+                img_data = base64.b64decode(img_src)
+                if "PNG" in img_data.decode(errors="replace"):
+                    output_image_name += ".png"
+                else:
+                    output_image_name += ".jpeg"
+                with open(output_image_name, "wb") as w:
+                    w.write(img_data)
+                logger.info(f"Saved image {output_image_name} from b64 {img_src}")
+
+def get_num_team_pics(team, photo_dir):
+    return len(list(
+        Path(photo_dir).glob(
+            f"{team}*.*"
+        )
+    ))
 
 
 def get_tba_ranks(event_key, api_key, teams):
@@ -395,14 +463,7 @@ class TBAData:
         self.curr_oprs = curr_oprs
 
 
-def load_tba_data(event_key, api_key, year) -> tuple[
-    list[Any],
-    list[dict[str, Any]],
-    (dict | dict[Any, tuple[Any, Any]]),
-    Any,
-    (dict | Any),
-    (dict[Any, Any] | Any),
-]:
+def load_tba_data(event_key, api_key, year) -> TBAData:
     """Loads up the teams and schedule for `event_key` and returns a tuple (teams, schedule)"""
     didnt_read = True
     team_info = {}

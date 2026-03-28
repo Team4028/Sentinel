@@ -143,7 +143,8 @@ class Event[ET]:
 
     def __isub__(self, f: ET | list[ET]):
         if apputils.is_iterable(f):
-            for f2 in f: self._handlers.remove(f2)
+            for f2 in f:
+                self._handlers.remove(f2)
         else:
             self._handlers.remove(f)
         return self
@@ -171,8 +172,6 @@ class Processor:
 
     def __init__(
         self,
-        outpath,
-        outname,
         period_min,
         event_key,
         tba_key,
@@ -181,9 +180,6 @@ class Processor:
         config_data,
     ) -> None:
         self.chunk_size = chunk_size
-        self.outpath = outpath
-        self.outname = outname
-        self.database_name = "sentinel.db" # TODO: make setting for this
         self.period_min = period_min
         self._tba_data = apputils.TBAData()
         self.event_key, self.tba_key, self.year = event_key, tba_key, year
@@ -284,7 +280,7 @@ class Processor:
                 "School",
                 "RookieYear",
                 "PostalCode",
-                "Website"
+                "Website",
             ],
             "teams_fields": [
                 "field_name",
@@ -293,9 +289,7 @@ class Processor:
         }
 
         # Create Tables
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             conn.executescript(
                 f"""
                 CREATE TABLE IF NOT EXISTS matches (
@@ -382,23 +376,29 @@ class Processor:
 
     def load_remote_data(self):
         try:
+            logger.info("Loading TBA data...")
             self._tba_data = apputils.load_tba_data(
                 self.event_key, self.tba_key, self.year
             )
+            logger.info("Loading TBA images...")
+            try:
+                apputils.get_tba_images(self.tba_key, self.year, self.photo_path, self._tba_data.teams)
+            except:
+                pass
+            logger.info("Loading Statbotics EPAs...")
             self._sb_epas = {
                 s["team"]: round(s["epa"]["total_points"]["mean"], 1)
                 for s in self.sb.get_team_events(
                     event=self.event_key, limit=1000, fields=["team", "epa"]
                 )
             }
+            logger.info("Loading Statbotics match data...")
             self._sb_matches = self.sb.get_matches(event=self.event_key)
         except Exception as e:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
     def write_match_schedule_file(self):
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             matches = []
             for i, match in enumerate(self._tba_data.schedule):
                 matches.append(
@@ -433,9 +433,7 @@ class Processor:
             conn.commit()
 
     def write_teams_file(self):
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             all_fields = self.sql_fields["teams"]
             for team in self._tba_data.teams:
                 data = []
@@ -476,9 +474,7 @@ class Processor:
                 }
             )
 
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             for team in df:
                 conn.execute(
                     f"""
@@ -511,9 +507,7 @@ class Processor:
             logger.warning("No team fields")
             return
 
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Team")
             for team in df:
@@ -554,9 +548,7 @@ class Processor:
                 | {"Predict_Winner": "blue" if sum(score[0]) > sum(score[1]) else "red"}
             )
 
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
             for match in df:
@@ -579,9 +571,7 @@ class Processor:
                 }
                 | match["pred"]
             )
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
             for match in df:
@@ -596,9 +586,7 @@ class Processor:
             conn.commit()
 
     def write_statbotics_epa(self):
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             for team in self._tba_data.teams:
                 conn.execute(
                     f"""
@@ -618,14 +606,14 @@ class Processor:
         for k, v in self._matches.items():
             for matTeam in v.output_dict(self.config_data):
                 if int(k) <= len(self._tba_data.schedule):
-                    df.append({"Match": self._tba_data.schedule[int(k) - 1]['k']} | matTeam)
+                    df.append(
+                        {"Match": self._tba_data.schedule[int(k) - 1]["k"]} | matTeam
+                    )
 
         if len(df) <= 0:
             return
 
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
             fields_to_write.remove("Team")
@@ -670,9 +658,7 @@ class Processor:
             logger.warning("No depth predictions")
             return
 
-        with sqlite3.connect(
-            os.path.join(self.outpath, self.database_name)
-        ) as conn:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
             fields_to_write.remove("Team")
@@ -778,7 +764,7 @@ class Processor:
 
     def write_other_metrics(self, outfile) -> None:
         """writes the json other metrics (right now only percent teams scouted) to the outfile"""
-        outfile = os.path.join(self.outpath, "other-metrics.json")
+        outfile = os.path.join("dataout", "other-metrics.json")
         with open(outfile, "w") as w:
             json.dump(
                 {"Percent Teams Scouted": self.get_percent_scouted()}, w, indent=4
@@ -1004,7 +990,6 @@ class Processor:
                     )
                     if isinstance(val, pd.Series):
                         val = val.tolist()
-                    print(f"{match} -- {team} -- {field["name"]}: {val}")
                     if apputils.is_iterable(val) and not field["iter"]:
                         val = sum(val) / (1 if len(val) <= 0 else len(val))
 
@@ -1045,7 +1030,7 @@ class Processor:
                 logger.info("Writing chunk...")
                 # write the main csv
                 chunk.to_csv(
-                    os.path.join(self.outpath, self.outname),
+                    os.path.join("dataout", "output.csv"),
                     index=False,
                     header=first,
                 )

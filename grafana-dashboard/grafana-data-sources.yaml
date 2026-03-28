@@ -1,3 +1,20 @@
+- id: 21
+  uid: efhe3a9xasd8ga
+  orgId: 1
+  name: marcusolsson-csv-datasource
+  type: marcusolsson-csv-datasource
+  typeName: CSV
+  typeLogoUrl: public/plugins/marcusolsson-csv-datasource/img/logo.svg
+  access: proxy
+  url: /app/dataout/output.csv-pit-scouting.csv
+  user: ''
+  database: ''
+  basicAuth: false
+  isDefault: false
+  jsonData:
+    pdcInjected: false
+    storage: local
+  readOnly: false
 - id: 17
   uid: af4ihtuthnbpcb
   orgId: 1

@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 11,
+  "id": 0,
   "links": [],
   "panels": [
     {
@@ -63,7 +63,7 @@
                 "value": 0
               },
               {
-                "color": "purple",
+                "color": "dark-red",
                 "value": 4028
               },
               {
@@ -114,7 +114,7 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Red_1\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n  UNION\n  SELECT Red_2\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n  UNION\n  SELECT Red_3\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n)",
+          "queryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Red_1\n  FROM matches\n  WHERE Match = '2026paca_qm8'\n  UNION\n  SELECT Red_2\n  FROM matches\n  WHERE Match = '2026paca_qm8'\n  UNION\n  SELECT Red_3\n  FROM matches\n  WHERE Match = '2026paca_qm8'\n)",
           "queryType": "table",
           "rawQueryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Red_1\n  FROM matches\n  WHERE Match = '$Current_Match'\n  UNION\n  SELECT Red_2\n  FROM matches\n  WHERE Match = '$Current_Match'\n  UNION\n  SELECT Red_3\n  FROM matches\n  WHERE Match = '$Current_Match'\n)",
           "refId": "A",
@@ -167,7 +167,7 @@
                 "value": 0
               },
               {
-                "color": "purple",
+                "color": "dark-blue",
                 "value": 4028
               },
               {
@@ -218,7 +218,7 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Blue_1\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n  UNION\n  SELECT Blue_2\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n  UNION\n  SELECT Blue_3\n  FROM matches\n  WHERE Match = '2026paca_qm9'\n)",
+          "queryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Blue_1\n  FROM matches\n  WHERE Match = '2026paca_qm8'\n  UNION\n  SELECT Blue_2\n  FROM matches\n  WHERE Match = '2026paca_qm8'\n  UNION\n  SELECT Blue_3\n  FROM matches\n  WHERE Match = '2026paca_qm8'\n)",
           "queryType": "table",
           "rawQueryText": "SELECT Team, EPA\nFROM teams\nWHERE Team IN (\n  SELECT Blue_1\n  FROM matches\n  WHERE Match = '$Current_Match'\n  UNION\n  SELECT Blue_2\n  FROM matches\n  WHERE Match = '$Current_Match'\n  UNION\n  SELECT Blue_3\n  FROM matches\n  WHERE Match = '$Current_Match'\n)",
           "refId": "A",
@@ -695,13 +695,12 @@
           "type": "frser-sqlite-datasource",
           "uid": "afh372g20yt4wd"
         },
-        "definition": "SELECT Match\nFROM matches",
+        "definition": "SELECT Match\nFROM matches\nORDER  BY MatchIdx",
         "name": "Current_Match",
         "options": [],
-        "query": "SELECT Match\nFROM matches",
+        "query": "SELECT Match\nFROM matches\nORDER  BY MatchIdx",
         "refresh": 1,
         "regex": "",
-        "sort": 7,
         "type": "query"
       }
     ]
@@ -714,5 +713,5 @@
   "timezone": "browser",
   "title": "Statbotics Viz",
   "uid": "adhphw4",
-  "version": 3
+  "version": 5
 }

@@ -93,6 +93,7 @@ GRAFANA_DATA_PANELS = { # TODO: make this procedural or configurable somehow
         "Team Data": GrafanaDataPreset.TEAM,
     },
     "Full Team Data.json": {"Team Data": GrafanaDataPreset.TEAM},
+    "Pit Scouting View.json": {},
     "Prematch.json": {},
     "Statbotics Viz.json": {}
 }

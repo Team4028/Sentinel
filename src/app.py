@@ -10,7 +10,6 @@ from flask import (
     redirect,
 )
 from flask_login import login_user, login_required, logout_user, current_user
-from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 
@@ -40,9 +39,10 @@ import argparse
 import shlex
 import shutil
 from jinja2 import Environment, FileSystemLoader
+import sqlite3
 
 
-def create_app():  # cursed but whatever
+def create_app(inital_process = True):  # cursed but whatever
     """Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy"""
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -101,16 +101,18 @@ def create_app():  # cursed but whatever
     # =======================================================
     # Ensure directories on gitignore are present
     # =======================================================
-    def ensure_configurable_dirs():
+    def ensure_untracked_dirs():
         """Ensures that the upload and output directories exist.<br>
         It is wrapped in a function because these directories can change at runtime."""
-        os.makedirs(app.config["UPLOAD_DIR"], exist_ok=True)
-        os.makedirs(app.config["OUT_DIR"], exist_ok=True)
+        os.makedirs("datain", exist_ok=True)
+        os.makedirs("dataout", exist_ok=True)
+        os.makedirs("photos", exist_ok=True)
+        os.makedirs("autos", exist_ok=True)
         os.makedirs(
             "secrets", exist_ok=True
         )  # make sure secrets exists because we will soon open some files
 
-    ensure_configurable_dirs()
+    ensure_untracked_dirs()
 
     # =======================================================
     # Load Auth Keys
@@ -122,8 +124,6 @@ def create_app():  # cursed but whatever
     # Parse field config and setup processor
     # =======================================================
     processor = Processor(
-        app.config["OUT_DIR"],
-        app.config["BASE_OUTPUT_FILENAME"],
         app.config["TBA_FETCH_PERIOD_MIN"],
         app.config["EVENT_KEY"],
         auth_key,
@@ -132,7 +132,7 @@ def create_app():  # cursed but whatever
         lex_config(app.config["YEAR"]),
     )  # what's wrong with my copy of python why are their pointers (it's just the unpack operator)
 
-    infile = os.path.join(app.config["UPLOAD_DIR"], app.config["INPUT_FILENAME"])
+    infile = os.path.join("datain", "data_in.csv")
     js = None  # load the json file into mem so we don't have to read it every time its requested
 
     process_queue = []
@@ -146,8 +146,10 @@ def create_app():  # cursed but whatever
 
     def compile_scouting_dashboard(url: str):
         """Uses jinja templating to create dashboard jsons for provisioning that cast all of the number fields to numbers"""
+        app.logger.info("Compiling dashboards...")
         env = Environment(loader=FileSystemLoader("."))
         for path in Path("./src/templates").glob("*.ji"):
+            app.logger.info(f"Compiling {path}...")
             tmpl = env.get_template(path.relative_to(".").as_posix())
             fname = path.name[:-3]  # remove .ji
             # make acronym from title
@@ -176,14 +178,15 @@ def create_app():  # cursed but whatever
                 # inject the new dash to the provisioning dir
                 shutil.copy(out_path, "/var/lib/grafana/dashboards/")
 
-    try:
-        processor.proccess_data(infile)
-        app.logger.info("inital processing success")
-    except Exception as e:
-        app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
+    if inital_process:
+        try:
+            processor.proccess_data(infile)
+            app.logger.info("inital processing success")
+        except Exception as e:
+            app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
 
     DASHBOARD_UIDS = {}
-    for dash in ["Prematch.json", "Full Team Data.json", "Statbotics Viz.json", "Team View.json"]: # TODO: make this a grep
+    for dash in ["Prematch.json", "Full Team Data.json", "Statbotics Viz.json", "Team View.json", "Pit Scouting View.json"]: # TODO: make this a grep
         if not os.path.exists(
             f"/var/lib/grafana/dashboards/{dash}"
                 if is_docker
@@ -204,19 +207,19 @@ def create_app():  # cursed but whatever
         """Updates the copy of the 'other-metrics.json' file in memory (used for '/percent' endpoint) to use the newest file"""
         nonlocal js
         if not os.path.exists(
-            os.path.join(app.config["OUT_DIR"], app.config["METRIC_OUTPUT_FILENAME"])
+            os.path.join("dataout", "other-metrics.json")
         ):
             js = None
             return
         with open(
-            os.path.join(app.config["OUT_DIR"], app.config["METRIC_OUTPUT_FILENAME"]),
+            os.path.join("dataout", "other-metrics.json"),
             "r",
         ) as r:
             js = (
                 json.load(r)
                 if os.path.exists(
                     os.path.join(
-                        app.config["OUT_DIR"], app.config["METRIC_OUTPUT_FILENAME"]
+                        "dataout", "other-metrics.json"
                     )
                 )
                 else None
@@ -295,9 +298,13 @@ def create_app():  # cursed but whatever
 
     def save_photo(filestorage, team: str):
         """saves the given filestorage to PHOTO_STORAGE/{team}.ext where ext is the extension of filestorage"""
-        os.makedirs(app.config["PHOTO_STORAGE"], exist_ok=True)
         ext = os.path.splitext(filestorage.filename)[1].lower()  # . + type (ex: .png)
-        file_save = os.path.join(app.config["PHOTO_STORAGE"], team + ext)
+        file_save = os.path.join("photos", team + ext)
+        filestorage.save(file_save)
+
+    def save_auto(filestorage, match: str):
+        ext = os.path.splitext(filestorage.filename)[1].lower()
+        file_save = os.path.join("autos", f"match-{match}{ext}")
         filestorage.save(file_save)
 
     def handle_mesh_line(message: str):
@@ -459,9 +466,9 @@ def create_app():  # cursed but whatever
     def save_pit():
         if request and request.json:
             try:
-                csv_file = os.path.join(app.config["OUT_DIR"], app.config["BASE_OUTPUT_FILENAME"] + "-pit-scouting.csv")
+                csv_file = os.path.join("dataout", "output.csv" + "-pit-scouting.csv")
                 need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0 
-                with open(os.path.join(app.config["OUT_DIR"], app.config["BASE_OUTPUT_FILENAME"] + "-pit-scouting.csv"), mode='a', newline='') as f:
+                with open(os.path.join("dataout", "output.csv" + "-pit-scouting.csv"), mode='a', newline='') as f:
                     writer = csv.DictWriter(f, fieldnames=request.json.keys())
                     if need_write: writer.writeheader()
                     writer.writerow(request.json)
@@ -505,6 +512,22 @@ def create_app():  # cursed but whatever
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
+        
+    @app.post("/upload-auto")
+    @login_required
+    def upload_auto():
+        try:
+            if ("photo" in request.files) and (
+                match := request.headers.get("mkey")
+            ) != None:
+                photo = request.files["photo"]
+                if photo.filename != "":
+                    save_auto(photo, match)
+                    return "Saved!", 200
+            return "Error: invalid request", 400
+        except Exception as e:
+            return apputils.exception_format(e), 500
+                
 
     # RESTRICTED (uploads files = writes to server directory = bad)
     @app.post("/upload-photo")
@@ -518,7 +541,7 @@ def create_app():  # cursed but whatever
                 photo = request.files["photo"]
                 if photo.filename != "":
                     save_photo(photo, team)
-                    return "", 200
+                    return "Saved!", 200
             return "Error: invalid request", 400
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -538,52 +561,10 @@ def create_app():  # cursed but whatever
         """Reprocesses the data with no additional inputs; for testing or manual csv changes"""
         try:
             do_data_processing()
-            return "Data reloaded."
+            return "Data reloaded.", 200
         except Exception as e:
             return apputils.exception_format(e), 500
-
-    # OPEN (grafana need this (maybe))
-    @app.route("/team-meta")
-    def tmeta():
-        """Returns the field names (headers) contained in the teams output csv"""
-        if os.path.exists(
-            os.path.join(
-                app.config["OUT_DIR"], f"{app.config["BASE_OUTPUT_FILENAME"]}-teams.csv"
-            )
-        ):
-            with open(
-                os.path.join(
-                    app.config["OUT_DIR"],
-                    f"{app.config["BASE_OUTPUT_FILENAME"]}-teams.csv",
-                )
-            ) as r:
-                headers = r.readline().strip().split(",")  # decode csv into list[str]
-                headers.remove("Team")
-                return jsonify(headers)
-        return "File not found", 400
-
-    # OPEN (grafana needs this (maybe))
-    @app.route("/match-meta")
-    def mmeta():
-        """Returns the field names (headers) contained in the matches output csv"""
-        if os.path.exists(
-            os.path.join(
-                app.config["OUT_DIR"],
-                f"{app.config["BASE_OUTPUT_FILENAME"]}-matches.csv",
-            )
-        ):
-            with open(
-                os.path.join(
-                    app.config["OUT_DIR"],
-                    f"{app.config["BASE_OUTPUT_FILENAME"]}-matches.csv",
-                )
-            ) as r:
-                headers = r.readline().strip().split(",")
-                headers.remove("Match")
-                headers.remove("Team")
-                return jsonify(headers)
-        return "File not found", 400
-
+        
     # OPEN (grafana required)
     @app.get("/team-photo")
     def get_team_pics():
@@ -591,16 +572,34 @@ def create_app():  # cursed but whatever
         if "team" in request.args:
             try:
                 files_match = list(
-                    Path(app.config["PHOTO_STORAGE"]).glob(
-                        f"{request.args.get("team", 0).strip()}.*"
+                    Path("photos").glob(
+                        f"{request.args.get("team", 0).strip()}*.*"
                     )
                 )
+                try:
+                    index = int(request.args.get("index", 0))
+                except:
+                    index = 0 # if not int
                 files_match = list(map(lambda p: p.absolute().as_posix(), files_match))
                 return (
-                    send_file(files_match[0])
+                    send_file(files_match[min(index, len(files_match))])
                     if files_match and len(files_match) > 0
                     else ("Error, team picture not found", 400)
                 )
+            except Exception as e:
+                return apputils.exception_format(e), 500
+        return "Error: invalid request", 400
+    
+    @app.get("/team-photo-indicies")
+    def get_team_indicies():
+        if "team" in request.args:
+            try:
+                max_idx = len(list(
+                    Path("photos").glob(
+                        f"{request.args.get("team", 0).strip()}*.*"
+                    )
+                ))
+                return jsonify(list(range(max_idx)))
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Error: invalid request", 400
@@ -722,6 +721,36 @@ def create_app():  # cursed but whatever
             rm_row_hash(request.json["lines"])
             return "", 200
         return "Invalid request", 400
+    
+    @app.get('/auton-scout')
+    def auton_scout():
+        return render_template_style("auton-scouting.html")
+    
+    @app.get("/teams-in-match")
+    def teams_in_match():
+        if "mkey" in request.args:
+            _match = request.args.get('mkey', "")
+            with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT Match, Red_1, Red_2, Red_3, Blue_1, Blue_2, Blue_3 FROM matches")
+                matches = cursor.fetchall()
+            for mat in matches:
+                if mat[0] == _match:
+                    return jsonify({
+                        'k': mat[0],
+                        'r': mat[1:4],
+                        'b': mat[4:7],
+                    })
+            return "Error, match not in data", 404
+        return "Error: invalid request", 400
+    
+    @app.get("/matches-in-comp")
+    def matches_in_comp():
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT Match FROM matches")
+            return jsonify(list(cursor.fetchall()))
+
     
     @app.post("/dash-reset")
     @login_required
@@ -968,7 +997,7 @@ def create_app():  # cursed but whatever
                         # os.remove(
                         #     infile
                         # )  # remove data_in if it's not playing nice (ie. 2025 data in, switches to 2026)
-                ensure_configurable_dirs()  # if either of the the upl/out dirs were changed, they may no longer exist
+                ensure_untracked_dirs()  # if either of the the upl/out dirs were changed, they may no longer exist
                 return "", 200
             except Exception as e:
                 return apputils.exception_format(e), 500
@@ -984,12 +1013,12 @@ def create_app():  # cursed but whatever
         file = os.path.basename(file)  # no .. touchy
         file = os.path.join(
             (
-                app.config["OUT_DIR"]
+                "dataout"
                 if (
-                    app.config["BASE_OUTPUT_FILENAME"] in file
-                    or file == app.config["METRIC_OUTPUT_FILENAME"]
+                    "output.csv" in file
+                    or file == "other-metrics.json"
                 )
-                else app.config["UPLOAD_DIR"]
+                else "datain"
             ),
             file,
         )  # get dir based on name
@@ -1035,4 +1064,4 @@ if __name__ == "__main__":
         elif sys.argv[1] == "sign":
             apputils.generate_ssl_sign()
     else:
-        create_app().run(port=5001, use_reloader=False)  # debug run python
+        create_app(inital_process=False).run(port=5001, use_reloader=False)  # debug run python

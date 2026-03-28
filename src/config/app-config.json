@@ -8,11 +8,5 @@
     "YEAR": "2026_subjective",
     "TEAM": "4028",
     "RESTRICT_APPEND_LEVEL": 1,
-    "UPLOAD_DIR": "datain",
-    "INPUT_FILENAME": "data_in.csv",
-    "OUT_DIR": "dataout",
-    "BASE_OUTPUT_FILENAME": "output.csv",
-    "PHOTO_STORAGE": "photos",
-    "METRIC_OUTPUT_FILENAME": "other-metrics.json",
     "NEXT_N_MATCHES_NUMBER": 3
 }

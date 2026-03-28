@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 0,
+  "id": 13,
   "links": [],
   "panels": [
     {
@@ -734,7 +734,7 @@
       "options": {
         "alt_field": "",
         "autofit": false,
-        "baseUrl": "http://localhost:5000/team-photo?team=",
+        "baseUrl": "http://localhost:5000/team-photo?index=$PhotoIndex&team=",
         "height": "75",
         "icon_field": "",
         "open_url": {
@@ -1083,8 +1083,8 @@
       {
         "allowCustomValue": false,
         "current": {
-          "text": "2641",
-          "value": "2641"
+          "text": "4028",
+          "value": "4028"
         },
         "datasource": {
           "type": "frser-sqlite-datasource",
@@ -1094,6 +1094,48 @@
         "name": "Team",
         "options": [],
         "query": "SELECT Team\nFROM teams",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "datasource": {
+          "type": "yesoreyeram-infinity-datasource",
+          "uid": "af4ihtuthnbpcb"
+        },
+        "definition": "",
+        "name": "PhotoIndex",
+        "options": [],
+        "query": {
+          "infinityQuery": {
+            "columns": [],
+            "filters": [],
+            "format": "table",
+            "parser": "backend",
+            "refId": "variable",
+            "root_selector": "",
+            "source": "url",
+            "type": "json",
+            "url": "http://localhost:5000/team-photo-indicies",
+            "url_options": {
+              "data": "",
+              "method": "GET",
+              "params": [
+                {
+                  "key": "team",
+                  "value": "$Team"
+                }
+              ]
+            }
+          },
+          "query": "",
+          "queryType": "infinity"
+        },
         "refresh": 1,
         "regex": "",
         "type": "query"
@@ -1108,5 +1150,5 @@
   "timezone": "browser",
   "title": "Team View",
   "uid": "ad962jv",
-  "version": 24
+  "version": 28
 }

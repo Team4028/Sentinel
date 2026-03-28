@@ -1,0 +1,469 @@
+<!-- https://leimao.github.io/blog/HTML-Canvas-Mouse-Touch-Drawing/ -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="{{url_for('static', filename='fonts/neuropolitical.css')}}" rel="stylesheet">
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Auton Scouting</title>
+    <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        body {
+            background-color: #333;
+            width: 100%;
+            height: 100%;
+        }
+
+        #menu_div {
+            text-align: center;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            height: 100%;
+            color: white;
+        }
+
+        #bg {
+            display: block;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        canvas {
+            border: 2px solid black;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .robot-div {
+            width: 60px;
+            height: 60px;
+            border: 5px solid black;
+            border-radius: 5px;
+            position: fixed;
+            pointer-events: all;
+            cursor: move;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: sans-serif;
+            user-select: none;
+        }
+
+        #status-div {
+            display: inline;
+            color: var(--text);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="menu_div" style="overflow-x: hidden;">
+        Match : <select id="selMatch">
+        </select>
+        <button onclick="clearArea();">Clear Area</button>
+        Line width : <select id="selWidth">
+            <option value="5" selected="selected">5</option>
+            <option value="9">9</option>
+            <option value="11">11</option>
+            <option value="13">13</option>
+            <option value="15">15</option>
+            <option value="19">19</option>
+        </select>
+        Color : <select id="selColor">
+            <option value="auto" selected="selected">auto</option>
+            <option value="black">black</option>
+            <option value="blue">blue</option>
+            <option value="red">red</option>
+            <option value="green">green</option>
+            <option value="yellow">yellow</option>
+            <option value="gray">gray</option>
+        </select>
+        <button onclick="saveAuto()" ;>Submit</button>
+        <div id="status-div"></div>
+    </div>
+    <img id="bg" src="{{url_for('static', filename='fields/2026-field.png')}}">
+    <canvas id="canvas"></canvas>
+    <div id="red-1" class="robot-div" style="border-color: red; color: lightcoral; left: 75%;"></div>
+    <div id="red-2" class="robot-div" style="border-color: red; color: lightcoral; left: 80%;"></div>
+    <div id="red-3" class="robot-div" style="border-color: red; color: lightcoral; left: 85%;"></div>
+    <div id="blue-1" class="robot-div" style="border-color: blue; color: lightblue; left: 5%;"></div>
+    <div id="blue-2" class="robot-div" style="border-color: blue; color: lightblue; left: 10%;"></div>
+    <div id="blue-3" class="robot-div" style="border-color: blue; color: lightblue; left: 15%;"></div>
+
+    <script>
+        const statusDiv = document.getElementById("status-div");
+        const canvas = document.getElementById('canvas');
+        const robots = Array.from(document.querySelectorAll(".robot-div"));
+        const matchSel = document.getElementById('selMatch');
+        let robotsDragging = new Array(robots.length).fill(false);
+        const context = canvas.getContext('2d');
+        const img = document.getElementById("bg");
+        let isDrawing = false;
+        let x = 0;
+        let y = 0;
+        var offsetX;
+        var offsetY;
+        let currMouseDrawWasBlue = true;
+        let undoStack = [];
+        let redoStack = [];
+
+        async function loadTeamNumbers() {
+            var teamJSON = await (await fetch(`{{url_for('teams_in_match')}}?mkey=${matchSel.value}`)).json();
+            for (var i = 0; i < robots.length; i++) {
+                if (i >= 3) {
+                    robots[i].innerText = teamJSON['b'][i - 3];
+                } else {
+                    robots[i].innerText = teamJSON['r'][i];
+                }
+            }
+        }
+
+
+        async function loadMatches() {
+            let matches = await (await fetch(`{{url_for('matches_in_comp')}}`)).json();
+            let first = true;
+            for (match of matches) {
+                const opt = document.createElement("option");
+                opt.value = match;
+                opt.text = match;
+                if (first) {
+                    opt.selected = "selected";
+                    first = false;
+                }
+                matchSel.appendChild(opt);
+            }
+
+            await loadTeamNumbers();
+        }
+
+        function drawRobot(ctx, options) {
+            const {
+                x,
+                y,
+                width,
+                height,
+                radius = 5,
+                fillColor = "white",
+                borderColor = "black",
+                borderWidth = 1,
+                text = "",
+                font = "16px Arial",
+                textColor = "black"
+            } = options;
+
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(x, y, width, height, radius);
+            } else {
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + width - radius, y);
+                ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+                ctx.lineTo(x + width, y + height - radius);
+                ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                ctx.lineTo(x + radius, y + height);
+                ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+                ctx.lineTo(x, y + radius);
+                ctx.quadraticCurveTo(x, y, x + radius, y);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = fillColor;
+            ctx.fill();
+            ctx.lineWidth = borderWidth;
+            ctx.strokeStyle = borderColor;
+            ctx.stroke();
+
+            ctx.font = font;
+            ctx.fillStyle = textColor;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(text, x + width / 2, y + height / 2);
+        }
+
+        async function saveAuto() {
+            const fData = new FormData();
+            const mergeCanvas = document.createElement("canvas");
+            mergeCanvas.width = canvas.width;
+            mergeCanvas.height = canvas.height;
+            const mergeCtx = mergeCanvas.getContext('2d');
+            mergeCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            mergeCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+            for (const robot of robots) {
+                var w = robot.clientWidth;
+                var h = robot.clientHeight;
+                var x = parseInt(robot.style.left.replace('px', ''));
+                var y = parseInt(robot.style.top.replace('px', '')) - img.getBoundingClientRect().top;
+                var isBlue = robot.id.includes('blue');
+                drawRobot(mergeCtx, {
+                    x: x,
+                    y: y,
+                    width: w,
+                    height: h,
+                    radius: 5,
+                    fillColor: 'rgba(0,0,0,0)',
+                    borderColor: (isBlue ? "blue" : "red"),
+                    borderWidth: 5,
+                    text: robot.innerText,
+                    font: "20px sans-serif",
+                    textColor: (isBlue ? "lightblue" : "lightcoral")
+                });
+            }
+            mergeCanvas.toBlob((blob) => {
+                const fData = new FormData();
+                fData.append("photo", blob, "auto.png");
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", "{{url_for('upload_auto')}}", true);
+                xhr.setRequestHeader('mkey', matchSel.value);
+                xhr.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        statusDiv.innerText = ((e.loaded / e.total) * 100) + "%";
+                    }
+                }
+                xhr.onload = () => {
+                    statusDiv.innerText = "Success!!";
+                }
+                xhr.onerror = (e) => {
+                    statusDiv.innerText = `Error: ${e}`;
+                }
+                xhr.send(fData);
+            }, 'image/png');
+        }
+
+        loadMatches();
+
+        matchSel.addEventListener("change", () => {
+            loadTeamNumbers();
+        });
+
+        function resizeCanvas() {
+            canvas.style.width = img.getBoundingClientRect().width + "px";
+            canvas.style.height = img.getBoundingClientRect().height + "px";
+            canvas.width = img.getBoundingClientRect().width;
+            canvas.height = img.getBoundingClientRect().height;
+            canvas.style.top = img.getBoundingClientRect().top + "px";
+            for (let i = 0; i < robots.length; i++) {
+                robots[i].style.top = img.getBoundingClientRect().top + "px";
+            }
+        }
+
+        window.addEventListener("load", resizeCanvas);
+
+        window.addEventListener("resize", resizeCanvas);
+
+        function startup() {
+            canvas.addEventListener('touchstart', handleStart);
+            canvas.addEventListener('touchend', handleEnd);
+            canvas.addEventListener('touchcancel', handleCancel);
+            canvas.addEventListener('touchmove', handleMove);
+            canvas.addEventListener('mousedown', (e) => {
+                saveState();
+                x = e.offsetX;
+                y = e.offsetY;
+                isDrawing = true;
+                currMouseDrawWasBlue = x < (canvas.width / 2);
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDrawing) {
+                    drawLine(context, x, y, e.offsetX, e.offsetY);
+                    x = e.offsetX;
+                    y = e.offsetY;
+                }
+            });
+
+            canvas.addEventListener('mouseup', (e) => {
+                if (isDrawing) {
+                    drawLine(context, x, y, e.offsetX, e.offsetY);
+                    x = 0;
+                    y = 0;
+                    isDrawing = false;
+                }
+            });
+
+            canvas.addEventListener("mouseleave", (e) => {
+                if (isDrawing) {
+                    drawLine(context, x, y, e.offsetX, e.offsetY);
+                    x = 0;
+                    y = 0;
+                    isDrawing = false;
+                }
+            })
+
+            for (let i = 0; i < robots.length; i++) {
+                robots[i].addEventListener("mousedown", (e) => {
+                    robotsDragging[i] = true;
+                    console.log(`AAAAA: ${i}`);
+                });
+            }
+
+            window.addEventListener("mousemove", (e) => {
+                for (var i = 0; i < robots.length; i++) {
+                    if (robotsDragging[i]) {
+                        var w = robots[i].clientWidth;
+                        var h = robots[i].clientHeight;
+
+                        var targx = (e.clientX - (w / 2));
+                        var targy = (e.clientY - (h / 2));
+
+                        targx = Math.max(img.getBoundingClientRect().left, Math.min(img.getBoundingClientRect().right - w - 5, targx));
+                        targy = Math.max(img.getBoundingClientRect().top, Math.min(img.getBoundingClientRect().bottom - h - 5, targy));
+
+                        robots[i].style.left = targx + "px";
+                        robots[i].style.top = targy + "px";
+                    }
+                }
+            });
+
+            window.addEventListener("mouseup", (e) => {
+                robotsDragging.fill(false);
+            });
+        }
+
+        function saveState() {
+            undoStack.push(context.getImageData(0, 0, canvas.width, canvas.height));
+            if (undoStack.length > 20) undoStack.shift();
+            redoStack.length = 0;
+        }
+
+        function undo() {
+            if (undoStack.length > 0) {
+                redoStack.push(context.getImageData(0, 0, canvas.width, canvas.height));
+                const prev = undoStack.pop();
+                context.putImageData(prev, 0, 0);
+            }
+        }
+
+        function redo() {
+            if (redoStack.length > 0) {
+                undoStack.push(context.getImageData(0, 0, canvas.width, canvas.height));
+                const next = redoStack.pop();
+                context.putImageData(next, 0, 0);
+            }
+        }
+
+        window.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                undo();
+                e.preventDefault();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                redo();
+                e.preventDefault();
+            }
+        })
+
+        document.addEventListener("DOMContentLoaded", startup);
+
+        const ongoingTouches = [];
+
+        function handleStart(evt) {
+            evt.preventDefault();
+            const touches = evt.changedTouches;
+            offsetX = canvas.getBoundingClientRect().left;
+            offsetY = canvas.getBoundingClientRect().top;
+            for (let i = 0; i < touches.length; i++) {
+                ongoingTouches.push(copyTouch(touches[i]));
+            }
+        }
+
+        function handleMove(evt) {
+            evt.preventDefault();
+            const touches = evt.changedTouches;
+            for (let i = 0; i < touches.length; i++) {
+                let color = document.getElementById('selColor').value;
+                if (color === "auto") {
+                    color = touches[i].wasBlue ? "blue" : "red";
+                }
+                const idx = ongoingTouchIndexById(touches[i].identifier);
+                if (idx >= 0) {
+                    context.beginPath();
+                    context.moveTo(ongoingTouches[idx].clientX - offsetX, ongoingTouches[idx].clientY - offsetY);
+                    context.lineTo(touches[i].clientX - offsetX, touches[i].clientY - offsetY);
+                    context.lineWidth = document.getElementById('selWidth').value;
+                    context.strokeStyle = color;
+                    context.lineJoin = "round";
+                    context.closePath();
+                    context.stroke();
+                    ongoingTouches.splice(idx, 1, copyTouch(touches[i]));
+                }
+            }
+        }
+
+        function handleEnd(evt) {
+            evt.preventDefault();
+            const touches = evt.changedTouches;
+            for (let i = 0; i < touches.length; i++) {
+                let color = document.getElementById('selColor').value;
+                if (color === "auto") {
+                    color = touches[i].wasBlue ? "blue" : "red";
+                }
+                let idx = ongoingTouchIndexById(touches[i].identifier);
+                if (idx >= 0) {
+                    context.lineWidth = document.getElementById('selWidth').value;
+                    context.fillStyle = color;
+                    ongoingTouches.splice(idx, 1);
+                }
+            }
+        }
+
+        function handleCancel(evt) {
+            evt.preventDefault();
+            const touches = evt.changedTouches;
+            for (let i = 0; i < touches.length; i++) {
+                let idx = ongoingTouchIndexById(touches[i].identifier);
+                ongoingTouches.splice(idx, 1);
+            }
+        }
+
+        function copyTouch({ identifier, clientX, clientY }) {
+            let wasBlue = clientX < (canvas.width / 2);
+            return { identifier, clientX, clientY, wasBlue };
+        }
+
+        function ongoingTouchIndexById(idToFind) {
+            for (let i = 0; i < ongoingTouches.length; i++) {
+                const id = ongoingTouches[i].identifier;
+                if (id === idToFind) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        function drawLine(context, x1, y1, x2, y2, autoColor) {
+            context.beginPath();
+            let color = document.getElementById('selColor').value
+            if (color === "auto") {
+                color = currMouseDrawWasBlue ? "blue" : "red";
+            }
+            context.strokeStyle = color;
+            context.lineWidth = document.getElementById('selWidth').value;
+            context.lineJoin = "round";
+            context.moveTo(x1, y1);
+            context.lineTo(x2, y2);
+            context.closePath();
+            context.stroke();
+        }
+
+        function clearArea() {
+            saveState();
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        }
+    </script>
+
+</body>
+
+</html>

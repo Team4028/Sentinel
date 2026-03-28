@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 0,
   "links": [],
   "panels": [
     {
@@ -4345,13 +4345,12 @@
           "type": "frser-sqlite-datasource",
           "uid": "afh372g20yt4wd"
         },
-        "definition": "SELECT Match\nFROM matches",
+        "definition": "SELECT Match\nFROM matches\nORDER BY MatchIdx",
         "name": "Current_Match",
         "options": [],
-        "query": "SELECT Match\nFROM matches",
+        "query": "SELECT Match\nFROM matches\nORDER BY MatchIdx",
         "refresh": 1,
         "regex": "",
-        "sort": 7,
         "type": "query"
       },
       {
@@ -4478,5 +4477,5 @@
   "timezone": "browser",
   "title": "Prematch",
   "uid": "advk8k7",
-  "version": 100
+  "version": 101
 }

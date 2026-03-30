@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Auton Scouting</title>
+    <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            background: #121212;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+            text-align: center;
+            font-family: 'Neuropolitical', sans-serif;
+        }
+
+        .panel {
+            background: #1e1e1e;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #333;
+            width: 80%;
+            height: fit-content;
+            /* overflow-x: hidden; */
+        }
+
+        label, .label-div {
+            display: block;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #9aa0a6;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 60px;
+            height: 60px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            transform: translateY(25%);
+        }
+
+        input[type='color']::-webkit-color-swatch {
+            border-radius: 10px;
+            border: none;
+        }
+
+        input[type=color]::-moz-color-swatch {
+            border-radius: 10px;
+            border: none;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        select,
+        .cbox-cont,
+        textarea,
+        button {
+            color: #e0e0e0;
+            text-align: center;
+            font-size: large;
+            width: 100%;
+            margin-top: 0.3rem;
+            padding: 0.5rem;
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        .no-white-border:focus {
+            outline: none;
+        }
+
+        textarea {
+            min-height: 200px;
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        .back-cont {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+        }
+
+        .button-cont {
+            position: fixed;
+            top: 1rem;
+            right: 2rem;
+        }
+
+        button {
+            font-size: medium;
+            margin-top: 1rem;
+            cursor: pointer;
+            background: var(--accent);
+            border: none;
+            color: var(--text);
+            font-weight: 600;
+            min-height: 100px;
+        }
+
+        button:disabled {
+            background: color-mix(in srgb, var(--accent), black 30%);
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .floating-panel {
+            position: fixed;
+            right: 1rem;
+            width: 20%;
+            top: 10rem;
+        }
+
+        #status {
+            font-size: large;
+            position: fixed;
+            bottom: 1rem;
+            right: 2rem;
+            z-index: 10;
+        }
+
+        button, select, input[type="file"] {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="panel">
+        <h1> <img src="{{ url_for('static', filename='favicon.ico') }}"
+                style="height: 5rem; transform: translateY(2rem);">Auton Scouting</h1>
+        <label title="Team Number">
+            Team Number
+            <input type="number" id="tn" step="1">
+        </label>
+        <div title="Where they went in auton" class="label-div">
+            Auton Mobility
+            <div class="cbox-cont" style="display: grid; grid-template-columns: repeat(20px 1fr); align-items: center; justify-content: center; text-align: center; background-color: #181818;">
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="auto-mobility-az"/><span>AZ</span>
+                </label>
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="auto-mobility-nz1"/><span>NZ1</span>
+                </label>
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="auto-mobility-nz2"/><span>NZ2</span>
+                </label>
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="auto-mobility-dep"/><span>DEP</span>
+                </label>
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="auto-mobility-out"/><span>OUT</span>
+                </label>
+            </div>
+        </div>
+        <div title="Whether their auton goes to bump or trench or both" class="label-div">
+            Bump or Trech
+            <div class="cbox-cont" style="display: grid; grid-template-columns: repeat(20px 1fr); align-items: center; justify-content: center; text-align: center; background-color: #181818;">
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="bot-bump"/><span>BMP</span>
+                </label>
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="bot-trench"/><span>TRCH</span>
+                </label>
+            </div>
+        </div>
+        <label title="Which bracket does the number of lemons they scored best fit in">
+            Vibe Lemon Range
+            <select id="vl-range">
+                <option value="VLS">VLS (0-5)</option>
+                <option value="VLM">VLM (6-15)</option>
+                <option value="VLL">VLL 15+</option>
+            </select>
+        </label>
+        <div title="Whether they climbed in auton" class="label-div">
+            Other
+            <div class="cbox-cont" style="display: grid; grid-template-columns: repeat(20px 1fr); align-items: center; justify-content: center; text-align: center; background-color: #181818;">
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="climbed"><span>CLIMB</span>
+                </label>
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="a-stop"><span>ASTOP</span>
+                </label>
+            </div>
+        </div>
+        <button id="sub" disabled>Submit</button>
+        <button onclick="window.location.reload()">Reset</button>
+    </div>
+    <div id="status"></div>
+    <div class="back-cont">
+        <button onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Back</button>
+    </div>
+    <script>
+        const tn = document.getElementById("tn");
+        const autoMobility = document.getElementById("auto-mobility");
+        const bumpTrench = document.getElementById("bump-trench");
+        const vibeLemsRange = document.getElementById("vl-range");
+        const statusDiv = document.getElementById("status");
+        const sub = document.getElementById('sub');
+
+        tn.addEventListener("input", () => sub.disabled = (tn.value === "" || Number.isNaN(parseInt(tn.value)) || parseInt(tn.value) <= 0));
+
+        sub.addEventListener('click', savePitScouting);
+
+        async function savePitScouting() {
+            statusDiv.style.color = "#aaa";
+            statusDiv.innerText = "Saving data...";
+            const json = {
+                "tn": parseInt(tn.value),
+                "autoData": Array.from(document.querySelectorAll("input[type=checkbox]"))
+                    .map(v => v.checked ? v.parentElement.querySelector("span").innerText : "-1")
+                    .filter(s => s !== "-1")
+                    .concat(document.getElementById("vl-range").value)
+            };
+
+            const res = await fetch('{{url_for("save_auto_simple")}}', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(json)
+            });
+
+            if (res.ok) {
+                statusDiv.style.color = "#0a0";
+                statusDiv.innerHTML = "";
+                statusDiv.innerText = "Save Successful.";
+                setTimeout(() => statusDiv.innerHTML = "", 2000);
+            } else {
+                statusDiv.style.color = "#a00";
+                statusDiv.innerHTML = `Save Error: ${await res.text()}`;
+            }
+        }
+
+        window.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Backspace" && document.activeElement.tagName.toLowerCase() !== "input") {
+                e.preventDefault();
+                window.location.href = "{{url_for('main')}}";
+            }
+        });
+    </script>
+</body>
+
+</html>

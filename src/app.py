@@ -464,6 +464,10 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     def pit_scout():
         return render_template_style('pit-scouting.html')
     
+    @app.get('/auton-simple')
+    def auto_scout_simple():
+        return render_template_style('auton-scouting-simple.html')
+    
     @app.post('/submit-pit')
     @login_required
     def save_pit():
@@ -472,6 +476,21 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 csv_file = os.path.join("dataout", "output.csv" + "-pit-scouting.csv")
                 need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0 
                 with open(os.path.join("dataout", "output.csv" + "-pit-scouting.csv"), mode='a', newline='') as f:
+                    writer = csv.DictWriter(f, fieldnames=request.json.keys())
+                    if need_write: writer.writeheader()
+                    writer.writerow(request.json)
+                return "Success", 200
+            except Exception as e:
+                return apputils.exception_format(e), 500
+        return "Error: invalid request", 400
+
+    @app.post('/submit-auto-simple')
+    def save_auto_simple():
+        if request and request.json:
+            try:
+                csv_file = os.path.join("dataout", "output.csv" + "-auton-scouting.csv")
+                need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0 
+                with open(os.path.join("dataout", "output.csv" + "-auton-scouting.csv"), mode='a', newline='') as f:
                     writer = csv.DictWriter(f, fieldnames=request.json.keys())
                     if need_write: writer.writeheader()
                     writer.writerow(request.json)
@@ -730,10 +749,12 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return "Invalid request", 400
     
     @app.get('/auton-scout')
+    @login_required
     def auton_scout():
         return render_template_style("auton-scouting.html")
     
     @app.get("/teams-in-match")
+    @login_required
     def teams_in_match():
         if "mkey" in request.args:
             _match = request.args.get('mkey', "")
@@ -754,22 +775,27 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return "Error: invalid request", 400
     
     @app.get('/current-event')
+    @login_required
     def get_current_event():
         if not processor.has_sched_data:
             return "None"
         return processor.event_key
     
     @app.get("/matches-in-comp")
+    @login_required
     def matches_in_comp():
         if not processor.has_sched_data:
             return jsonify([])
         return jsonify(list(map(lambda m: m['k'], processor.tba_data_static.schedule)))
 
     @app.get("/events-from-team")
+    @login_required
     def events_from_team():
         return jsonify(apputils.get_tba_events(auth_key, processor.year, app.config["TEAM"]))
 
     @app.post("/load-event-data")
+    @login_required
+    @require_admin
     def load_event_data():
         if "event" in request.headers:
             event = request.headers.get('event', "").strip()
@@ -802,6 +828,16 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     def clear_datain():
         try:
             os.remove(infile)
+            return "", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
+        
+    @app.post('/clear-db')
+    @login_required
+    @require_admin
+    def clear_db():
+        try:
+            processor.clear_database()
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500

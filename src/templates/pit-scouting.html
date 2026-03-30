@@ -122,6 +122,10 @@
             min-height: 100px;
         }
 
+        button:disabled {
+            background: color-mix(in srgb, var(--accent), black 30%);
+        }
+
         button:hover {
             opacity: 0.8;
         }
@@ -225,7 +229,7 @@
 
             <img id="preview" alt="Image preview...">
         </div>
-        <button id="sub">Submit</button>
+        <button id="sub" disabled>Submit</button>
         <button onclick="window.location.reload()">Reset</button>
     </div>
     <div id="status"></div>
@@ -251,6 +255,8 @@
         const robotName = document.getElementById("rname");
         let imageBlob;
         let stream;
+
+        tn.addEventListener("input", () => sub.disabled = (tn.value === "" || Number.isNaN(parseInt(tn.value)) || parseInt(tn.value) <= 0));
 
         async function listCameras() {
             const devices = await navigator.mediaDevices.enumerateDevices();

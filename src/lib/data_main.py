@@ -1,9 +1,8 @@
-from enum import Enum
 from functools import reduce
 import operator
 import sqlite3
 import time
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar
 
 import pandas as pd
 import os
@@ -200,7 +199,7 @@ class Processor:
         self.__chunk_processing_routine = Event[
             Callable[[ObjectHolder[pd.DataFrame]], None]
         ]("Processing Routine")
-        self.post_process_routine = Event[Callable[[], None]]("Post-processing Routine")
+        self.__post_process_routine = Event[Callable[[], None]]("Post-processing Routine")
 
         self.__load_in_event_data += [
             self.__ensure_tables_exist,
@@ -229,7 +228,7 @@ class Processor:
             self.__match_proc_chunk,
         ]
 
-        self.post_process_routine += [
+        self.__post_process_routine += [
             self.__write_match_predictions_file,
             self.__write_match_depth_predictions,
             self.__write_match_fields,
@@ -459,7 +458,6 @@ class Processor:
                 apputils.get_tba_images(self.tba_key, self.year, "photos", self.tba_data_static.teams)
             except:
                 logger.warning(f"Error fetching images: {apputils.exception_format(e)}")
-                pass
         except Exception as e:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
@@ -699,6 +697,7 @@ class Processor:
                     )
 
         if len(df) <= 0:
+            logger.warning("No statbotics analytics fields.")
             return
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
@@ -829,7 +828,7 @@ class Processor:
         elif source_string == "Last_OPR":
             score = self.tba_data_static.oprs[int(team.removeprefix("frc"))]
         elif source_string in self.config_data["copr"]:
-            score = self.tba_data_dyn.copr[int(team.removeprefix("frc"))]
+            score = self.tba_data_dyn.copr[int(team.removeprefix("frc"))][source_string]
         elif source_string == "EPA":
             score = self.__sb_epas[int(team.removeprefix("frc"))]
         elif int(team.removeprefix("frc")) in self.__teams:
@@ -1013,7 +1012,7 @@ class Processor:
     def __team_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
         for team in df.obj[
             self.config_data["tn"]
-        ].unique():  # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
+        ].unique():  # teams will be in the chunk multiple times, but we just want to loop through all of the DIFFERENT teams there are
             team_data = {}
             for field in self.config_data["teams"]:
                 # call the beakscript functions for the derived fields where the TN == team
@@ -1038,7 +1037,7 @@ class Processor:
         for match in df.obj[mn].unique():  # same thing as teams
             row = df.obj.loc[
                 df.obj[mn] == match
-            ]  # row is actually 6 rows up here to be used for static fields
+            ]  # row is actually 6 rows here to be used for static fields
             static_fields = {}
             for field in self.config_data[
                 "matches"
@@ -1059,7 +1058,7 @@ class Processor:
                     static_fields |= {field["name"]: val}
             for i, team in enumerate(
                 df.obj.loc[df.obj[mn] == match, tn].unique()
-            ):  # the .unique is uneccesary but safe
+            ):  # the .unique is uneccesary but safer
                 data = {}
                 for field in self.config_data["matches"]:
                     row = df.obj.loc[(df.obj[tn] == team) & (df.obj[mn] == match)]
@@ -1119,7 +1118,7 @@ class Processor:
                 )
                 first = False
         # write all the other files
-        self.post_process_routine.fire(logger.info)
+        self.__post_process_routine.fire(logger.info)
         logger.info("Done!!!!")
 
     def perform_periodic_calls(self):

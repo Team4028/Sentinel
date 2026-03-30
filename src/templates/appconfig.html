@@ -364,6 +364,7 @@
         <br><br>
         <button onclick="confirmModal('This will <i>PERMANENTLY</i> delete all Grafana formatting changed since app deployment.', resetDash)">Reset Dashboard</button>
         <button onclick="confirmModal(`This will <i>PERMANENTLY</i> delete all input data from scouting. This is only meant to be used if data is corrupted. You should probably make a backup from the download button at the <a href='{{url_for('main')}}'>homepage</a>`, clearDatain)">Clear Data input</button>
+        <button onclick="confirmModal(`This will <i>PERMANENTLY</i> delete all processor data. If you have no wifi this will delete all of the cacheed TBA data.`, clearDB)">Clear Database</button>
     </div>
     <div class="loader-overlay" id="loaderOverlay">
         <div class="loader">
@@ -678,7 +679,22 @@
             if (!res.ok) {
                 const rtxt = await res.text();
                 statusDiv.style.color = "#a00";
-                statusDiv.innerText = `Clear data in Error: ${rtxt}`;
+                statusDiv.innerText = `Clear data in error: ${rtxt}`;
+            } else {
+                statusDiv.style.color = "#0a0";
+                statusDiv.innerText = "Success";
+                setTimeout(() => statusDiv.innerHTML = "", 2000);
+            }
+        }
+
+        async function clearDB() {
+            const res = await fetch("{{url_for('clear_db')}}", {
+                method: "POST"
+            });
+            if (!res.ok) {
+                const rtxt = await res.text();
+                statusDiv.style.color = "#a00";
+                statusDiv.innerText = `Clear database error: ${rtxt}`;
             } else {
                 statusDiv.style.color = "#0a0";
                 statusDiv.innerText = "Success";

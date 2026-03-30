@@ -51,7 +51,7 @@ RUN if [ $GF_INSTALL_IMAGE_RENDERER_PLUGIN = "true" ]; then \
     fi
 
 # change 2: automatically install infinity (json) and csv datasources
-ARG GF_INSTALL_PLUGINS="marcusolsson-csv-datasource,yesoreyeram-infinity-datasource,dalvany-image-panel"
+ARG GF_INSTALL_PLUGINS="marcusolsson-csv-datasource,yesoreyeram-infinity-datasource,dalvany-image-panel,frser-sqlite-datasource"
 
 RUN if [ ! -z "${GF_INSTALL_PLUGINS}" ]; then \
     OLDIFS=$IFS; \

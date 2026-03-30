@@ -702,15 +702,6 @@
             }
         }
 
-        grafUrl.addEventListener('input', () => {
-            if (!grafUrl.value.startsWith("http://")) {
-                if (grafUrl.value === "http:/")
-                    grafUrl.value += "/";
-                else
-                    grafUrl.value = "http://" + grafUrl.value;
-            }
-        });
-
         async function saveCfg() {
             let loader = setInterval(spin, 100);
             statusDiv.style.color = "#aaa";

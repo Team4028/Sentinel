@@ -81,7 +81,7 @@ class DataField:
     def filter(self) -> float:
         """returns the average of the dataset, filtered by median += 2 * MAD"""
         return float(
-            np.around(np.mean(Processor.__mad_filter(np.array(self.data))), 3)
+            np.around(np.mean(Processor.mad_filter(np.array(self.data))), 3)
         )  # around is just round
 
     calc_map = {"avg": average, "max": max, "fil": filter}
@@ -759,7 +759,8 @@ class Processor:
                     )
             conn.commit()
 
-    def __mad_filter(
+    @staticmethod
+    def mad_filter(
         data, c=2
     ):  # https://real-statistics.com/sampling-distributions/identifying-outliers-missing-data
         """Filters the inputted `np.array` by removing all entries that are farther than c * MAD from the median"""
@@ -767,14 +768,15 @@ class Processor:
         diff = np.abs(data - median)  # diffs
         mad = np.median(diff)
         return data[diff <= (c * mad)]
-
-    def __round_sigfigs(x, sig=3):
+    
+    @staticmethod
+    def round_sigfigs(x, sig=3):
         if np.isscalar(x):
             if x == 0.0 or np.isnan(np.log10(x)) or np.isinf(x):
                 return x
             return np.around(x, sig - int(np.floor(np.log10(np.abs(x)))) - 1)
         else:
-            return np.array([Processor.__round_sigfigs(y) for y in x], dtype=np.float64)
+            return np.array([Processor.round_sigfigs(y) for y in x], dtype=np.float64)
 
     def __get_svd_analysis(
         self, stat: pd.DataFrame, compteamname, tn_field
@@ -796,20 +798,20 @@ class Processor:
                 matrix[j, i] = -value
         U, S, _ = svd(matrix)
         u_ranks: np.ndarray = U[:, 0]
-        u_ranks = Processor.__round_sigfigs(
+        u_ranks = Processor.round_sigfigs(
             (u_ranks - u_ranks.min()) / (u_ranks.max() - u_ranks.min()) * 100
         )
         stability = S.max() / S.min() if S.min() > 0 else np.inf
         variation_score = np.zeros(len(S))  # less = more consistent
         for i in range(len(S)):
-            variation_score[i] = Processor.__round_sigfigs(
+            variation_score[i] = Processor.round_sigfigs(
                 np.sqrt(sum([(U[i][j] * S[j]) ** 2 for j in range(1, len(S))]))
             )
 
         return (
             dict(zip(teamkeys, u_ranks)),
             dict(zip(teamkeys, variation_score)),
-            Processor.__round_sigfigs(stability),
+            Processor.round_sigfigs(stability),
         )
 
     def __get_percent_scouted(self) -> float:
@@ -844,7 +846,7 @@ class Processor:
             score.append(self.get_team_pred_score(key))  # use prediction metric source
         return score
 
-    def __write_other_metrics(self, outfile) -> None:
+    def __write_other_metrics(self) -> None:
         """writes the json other metrics (right now only percent teams scouted) to the outfile"""
         outfile = os.path.join("dataout", "other-metrics.json")
         with open(outfile, "w") as w:

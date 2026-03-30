@@ -21,6 +21,8 @@ headers:
     desc: Team 1 Defense
   - name: T1D
     desc: Team 1 Played Defense
+  - name: T1IB
+    desc: Team 1 Infeed Broke
   - name: T1VALUE
     desc: Team 1 Vibe-Based attibuted lemons upon examination (VALUE)
   - name: T2
@@ -39,8 +41,10 @@ headers:
     desc: Team 2 Defense
   - name: T2D
     desc: Team 2 Played Defense
+  - name: T2IB
+    desc: Team 2 Infeed Broke
   - name: T2VALUE
-    desc: Team 1 Vibe-Based attibuted lemons upon examination (VALUE)
+    desc: Team 2 Vibe-Based attibuted lemons upon examination (VALUE)
   - name: T3
     desc: Team 3 Number
   - name: ISPDT3
@@ -57,12 +61,16 @@ headers:
     desc: Team 3 Defense
   - name: T3D
     desc: Team 3 Played Defense
+  - name: T3IB
+    desc: Team 3 Infeed Broke
   - name: T3VALUE
-    desc: Team 1 Vibe-Based attibuted lemons upon examination (VALUE)
+    desc: Team 3 Vibe-Based attibuted lemons upon examination (VALUE)
   - name: AlliBallsAuto
     desc: Scoreboard total auto balls
   - name: AlliBallsTele
     desc: Scoreboard total tele balls
+  - name: COM # TODO: find a way to implement this
+    desc: Additional comments
   - name: EID
     desc: Event ID
 
@@ -71,15 +79,15 @@ match-header-name: MN
 
 preproc-operations:
   - name: Split Team Row
-    new-headers: [MN, TC, SI, TN, ISPD, SSPD, ACC, DS, HC, CT, DF, D, VL, EID]
+    new-headers: [MN, TC, SI, TN, ISPD, SSPD, ACC, DS, HC, CT, DF, D, IB, VL, COM, EID]
     operation: >-
       {
-        {$MN, $AC, $SI, $T1, *($?T2 - $?T1), $T2, $T1DF, $T1D, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T1, *($?T3 - $?T1), $T3, $T1DF, $T1D, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T2, *($?T1 - $?T2), $T1, $T2DF, $T2D, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T2, *($?T3 - $?T2), $T3, $T2DF, $T2D, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T3, *($?T1 - $?T3), $T1, $T3DF, $T3D, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID},
-        {$MN, $AC, $SI, $T3, *($?T2 - $?T3), $T2, $T3DF, $T3D, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $EID}
+        {$MN, $AC, $SI, $T1, *($?T2 - $?T1), $T2, $T1DF, $T1D, $T1IB, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $COM, $EID},
+        {$MN, $AC, $SI, $T1, *($?T3 - $?T1), $T3, $T1DF, $T1D, $T1IB, $T1VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $COM, $EID},
+        {$MN, $AC, $SI, $T2, *($?T1 - $?T2), $T1, $T2DF, $T2D, $T2IB, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $COM, $EID},
+        {$MN, $AC, $SI, $T2, *($?T3 - $?T2), $T3, $T2DF, $T2D, $T2IB, $T2VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $COM, $EID},
+        {$MN, $AC, $SI, $T3, *($?T1 - $?T3), $T1, $T3DF, $T3D, $T3IB, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $COM, $EID},
+        {$MN, $AC, $SI, $T3, *($?T2 - $?T3), $T2, $T3DF, $T3D, $T3IB, $T3VALUE / 100 * ($AlliBallsAuto + $AlliBallsTele), $COM, $EID}
       }
 
 filter-unique-fields: [MN, SI, TN, CT] # SI lets multiple people scout the same alliance
@@ -119,6 +127,10 @@ team-fields:
     avg:
     max:
     fil:
+  - name: Infeed Break
+    derive: $IB
+    iterable: false
+    avg:
   - name: Defensive Rating
     derive: $DF[$D = true]
     iterable: false
@@ -131,6 +143,9 @@ team-fields:
 match-fields:
   - name: Vibe Lemons
     derive: $VL
+    iterable: false
+  - name: Infeed Broke
+    derive: $IB
     iterable: false
 copr-keys:
   - Hub Auto Fuel Count

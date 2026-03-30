@@ -82,7 +82,7 @@ class DataField:
     def filter(self) -> float:
         """returns the average of the dataset, filtered by median += 2 * MAD"""
         return float(
-            np.around(np.mean(Processor.mad_filter(np.array(self.data))), 3)
+            np.around(np.mean(Processor.__mad_filter(np.array(self.data))), 3)
         )  # around is just round
 
     calc_map = {"avg": average, "max": max, "fil": filter}
@@ -168,61 +168,73 @@ class ObjectHolder[T]:
 class Processor:
     """Main class of data calculation, handles all calculation basically"""
 
+    NUM_TABLES = 5
+
     last_fetch_timestamp = 0
 
     def __init__(
         self,
+        disable_last_opr,
         period_min,
-        event_key,
         tba_key,
         year,
         chunk_size,
         config_data,
     ) -> None:
         self.chunk_size = chunk_size
+        self.disable_last_opr = disable_last_opr
         self.period_min = period_min
-        self._tba_data = apputils.TBAData()
-        self.event_key, self.tba_key, self.year = event_key, tba_key, year
-        self._teams: dict[str, TeamStruct] = {}
-        self.sb = statbotics.Statbotics()
-        self._sb_epas = {}
-        self._sb_matches = []
-        self._matches = {}
-        self._epas = {}
+        self.tba_data_static = apputils.TBADataStatic()
+        self.tba_data_dyn = apputils.TBADataDynamic()
+        self.event_key = ""
+        self.tba_key, self.year = tba_key, year
+        self.__teams: dict[str, TeamStruct] = {}
+        self.__sb = statbotics.Statbotics()
+        self.has_sched_data = False
+        self.__sb_epas = {}
+        self.__sb_matches = []
+        self.__matches = {}
         self.config_data = config_data
-        self.periodic_calls = Event[Callable[[], None]]("Periodic Fetch Routine")
-        self.chunk_processing_routine = Event[
+        self.__load_in_event_data = Event[Callable[[], None]]("Load in event data")
+        self.__periodic_calls = Event[Callable[[], None]]("Periodic Fetch Routine")
+        self.__chunk_processing_routine = Event[
             Callable[[ObjectHolder[pd.DataFrame]], None]
         ]("Processing Routine")
         self.post_process_routine = Event[Callable[[], None]]("Post-processing Routine")
 
-        self.periodic_calls += [
-            self.load_remote_data,
-            self.write_match_schedule_file,
-            self.write_teams_file,
-            self.write_statbotics_analytics,
-            self.write_team_tba_data_file,
-            self.reset_fetch_timestamp,
+        self.__load_in_event_data += [
+            self.__ensure_tables_exist,
+            self.__load_remote_data_static,
+            self.__write_match_schedule_file,
+            self.__write_teams_file,
         ]
 
-        self.chunk_processing_routine += [
-            self.pre_filter_chunk,
-            self.pre_process_chunk,
-            self.drop_duplicates_chunk,
-            self.filter_chunk,
-            self.compute_fields_chunk,
-            self.build_teams_chunk,
-            self.svd_data_chunk,
-            self.team_proc_chunk,
-            self.match_proc_chunk,
+        self.__periodic_calls += [
+            self.__load_remote_data_dyn,
+            self.__write_statbotics_analytics,
+            self.__write_statbotics_epa,
+            self.__write_team_tba_data_file,
+            self.__reset_fetch_timestamp,
+        ]
+
+        self.__chunk_processing_routine += [
+            self.__pre_filter_chunk,
+            self.__pre_process_chunk,
+            self.__drop_duplicates_chunk,
+            self.__filter_chunk,
+            self.__compute_fields_chunk,
+            self.__build_teams_chunk,
+            self.__svd_data_chunk,
+            self.__team_proc_chunk,
+            self.__match_proc_chunk,
         ]
 
         self.post_process_routine += [
-            self.write_match_predictions_file,
-            self.write_match_depth_predictions,
-            self.write_statbotics_epa,
-            self.write_match_fields,
-            self.write_team_fields,
+            self.__write_match_predictions_file,
+            self.__write_match_depth_predictions,
+            self.__write_match_fields,
+            self.__write_team_fields,
+            self.__write_other_metrics,
         ]
 
         self.sql_fields = {
@@ -288,6 +300,19 @@ class Processor:
             ],
         }
 
+        if self.__check_tables_exist():
+            logger.info("Static match data preset, loading into memory...")
+            self.__read_static_tba_info()
+        else:
+            logger.warning("Warning: tables do not exist. Until an event is loaded there will be no data")
+
+    def __check_tables_exist(self) -> bool:
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            return len(cursor.fetchall()) == Processor.NUM_TABLES
+        
+    def __ensure_tables_exist(self):
         # Create Tables
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             conn.executescript(
@@ -371,36 +396,99 @@ class Processor:
             )
             conn.commit()
 
-    def reset_fetch_timestamp(self):
+    def __reset_fetch_timestamp(self):
         self.last_fetch_timestamp = time.time()
 
-    def load_remote_data(self):
+    def __read_static_tba_info(self):
+        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+            # LOAD TEAMS + Last_OPR
+            cursor = conn.execute(f"SELECT * FROM teams")
+            rows = cursor.fetchall()
+
+            teams = []
+            team_info = {}
+            last_oprs = {}
+            fields = ["Team"] + self.sql_fields["teams"]
+            for row in rows:
+                row_dict = dict(zip(fields, row))
+                teams.append(row_dict["Team"])
+                team_info[row_dict["Team"]] = {
+                    "Country": row_dict["Country"],
+                    "State": row_dict["State"],
+                    "City": row_dict["City"],
+                    "Name": row_dict["Name"],
+                    "School": row_dict["School"],
+                    "RookieYear": row_dict["RookieYear"],
+                    "PostalCode": row_dict["PostalCode"],
+                    "Website": row_dict["Website"]
+                }
+                last_oprs[row_dict["Team"]] = row_dict["Last_OPR"]
+
+            self.tba_data_static.teams, self.tba_data_static.team_info, self.tba_data_static.oprs = teams, team_info, last_oprs
+
+            # LOAD SCHEDULE
+            fields = ["MatchIdx", "Match"] + self.sql_fields["matches"]
+            cursor = conn.execute(f"SELECT * FROM matches")
+            rows = cursor.fetchall()
+            matches = []
+            for row in rows:
+                row_dict = dict(zip(fields, row))
+                if self.event_key.strip() == "": self.event_key = row_dict["Match"].split('_')[0]
+                red = [row_dict[f"Red_{i+1}"] for i in range(3)]
+                blue = [row_dict[f"Blue_{i+1}"] for i in range(3)]
+                entry = {
+                    "k": row_dict["Match"],
+                    'r': list(map(str, red)),
+                    'b': list(map(str, blue)),
+                }
+                matches.append(entry)
+            self.tba_data_static.schedule = matches
+            if len(rows) > 0:
+                self.has_sched_data = True
+            
+    def __load_remote_data_static(self):
+        if self.event_key.strip() == "":
+            logger.error("Error, cannot process. No event is currently loaded in. Please load one in from the settings page.")
+            return
         try:
             logger.info("Loading TBA data...")
-            self._tba_data = apputils.load_tba_data(
-                self.event_key, self.tba_key, self.year
-            )
+            self.tba_data_static = apputils.load_tba_data_static(self.event_key, self.tba_key, self.year, self.disable_last_opr)
+            self.has_sched_data = True
             logger.info("Loading TBA images...")
             try:
-                apputils.get_tba_images(self.tba_key, self.year, self.photo_path, self._tba_data.teams)
+                apputils.get_tba_images(self.tba_key, self.year, "photos", self.tba_data_static.teams)
             except:
+                logger.warning(f"Error fetching images: {apputils.exception_format(e)}")
                 pass
+        except Exception as e:
+            logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
+
+
+    def __load_remote_data_dyn(self):
+        if self.event_key.strip() == "":
+            logger.error("Error, cannot process. No event is currently loaded in. Please load one in from the settings page.")
+            return
+        try:
+            logger.info("Loading TBA data...")
+            self.tba_data_dyn = apputils.load_tba_data_dynamic(
+                self.event_key, self.tba_key, self.tba_data_static.teams
+            )
             logger.info("Loading Statbotics EPAs...")
-            self._sb_epas = {
+            self.__sb_epas = {
                 s["team"]: round(s["epa"]["total_points"]["mean"], 1)
-                for s in self.sb.get_team_events(
+                for s in self.__sb.get_team_events(
                     event=self.event_key, limit=1000, fields=["team", "epa"]
                 )
             }
             logger.info("Loading Statbotics match data...")
-            self._sb_matches = self.sb.get_matches(event=self.event_key)
+            self.__sb_matches = self.__sb.get_matches(event=self.event_key)
         except Exception as e:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
-    def write_match_schedule_file(self):
+    def __write_match_schedule_file(self):
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             matches = []
-            for i, match in enumerate(self._tba_data.schedule):
+            for i, match in enumerate(self.tba_data_static.schedule):
                 matches.append(
                     {
                         "MatchIdx": i + 1,
@@ -432,14 +520,14 @@ class Processor:
                 )
             conn.commit()
 
-    def write_teams_file(self):
+    def __write_teams_file(self):
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             all_fields = self.sql_fields["teams"]
-            for team in self._tba_data.teams:
+            for team in self.tba_data_static.teams:
                 data = []
                 for field in all_fields:
-                    if field in list(self._tba_data.team_info.values())[0].keys():
-                        data.append(self._tba_data.team_info[team][field])
+                    if field in list(self.tba_data_static.team_info.values())[0].keys():
+                        data.append(self.tba_data_static.team_info[team][field])
                     else:
                         data.append(None)
                 conn.execute(
@@ -450,12 +538,12 @@ class Processor:
                 )
             conn.commit()
 
-    def write_team_tba_data_file(self):
+    def __write_team_tba_data_file(self):
         df = []
-        for team in self._tba_data.teams:
+        for team in self.tba_data_static.teams:
             rank, avg_rp = (
-                self._tba_data.ranks[team]
-                if team in self._tba_data.ranks
+                self.tba_data_dyn.ranks[team]
+                if team in self.tba_data_dyn.ranks
                 else (None, None)
             )
             df.append(
@@ -464,12 +552,12 @@ class Processor:
                     "Rank": rank,
                     "Average_RP": avg_rp,
                     "OPR": (
-                        self._tba_data.curr_oprs[team]
-                        if team in self._tba_data.curr_oprs
+                        self.tba_data_dyn.oprs[team]
+                        if team in self.tba_data_dyn.oprs
                         else None
                     ),
                     "Last_OPR": (
-                        self._tba_data.opr[team] if team in self._tba_data.opr else None
+                        self.tba_data_static.oprs[team] if team in self.tba_data_static.oprs else None
                     ),
                 }
             )
@@ -492,13 +580,13 @@ class Processor:
                 )
             conn.commit()
 
-    def write_team_fields(self):
+    def __write_team_fields(self):
         df = []
         for (
             k,
             v,
         ) in (
-            self._teams.items()
+            self.__teams.items()
         ):  # _teams is a dict with team: TeamStruct (ex. {422: TeamData()})
             # bind each team to the dict serialization of its cooresponding struct
             df.append({"Team": k} | v.output_dict(self.config_data))
@@ -519,12 +607,12 @@ class Processor:
                         (team["Team"], field, str(team[field])),
                     )
 
-    def write_match_predictions_file(self):
+    def __write_match_predictions_file(self):
         df = []
-        for match in self._tba_data.schedule:
+        for match in self.tba_data_static.schedule:
             score = [
-                self.get_match_pred_score(match, "b"),
-                self.get_match_pred_score(match, "r"),
+                self.__get_match_pred_score(match, "b"),
+                self.__get_match_pred_score(match, "r"),
             ]
             colors_pretty = ["Blue", "Red"]
             df.append(
@@ -562,9 +650,9 @@ class Processor:
                 )
             conn.commit()
 
-    def write_statbotics_analytics(self):
+    def __write_statbotics_analytics(self):
         df = []
-        for match in self._sb_matches:
+        for match in self.__sb_matches:
             df.append(
                 {
                     "Match": match["key"],
@@ -585,9 +673,9 @@ class Processor:
                 )
             conn.commit()
 
-    def write_statbotics_epa(self):
+    def __write_statbotics_epa(self):
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
-            for team in self._tba_data.teams:
+            for team in self.tba_data_static.teams:
                 conn.execute(
                     f"""
                     UPDATE teams
@@ -595,19 +683,19 @@ class Processor:
                     WHERE Team = ?
                 """,
                     (
-                        self._sb_epas[team] if team in self._sb_epas else 0,
+                        self.__sb_epas[team] if team in self.__sb_epas else 0,
                         team,
                     ),
                 )
             conn.commit()
 
-    def write_match_fields(self):
+    def __write_match_fields(self):
         df = []
-        for k, v in self._matches.items():
+        for k, v in self.__matches.items():
             for matTeam in v.output_dict(self.config_data):
-                if int(k) <= len(self._tba_data.schedule):
+                if int(k) <= len(self.tba_data_static.schedule):
                     df.append(
-                        {"Match": self._tba_data.schedule[int(k) - 1]["k"]} | matTeam
+                        {"Match": self.tba_data_static.schedule[int(k) - 1]["k"]} | matTeam
                     )
 
         if len(df) <= 0:
@@ -627,9 +715,9 @@ class Processor:
                     )
             conn.commit()
 
-    def write_match_depth_predictions(self):
+    def __write_match_depth_predictions(self):
         df = []
-        for match in self._tba_data.schedule:
+        for match in self.tba_data_static.schedule:
             for color in ["b", "r"]:
                 for i in range(3):
                     team = match[color][i].removeprefix("frc")
@@ -637,13 +725,13 @@ class Processor:
                         "Match": match["k"],
                         "Color": color,
                         "Team": team,
-                        "OPR": self._tba_data.curr_oprs[int(team)],
-                        "EPA": self._sb_epas[int(team)],
+                        "OPR": self.tba_data_dyn.oprs[int(team)],
+                        "EPA": self.__sb_epas[int(team)],
                     }
                     for copr in self.config_data["copr"]:
-                        dat |= {copr: self._tba_data.copr[int(team)][copr]}
-                    if int(team) in self._teams:
-                        teamO = self._teams[int(team)].output_dict(self.config_data)
+                        dat |= {copr: self.tba_data_dyn.copr[int(team)][copr]}
+                    if int(team) in self.__teams:
+                        teamO = self.__teams[int(team)].output_dict(self.config_data)
                         for field in self.config_data["deep-predict"]:
                             if field["source"] in teamO:
                                 dat |= {
@@ -672,7 +760,7 @@ class Processor:
                     )
             conn.commit()
 
-    def mad_filter(
+    def __mad_filter(
         data, c=2
     ):  # https://real-statistics.com/sampling-distributions/identifying-outliers-missing-data
         """Filters the inputted `np.array` by removing all entries that are farther than c * MAD from the median"""
@@ -681,22 +769,22 @@ class Processor:
         mad = np.median(diff)
         return data[diff <= (c * mad)]
 
-    def round_sigfigs(x, sig=3):
+    def __round_sigfigs(x, sig=3):
         if np.isscalar(x):
             if x == 0.0 or np.isnan(np.log10(x)) or np.isinf(x):
                 return x
             return np.around(x, sig - int(np.floor(np.log10(np.abs(x)))) - 1)
         else:
-            return np.array([Processor.round_sigfigs(y) for y in x], dtype=np.float64)
+            return np.array([Processor.__round_sigfigs(y) for y in x], dtype=np.float64)
 
-    def get_svd_analysis(
+    def __get_svd_analysis(
         self, stat: pd.DataFrame, compteamname, tn_field
     ) -> tuple[dict[int, np.float64], dict[int, np.float64], np.float64]:
         """Returns the nomalized rank factors of each team, the variance score of each team, and the stability score"""
         # much thanks to pairwise
-        arrLen = len(self._teams)
+        arrLen = len(self.__teams)
         matrix = np.zeros((arrLen, arrLen))
-        teamkeys = list(self._teams.keys())
+        teamkeys = list(self.__teams.keys())
         team_index = {team: idx for idx, team in enumerate(teamkeys)}
         grouped = (
             stat.groupby([tn_field, compteamname])[stat.columns[2]].mean().fillna(0)
@@ -709,65 +797,60 @@ class Processor:
                 matrix[j, i] = -value
         U, S, _ = svd(matrix)
         u_ranks: np.ndarray = U[:, 0]
-        u_ranks = Processor.round_sigfigs(
+        u_ranks = Processor.__round_sigfigs(
             (u_ranks - u_ranks.min()) / (u_ranks.max() - u_ranks.min()) * 100
         )
         stability = S.max() / S.min() if S.min() > 0 else np.inf
         variation_score = np.zeros(len(S))  # less = more consistent
         for i in range(len(S)):
-            variation_score[i] = Processor.round_sigfigs(
+            variation_score[i] = Processor.__round_sigfigs(
                 np.sqrt(sum([(U[i][j] * S[j]) ** 2 for j in range(1, len(S))]))
             )
 
         return (
             dict(zip(teamkeys, u_ranks)),
             dict(zip(teamkeys, variation_score)),
-            Processor.round_sigfigs(stability),
+            Processor.__round_sigfigs(stability),
         )
 
-    def get_percent_scouted(self) -> float:
+    def __get_percent_scouted(self) -> float:
         """gets the percentage of teams scouted in the current comp"""
         return round(
-            len([x for x in self._teams.keys() if x in self._tba_data.teams])
-            / len(self._tba_data.teams),
+            len([x for x in self.__teams.keys() if x in self.tba_data_static.teams])
+            / len(self.tba_data_static.teams),
             2,  # use 2 because %
         )
+    
+    def get_team_pred_score(self, team):
+        score = 0
+        source_string = self.config_data["p-metric"]["source"]
+        if source_string == "OPR":
+            score = self.tba_data_dyn.oprs[int(team.removeprefix("frc"))]
+        elif source_string == "Last_OPR":
+            score = self.tba_data_static.oprs[int(team.removeprefix("frc"))]
+        elif source_string in self.config_data["copr"]:
+            score = self.tba_data_dyn.copr[int(team.removeprefix("frc"))]
+        elif source_string == "EPA":
+            score = self.__sb_epas[int(team.removeprefix("frc"))]
+        elif int(team.removeprefix("frc")) in self.__teams:
+            score = self.__teams[int(team.removeprefix("frc"))].output_dict(
+                self.config_data
+            )[source_string]
+        return score
 
-    def get_team_epa(self, team):
-        try:
-            return self.sb.get_team_year(team, 2026)["epa"]["total_points"]["mean"]
-        except:
-            return 0
-
-    def get_match_pred_score(self, match, c):
+    def __get_match_pred_score(self, match, c):
         """Gets the predicted match score based on the prediction-metric specified in the config yaml"""
         score = []
         for key in match[c]:
-            this_score = 0
-            source_string = self.config_data["p-metric"]["source"]
-            if source_string == "OPR":
-                this_score = self._tba_data.curr_oprs[int(key.removeprefix("frc"))]
-            elif source_string == "Last_OPR":
-                this_score = self._tba_data.opr[int(key.removeprefix("frc"))]
-            elif source_string in self.config_data["copr"]:
-                this_score = self._tba_data.copr[int(key.removeprefix("frc"))]
-            elif source_string == "EPA":
-                this_score = self._sb_epas[int(key.removeprefix("frc"))]
-            elif int(key.removeprefix("frc")) in self._teams:
-                this_score = self._teams[int(key.removeprefix("frc"))].output_dict(
-                    self.config_data
-                )[source_string]
-            else:
-                this_score = 0
-            score.append(this_score)  # use prediction metric source
+            score.append(self.get_team_pred_score(key))  # use prediction metric source
         return score
 
-    def write_other_metrics(self, outfile) -> None:
+    def __write_other_metrics(self, outfile) -> None:
         """writes the json other metrics (right now only percent teams scouted) to the outfile"""
         outfile = os.path.join("dataout", "other-metrics.json")
         with open(outfile, "w") as w:
             json.dump(
-                {"Percent Teams Scouted": self.get_percent_scouted()}, w, indent=4
+                {"Percent Teams Scouted": self.__get_percent_scouted()}, w, indent=4
             )
 
     def delete_match_scouter(data_filepath: str, mn: str, si: str) -> None:
@@ -776,7 +859,7 @@ class Processor:
             data_filepath, index=False
         )
 
-    def pre_filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __pre_filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
         df.obj["Pre-filter-keep"] = True
         for i in range(len(self.config_data["pre-tests"])):
             logger.info(
@@ -794,7 +877,7 @@ class Processor:
         ]  # remove values that didn't pass the test (my English grade)
         df.obj.drop(columns=["Pre-filter-keep"], inplace=True)
 
-    def pre_process_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __pre_process_chunk(self, df: ObjectHolder[pd.DataFrame]):
 
         if len(self.config_data["preproc"]) > 0:
 
@@ -837,7 +920,7 @@ class Processor:
                 else:
                     df.obj.columns = last_cols
 
-    def drop_duplicates_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __drop_duplicates_chunk(self, df: ObjectHolder[pd.DataFrame]):
         if len(self.config_data["uniques"]) > 0:
             dupes = df.obj.duplicated(subset=self.config_data["uniques"], keep=False)
             if dupes.any():
@@ -854,7 +937,7 @@ class Processor:
                 subset=self.config_data["uniques"], keep="first"
             )  # remove the duplicates
 
-    def filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
         df.obj["filter-keep"] = True
         for i in range(len(self.config_data["tests"])):
             logger.info(
@@ -872,7 +955,7 @@ class Processor:
         ]  # remove values that didn't pass the test (my English grade)
         df.obj.drop(columns=["filter-keep"], inplace=True)
 
-    def compute_fields_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __compute_fields_chunk(self, df: ObjectHolder[pd.DataFrame]):
         for comp in self.config_data["compute"]:
             # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
             # this works because beakscript fully supports pd.DataFrame's, of which chunk is one
@@ -880,14 +963,14 @@ class Processor:
                 comp["eq"], df.obj, "Compute Field " + comp["name"]
             )
 
-    def build_teams_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __build_teams_chunk(self, df: ObjectHolder[pd.DataFrame]):
         for team in df.obj[self.config_data["tn"]].unique():
-            self._teams |= {int(team): TeamStruct()}
+            self.__teams |= {int(team): TeamStruct()}
 
-    def svd_data_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __svd_data_chunk(self, df: ObjectHolder[pd.DataFrame]):
         tn = self.config_data["tn"]
         for subj in self.config_data["svd"]:
-            u, v, s = self.get_svd_analysis(
+            u, v, s = self.__get_svd_analysis(
                 df.obj[[self.config_data["tn"], subj["comp-team"], subj["source"]]],
                 subj["comp-team"],
                 tn,
@@ -920,14 +1003,14 @@ class Processor:
                     s for _ in range(len(df.obj[tn]))
                 ]
             for team in df.obj[tn].unique():
-                self._teams[int(team)].extend_data(
+                self.__teams[int(team)].extend_data(
                     {
                         f"{subj["name"]}": ranks[team] + 1,
                         f"{subj["name"]} Variance": v[team],
                     }
                 )
 
-    def team_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __team_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
         for team in df.obj[
             self.config_data["tn"]
         ].unique():  # teams will be in the chunk multiple teams, but we just want to loop through all of the DIFFERENT teams there are
@@ -946,11 +1029,11 @@ class Processor:
                 elif field["iter"]:
                     val = [val]
                 team_data[field["name"]] = val  # write the field to the csv
-            self._teams[int(team)].extend_data(
+            self.__teams[int(team)].extend_data(
                 team_data
             )  # add the data to the appropriate team struct
 
-    def match_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
+    def __match_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
         tn, mn = self.config_data["tn"], self.config_data["mn"]
         for match in df.obj[mn].unique():  # same thing as teams
             row = df.obj.loc[
@@ -999,7 +1082,7 @@ class Processor:
                         data[f] = fv[i]
                     else:
                         data[f] = fv
-                self._matches.setdefault(match, MatchStruct()).add_team_data(
+                self.__matches.setdefault(match, MatchStruct()).add_team_data(
                     int(team), data
                 )
 
@@ -1007,16 +1090,16 @@ class Processor:
         """Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files"""
 
         if ((time.time() - self.last_fetch_timestamp) / 60 >= self.period_min) or (
-            self._tba_data.teams == None or self._tba_data.schedule == None
+            self.tba_data_static.teams == None or self.tba_data_static.schedule == None
         ):
-            self.periodic_calls.fire(logger.info)
+            self.__periodic_calls.fire(logger.info)
             self.last_fetch_timestamp = time.time()
 
-        if self._tba_data.teams == None or self._tba_data.schedule == None:
+        if self.tba_data_static.teams == None or self.tba_data_static.schedule == None:
             raise Exception("Error: Missing TBA Key: Please add one in settings")
 
-        self._teams.clear()
-        self._matches.clear()
+        self.__teams.clear()
+        self.__matches.clear()
 
         with pd.read_csv(
             data_filepath,
@@ -1026,7 +1109,7 @@ class Processor:
             first = True
             for chunk in reader:  # read in chunks in case big
                 chunk_holder = ObjectHolder(chunk)
-                self.chunk_processing_routine.fire(logger.info, chunk_holder)
+                self.__chunk_processing_routine.fire(logger.info, chunk_holder)
                 logger.info("Writing chunk...")
                 # write the main csv
                 chunk.to_csv(
@@ -1038,3 +1121,14 @@ class Processor:
         # write all the other files
         self.post_process_routine.fire(logger.info)
         logger.info("Done!!!!")
+
+    def perform_periodic_calls(self):
+        self.__periodic_calls.fire(logger.info)
+
+    def load_event_data(self):
+        self.__load_in_event_data.fire(logger.info)
+
+    def clear_database(self) -> None:
+        if os.path.exists(os.path.join("dataout", "sentinel.db")):
+            os.remove(os.path.join("dataout", "sentinel.db"))
+        self.has_sched_data = False

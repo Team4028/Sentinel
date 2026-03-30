@@ -7,7 +7,6 @@ secrets
 storage
 photos
 autos
-tba-cache.json
 dockerout
 *.zip
 teststuff.py

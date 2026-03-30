@@ -75,9 +75,26 @@ class TestBeakscript(unittest.TestCase):
             eval_beakscript(
                 "$A[$B == b]",
                 pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}),
-                "Unittest B[]",
+                "Unittest B[] 1",
             ),
             2,
+        )
+        self.assertEqual(
+            eval_beakscript(
+                "$A[1]",
+                pd.DataFrame({"A": [1, 2, 3]}),
+                "Unittest B[] 2"
+            ),
+            2,
+        )
+        assert_series_equal(
+            eval_beakscript(
+                "$A[0:2]",
+                pd.DataFrame({"A": [5, 8, 12]}),
+                "Unittest B[] 3"
+            ),
+            pd.Series([5, 8]),
+            check_names=False
         )
         self.assertEqual(eval_beakscript("5 * 2", {}, "Unittest B* 1"), 10)
         assert_series_equal(

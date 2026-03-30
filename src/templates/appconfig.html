@@ -166,6 +166,115 @@
             width: 100%;
             text-align: center;
             pointer-events: all;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loader {
+            background: #333;
+            border-radius: 12px;
+            padding: 20px;
+            width: 50%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .loader h2 {
+            margin-top: 0;
+            color: var(--text);
+        }
+
+        .loader-card-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin: 15px 0;
+        }
+
+        .loader-footer {
+            text-align: right;
+        }
+
+        .loader-card {
+            background-color: #555;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .loader-card h3 {
+            background-color: var(--accent);
+            margin: 0;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .loader-card-body {
+            color: var(--text);
+        }
+
+        .loader-card-footer {
+            color: color-mix(in srgb, var(--text), black 40%);
+        }
+
+        .loader-card-body,
+        .loader-card-footer {
+            overflow: hidden;
+            display: none;
+            height: 0;
+            opacity: 0;
+            padding: 0;
+            margin: 0;
+            margin-left: 10px;
+            transition: height 0.4s ease, opacity 0.3s ease;
+        }
+
+        .loader-card.open,
+        .loader-card-body,
+        .loader-card.open,
+        .loader-card-footer {
+            opacity: 1;
+        }
+
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-box {
+            background: #333;
+            padding: 20px;
+            border-radius: 12px;
+            color: var(--text);
+            max-width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .confirm-box a {
+            color: color-mix(in srgb, var(--accent), white 40%);
+        }
+
+        .confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 6px 12px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -178,10 +287,10 @@
             TBA API Key
             <input type="text" class="no-white-border" id="tbakey">
         </label>
-        <label title="TBA key cooresponding to the event to pull the prediction schedule from (ie. 2025iri)">
-            Event Key
-            <input type="text" id="ekey">
+        <label title="TBA Key cooresponding to the current loaded event" style="text-align: center;">
+            Event Key: <h2 id="eventKey"></h2>
         </label>
+        <button onclick="openLoader();">Load Event</button>
         <div style="align-items: center; justify-content: center; display: flex; gap: 25%;">
             <label title="Accent color for the app (mostly for buttons)"
                 style="text-align: center; display: inline-block;">
@@ -193,8 +302,7 @@
                 <input type="color" id="tcolor">
             </label>
         </div>
-        <label
-            title="Base URL for the server hosting the grafana container associated with this app">
+        <label title="Base URL for the server hosting the grafana container associated with this app">
             Grafana Url
             <input type="text" id="graf-url">
         </label>
@@ -228,31 +336,6 @@
                 <option value="2">Active</option>
             </select>
         </label>
-        <label title="The directory in which the input csv file is stored">
-            Upload Directory
-            <input type="text" id="upl-dir">
-        </label>
-        <label title="The name of the input csv file">
-            Input Filename
-            <input type="text" id="inp-file">
-        </label>
-        <label title="The directory into which the processor outputs files">
-            Output Directory
-            <input type="text" id="out-dir">
-        </label>
-        <label title="The base filename of the processor outputs">
-            Base Output Filename
-            <input type="text" id="out-file">
-        </label>
-        <label title="Directory for storing uploaded team photos">
-            Photo Directory
-            <input type="text" id="pic-dir">
-        </label>
-        <label
-            title="The name of the 'other metrics' json generated by the processor (includes things like percent teams scouted)">
-            Metrics Output Filename
-            <input type="text" id="metric-file">
-        </label>
         <label title="The maximum number of matches visible on the match prediction section of the dashboard">
             Number of preview matches to pull from predictor
             <input type="number" id="next-n">
@@ -279,9 +362,26 @@
         </label>
         <button onclick="setCred()" title="Ctrl+P">Set</button>
         <br><br>
-        <button onclick="resetDash()">Reset Dashboard</button>
-        <button onclick="clearTBACache()">Clear TBA Cache</button>
-        <button onclick="clearDatain()">Clear Data input</button>
+        <button onclick="confirmModal('This will <i>PERMANENTLY</i> delete all Grafana formatting changed since app deployment.', resetDash)">Reset Dashboard</button>
+        <button onclick="confirmModal(`This will <i>PERMANENTLY</i> delete all input data from scouting. This is only meant to be used if data is corrupted. You should probably make a backup from the download button at the <a href='{{url_for('main')}}'>homepage</a>`, clearDatain)">Clear Data input</button>
+    </div>
+    <div class="loader-overlay" id="loaderOverlay">
+        <div class="loader">
+            <h2>Choose an event</h2>
+            <div class="loader-card-container" id="cardContainer"></div>
+            <div class="loader-footer">
+                <button onclick="closeLoader()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div id="confirmModal" class="confirm-overlay">
+        <div class="confirm-box">
+            <p id="confirmMessage"></p>
+            <div class="confirm-actions">
+                <button id="confirmCancel">Cancel</button>
+                <button id="confirmOk">I understand, perform this action</button>
+            </div>
+        </div>
     </div>
     <div class="button-cont">
         <button onclick="saveCfg()" title="Ctrl+S">Save Changes</button>
@@ -293,18 +393,11 @@
     </div>
     <script>
         const tbakey = document.getElementById("tbakey");
-        const eventKey = document.getElementById("ekey");
         const acolor = document.getElementById("acola");
         const tcolor = document.getElementById("tcolor");
         const chunkSize = document.getElementById("chunksize");
         const year = document.getElementById("game-year");
         const restrictLevel = document.getElementById("restrict-level");
-        const uploadDir = document.getElementById("upl-dir");
-        const uplName = document.getElementById("inp-file");
-        const outDir = document.getElementById("out-dir");
-        const outFile = document.getElementById("out-file");
-        const picDir = document.getElementById("pic-dir");
-        const metricFile = document.getElementById("metric-file");
         const nextN = document.getElementById("next-n");
         const statusDiv = document.getElementById("status");
         const newUN = document.getElementById("new-un");
@@ -315,8 +408,182 @@
         const setadmin = document.getElementById("setadmin");
         const setviewer = document.getElementById("setviewer");
         const setslider = document.getElementById("setslider");
+        const loaderOverlay = document.getElementById("loaderOverlay");
+        const loaderCardContainer = document.getElementById("cardContainer");
         let selectedCredSet = "admin";
         const creds = ["admin", "viewer"];
+
+        function loaderSlideOutAnim(card) {
+            card.classList.add("open");
+
+            card.querySelectorAll('.loader-card-body, .loader-card-footer').forEach(el => {
+                el.style.display = 'block';
+                const height = el.scrollHeight + 'px';
+                el.style.height = '0px';
+                requestAnimationFrame(() => {
+                    el.style.height = height;
+                });
+                el.addEventListener('transitionend', function handler() {
+                    if (el.parentElement.classList.includes("open")) {
+                        el.style.height = 'auto';
+                    }
+                    el.removeEventListener('transitionend', handler);
+                });
+            });
+        }
+
+        function loaderSlideInAnim(card) {
+            card.querySelectorAll('.loader-card-body, .loader-card-footer').forEach(el => {
+                const height = el.scrollHeight + 'px';
+                el.style.height = height;
+
+                requestAnimationFrame(() => {
+                    el.style.height = '0px';
+                });
+                el.addEventListener('transitionend', function handler() {
+                    if (!el.parentElement.classList.includes("open")) {
+                        el.style.display = 'none';
+                    }
+                    el.removeEventListener('transitionend', handler);
+                });
+            });
+
+            card.classList.remove('open');
+        }
+
+        async function loadEventsIntoLoader() {
+            loaderCardContainer.replaceChildren();
+
+            const events = await (await fetch("{{url_for('events_from_team')}}")).json();
+
+            for (const event of events) {
+                const newCard = document.createElement("div");
+                newCard.classList.add("loader-card");
+                newCard.onclick = () => loaderSelectEvent(event["key"]);
+                const cardHeader = document.createElement("h3");
+                cardHeader.textContent = `${event["name"]}`;
+                cardHeader.addEventListener("mouseenter", () => loaderSlideOutAnim(newCard));
+                newCard.addEventListener("mouseleave", () => loaderSlideInAnim(newCard));
+                const cardBody = document.createElement('p');
+                cardBody.classList.add("loader-card-body");
+                const cardFooter = document.createElement('p');
+                cardFooter.classList.add("loader-card-footer");
+                cardBody.textContent = `${event["city"]} ${event["state"]} | ${event["start"]} to ${event["end"]}`;
+                cardFooter.textContent = `${event["short"]} (Week ${event["week"] ?? "idk"}) | ${event["key"]}`;
+                newCard.appendChild(cardHeader);
+                newCard.appendChild(cardBody);
+                newCard.appendChild(cardFooter);
+                loaderCardContainer.appendChild(newCard);
+            }
+        }
+
+        function openLoader() {
+            loaderOverlay.style.display = 'flex';
+            loadEventsIntoLoader();
+        }
+
+        function closeLoader() {
+            loaderOverlay.style.display = 'none';
+        }
+
+        function setTitleSuffix(text) {
+            document.title = `Backend Settings${(text ? " - " : "") + text}`;
+        }
+
+        const titleAnim = "▁▂▃▄▅▆▇█▇▆▅▄▃▁";
+        let titleAnimCtr = 0;
+
+        function spin() {
+            setTitleSuffix(titleAnim[titleAnimCtr++ % titleAnim.length]);
+        }
+
+        function loaderSelectEvent(eventkey) {
+
+            let loader = setInterval(spin, 100);
+            
+            statusDiv.innerHTML = "";
+            statusDiv.style.color = "#fff";
+            statusDiv.innerText = `Loading event ${eventkey}...`;
+            fetch('{{url_for("load_event_data")}}', {
+                method: "POST",
+                headers: {
+                    'event': eventkey
+                }
+            }).then(async res => {
+                
+                statusDiv.innerHTML = "";
+                clearInterval(loader);
+                setTitleSuffix("");
+                getCurrentEvent();
+                
+                if (res.ok) {
+                    statusDiv.style.color = "#0a0";
+                    statusDiv.innerText = "Success!";
+                    setTimeout(() => {
+                        statusDiv.innerHTML = "";
+                    }, 10000);
+                } else {
+                    statusDiv.style.color = "#a00";
+                    statusDiv.innerText = `Error: ${await res.text()}`;
+                }
+            });
+
+            closeLoader();
+        }
+
+        async function confirmModal(message, callbackIfYes) {
+            if (await new Promise((resolve) => {
+                const modal = document.getElementById("confirmModal");
+                const msg = document.getElementById("confirmMessage");
+                const okBtn = document.getElementById("confirmOk");
+                const cancelBtn = document.getElementById("confirmCancel");
+
+                msg.innerHTML = message;
+                modal.style.display = 'flex';
+
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    okBtn.removeEventListener("click", onOk);
+                    cancelBtn.removeEventListener("click", onCancel);
+                    modal.removeEventListener("click", onOutside);
+                    document.removeEventListener("keydown", onKey);
+                };
+
+                const onOk = () => {
+                    cleanup();
+                    resolve(true);
+                };
+
+                const onCancel = () => {
+                    cleanup();
+                    resolve(false);
+                };
+
+                const onOutside = (e) => {
+                    if (e.target === modal) onCancel();
+                };
+
+                const onKey = (e) => {
+                    if (e.key === "Escape") onCancel();
+                    if (e.key === "Enter") onOk();
+                };
+
+                okBtn.addEventListener("click", onOk);
+                cancelBtn.addEventListener("click", onCancel);
+                modal.addEventListener("click", onOutside);
+                document.addEventListener("keydown", onKey);
+            })) {
+                callbackIfYes();
+            }
+        }
+        
+        async function getCurrentEvent() {
+            document.getElementById("eventKey").innerText = await (await fetch(`{{url_for('get_current_event')}}`, {
+                method: "GET"
+            })).text();
+        }
+
+        getCurrentEvent();
 
         async function tbaKeyCheckHealth() {
             const res = await fetch(`{{url_for('main')}}test-tba-key/${tbakey.value.trim()}`, {
@@ -334,7 +601,6 @@
             const res = await fetch("{{url_for('get_app_config')}}");
             if (!res.ok) return;
             const json = await res.json();
-            eventKey.value = json["EVENT_KEY"];
             acolor.value = json["ACCENT_COLOR"];
             tcolor.value = json["TEXT_COLOR"];
             grafUrl.value = json["GRAFANA_URL"];
@@ -343,12 +609,6 @@
             year.value = json["YEAR"];
             teamNum.value = parseInt(json["TEAM"]);
             restrictLevel.value = json["RESTRICT_APPEND_LEVEL"];
-            uploadDir.value = json["UPLOAD_DIR"];
-            uplName.value = json["INPUT_FILENAME"];
-            outDir.value = json["OUT_DIR"];
-            outFile.value = json["BASE_OUTPUT_FILENAME"];
-            picDir.value = json["PHOTO_STORAGE"];
-            metricFile.value = json["METRIC_OUTPUT_FILENAME"];
             nextN.value = json["NEXT_N_MATCHES_NUMBER"];
 
             const tbares = await fetch("{{url_for('get_tba_key')}}");
@@ -363,9 +623,9 @@
                 "un": newUN.value,
                 "pwd": newPWD.value
             }
-            
+
             let url = "";
-            
+
             switch (selectedCredSet) {
                 case "admin":
                     url = "{{url_for('set_admin_creds')}}";
@@ -410,22 +670,6 @@
             }
         }
 
-        async function clearTBACache() {
-            const res = await fetch("{{url_for('clear_cache')}}", {
-                method: "POST"
-            });
-
-            if (!res.ok) {
-                const rtxt = await res.text();
-                statusDiv.style.color = "#a00";
-                statusDiv.innerText = `Clear Cache Error: ${rtxt}`;
-            } else {
-                statusDiv.style.color = "#0a0";
-                statusDiv.innerText = "Success";
-                setTimeout(() => statusDiv.innerHTML = "", 2000);
-            }
-        }
-
         async function clearDatain() {
             const res = await fetch("{{url_for('clear_datain')}}", {
                 method: "POST"
@@ -452,6 +696,7 @@
         });
 
         async function saveCfg() {
+            let loader = setInterval(spin, 100);
             statusDiv.style.color = "#aaa";
             statusDiv.innerText = "Setting TBA key...";
             const tbares = await fetch("{{url_for('set_tba_key')}}", {
@@ -461,6 +706,9 @@
                 },
                 body: JSON.stringify({ key: tbakey.value })
             });
+
+            clearInterval(loader);
+            setTitleSuffix("");
 
             if (!tbares.ok) {
                 const rtxt = await tbares.text();
@@ -477,7 +725,6 @@
             }
 
             const json = {
-                "EVENT_KEY": eventKey.value,
                 "ACCENT_COLOR": acolor.value,
                 "TEXT_COLOR": tcolor.value,
                 "GRAFANA_URL": grafUrl.value,
@@ -486,12 +733,6 @@
                 "YEAR": year.value,
                 "TEAM": teamNum.value.toString(),
                 "RESTRICT_APPEND_LEVEL": parseInt(restrictLevel.value),
-                "UPLOAD_DIR": uploadDir.value,
-                "INPUT_FILENAME": uplName.value,
-                "OUT_DIR": outDir.value,
-                "BASE_OUTPUT_FILENAME": outFile.value,
-                "PHOTO_STORAGE": picDir.value,
-                "METRIC_OUTPUT_FILENAME": metricFile.value,
                 "NEXT_N_MATCHES_NUMBER": parseInt(nextN.value),
             };
 
@@ -536,7 +777,7 @@
                     case "admin":
                         setslider.style.left = "0%";
                         break;
-                        case "viewer":
+                    case "viewer":
                         setslider.style.left = "50%";
                         break;
                 }

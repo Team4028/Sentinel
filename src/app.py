@@ -42,7 +42,7 @@ from jinja2 import Environment, FileSystemLoader
 import sqlite3
 
 
-def create_app(inital_process = True):  # cursed but whatever
+def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because_its_slow = False):  # cursed but whatever
     """Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy"""
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -93,6 +93,9 @@ def create_app(inital_process = True):  # cursed but whatever
         )
 
     def do_data_processing():
+        if not processor.has_sched_data:
+            app.logger.warning("Processing aborted: processor does not have valid data")
+            return
         processor.proccess_data(infile)
         app.logger.info("Finished processing data.")
         reload_js()
@@ -124,8 +127,8 @@ def create_app(inital_process = True):  # cursed but whatever
     # Parse field config and setup processor
     # =======================================================
     processor = Processor(
+        skip_last_opr_fetching_for_testing_because_its_slow,
         app.config["TBA_FETCH_PERIOD_MIN"],
-        app.config["EVENT_KEY"],
         auth_key,
         app.config["YEAR"].split("_")[0] if "_" in app.config["YEAR"] else app.config["YEAR"],
         app.config["CHUNK_SIZE"],
@@ -160,7 +163,7 @@ def create_app(inital_process = True):  # cursed but whatever
             template_vars = {
                 "sentinel_url": url,
                 "grafana_url": app.config["GRAFANA_URL"],
-                "event_prefix": app.config["EVENT_KEY"] + "_",
+                "event_prefix": processor.event_key + "_",
             }
             for abbr in abbrs:
                 template_vars |= {
@@ -180,8 +183,8 @@ def create_app(inital_process = True):  # cursed but whatever
 
     if inital_process:
         try:
-            processor.proccess_data(infile)
-            app.logger.info("inital processing success")
+            do_data_processing()
+            app.logger.info("initial processing success.")
         except Exception as e:
             app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
 
@@ -323,7 +326,7 @@ def create_app(inital_process = True):  # cursed but whatever
                 rest = "".join(rest)
                 match (cmd):
                     case "rm":
-                        Processor.delete_match_scouter(infile, *rest.split(","))
+                        processor.delete_match_scouter(infile, *rest.split(","))
                 # room for more
 
         elif app.config["RESTRICT_APPEND_LEVEL"] == 2:
@@ -489,6 +492,8 @@ def create_app(inital_process = True):  # cursed but whatever
     @app.route("/health")
     def health():
         """Health check, primarily so that QRScout can know its url is correct"""
+        if not processor.has_sched_data:
+            return "No event data", 200
         return "Sentinel is watching", 200
 
     # OPEN (immutable passthrough for other-metrics = fine)
@@ -615,7 +620,9 @@ def create_app(inital_process = True):  # cursed but whatever
         foundit = False  # whether it has found the curr_match yet
         next_3 = []
         team = int(app.config["TEAM"])
-        for m in processor._sched:
+        if not processor.has_sched_data:
+            return jsonify([""] * app.config["NEXT_N_MATCHES_NUMBER"])
+        for m in processor.tba_data_static.schedule:
             if foundit:
                 if (
                     len(next_3) >= app.config["NEXT_N_MATCHES_NUMBER"]
@@ -730,27 +737,54 @@ def create_app(inital_process = True):  # cursed but whatever
     def teams_in_match():
         if "mkey" in request.args:
             _match = request.args.get('mkey', "")
-            with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT Match, Red_1, Red_2, Red_3, Blue_1, Blue_2, Blue_3 FROM matches")
-                matches = cursor.fetchall()
-            for mat in matches:
-                if mat[0] == _match:
+            if not processor.has_sched_data:
+                return jsonify({
+                    'k': "",
+                    'r': [""] * 3,
+                    'b': [""] * 3
+                })
+            for mat in processor.tba_data_static.schedule:
+                if mat['k'] == _match:
                     return jsonify({
-                        'k': mat[0],
-                        'r': mat[1:4],
-                        'b': mat[4:7],
+                        'k': mat['k'],
+                        'r': list(map(int, mat['r'])),
+                        'b': list(map(int, mat['b']))
                     })
             return "Error, match not in data", 404
         return "Error: invalid request", 400
     
+    @app.get('/current-event')
+    def get_current_event():
+        if not processor.has_sched_data:
+            return "None"
+        return processor.event_key
+    
     @app.get("/matches-in-comp")
     def matches_in_comp():
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT Match FROM matches")
-            return jsonify(list(cursor.fetchall()))
+        if not processor.has_sched_data:
+            return jsonify([])
+        return jsonify(list(map(lambda m: m['k'], processor.tba_data_static.schedule)))
 
+    @app.get("/events-from-team")
+    def events_from_team():
+        return jsonify(apputils.get_tba_events(auth_key, processor.year, app.config["TEAM"]))
+
+    @app.post("/load-event-data")
+    def load_event_data():
+        if "event" in request.headers:
+            event = request.headers.get('event', "").strip()
+            if event and event != "":
+                try:
+                    processor.clear_database()
+                    processor.event_key = event
+                    processor.load_event_data()
+                    processor.perform_periodic_calls()
+                    return "", 200
+                except Exception as e:
+                    return apputils.exception_format(e), 500
+            return "Invalid event key", 400
+        return "Error: invalid request", 400 
+            
     
     @app.post("/dash-reset")
     @login_required
@@ -758,16 +792,6 @@ def create_app(inital_process = True):  # cursed but whatever
     def reset_dash():
         try:
             compile_scouting_dashboard()
-            return "", 200
-        except Exception as e:
-            return apputils.exception_format(e), 500
-        
-    @app.post('/clear-tba-cache')
-    @login_required
-    @require_admin
-    def clear_cache():
-        try:
-            apputils.clear_tba_cache()
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -881,7 +905,9 @@ def create_app(inital_process = True):  # cursed but whatever
                 if not apputils.test_tba_key(auth_key):  # health check
                     return "Bad TBA key", 400
                 apputils.set_auth_key(auth_key)
-                processor.periodic_calls.fire(app.logger.info)
+                if processor.event_key != "" and not processor.has_sched_data:
+                    processor.load_event_data()
+                    processor.perform_periodic_calls()
                 return "", 200
             else:
                 return "Invalid Request", 400
@@ -938,14 +964,11 @@ def create_app(inital_process = True):  # cursed but whatever
         if "pick3" in request.args:
             teams.append(request.args.get("pick3"))
         sum = 0
+        if not processor.has_sched_data:
+            return jsonify({"score": 0})
         for team in teams:
-            if int(team) in processor._teams:
-                sum += processor._teams[int(team)].output_dict(
-                    processor.config_data,
-                    processor._oprs[team] if team in processor._oprs else 0,
-                    processor._curr_oprs[team] if team in processor._curr_oprs else 0,
-                    processor._coprs[team] if team in processor._coprs else {}
-                )[processor.config_data["p-metric"]["source"]]
+            if int(team) in processor.tba_data_static.teams:
+                sum += processor.get_team_pred_score(team)
         return jsonify({"score": round(sum)})
 
     @app.get("/picklist")
@@ -956,8 +979,8 @@ def create_app(inital_process = True):  # cursed but whatever
             initTeam=app.config["TEAM"],
             teams=filter(
                 lambda x: x != int(app.config["TEAM"]),
-                sorted([int(x) for x in processor._teamsAt]),
-            ),
+                sorted([int(x) for x in processor.tba_data_static.teams]),
+            ) if processor.has_sched_data else [],
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
@@ -976,15 +999,6 @@ def create_app(inital_process = True):  # cursed but whatever
                     json.dump(
                         request.json, w, indent=4
                     )  # indent=4 auto-formats the json with \t = 4 spaces
-                last_year, last_id = app.config["YEAR"], app.config["EVENT_KEY"]
-                app.config.from_file("config/app-config.json", load=json.load)
-                processor.config_data = lex_config(app.config["YEAR"])
-                if (
-                    app.config["YEAR"] != last_year
-                    or app.config["EVENT_KEY"] != last_id
-                ):
-                    apputils.clear_tba_cache()
-                processor.periodic_calls.fire(app.logger.info)
                 if apputils.data_in_exists(app):
                     try:
                         processor.proccess_data(
@@ -1064,4 +1078,4 @@ if __name__ == "__main__":
         elif sys.argv[1] == "sign":
             apputils.generate_ssl_sign()
     else:
-        create_app(inital_process=False).run(port=5001, use_reloader=False)  # debug run python
+        create_app(inital_process=False, skip_last_opr_fetching_for_testing_because_its_slow=True).run(port=5001, use_reloader=False)  # debug run python

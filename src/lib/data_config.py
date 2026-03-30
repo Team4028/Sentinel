@@ -1,3 +1,4 @@
+import numpy as np
 import yaml
 from enum import Enum
 import pandas as pd
@@ -496,6 +497,16 @@ def df_safe_or(a, b):
         return a | b
     except:
         return bool(a) or bool(b)
+    
+def attempt_slice(x):
+    if not isinstance(x, str):
+        return x
+    try:
+        x = x.split(":")
+        x = slice(*map(lambda s: int(s), x))
+        return x
+    except:
+        return x
 
 
 # =====================
@@ -592,7 +603,25 @@ def evaluate_binary_operator(lhs, rhs, op, index):
         case "|":
             return strfloatize_if_bool(df_safe_or(lhs, rhs))
         case "[]":
-            return lhs.loc[rhs]
+            if isinstance(rhs, int):
+                return lhs.iloc[rhs]
+            elif isinstance(rhs := attempt_slice(rhs), slice):
+                start = rhs.start
+                if start is None or isinstance(start, int):
+                    return lhs.iloc[rhs]
+                else:
+                    return lhs.loc[rhs]
+            elif isinstance(rhs, list) or isinstance(rhs, np.ndarray):
+                if all(isinstance(k, int) for k in rhs):
+                    return lhs.iloc[rhs]
+                else:
+                    return lhs.loc[rhs]
+            elif isinstance(rhs, pd.Series) and rhs.dtype == bool:
+                return lhs.loc[rhs]
+            else:
+                raise BeakscriptInterpretError(
+                    f"Parser error: Unexpected type {type(rhs)} when indexing {lhs}\n{BeakscriptInterpretError.curr_equation}\n{' ' * index + '^'}"
+                )
     raise BeakscriptInterpretError(
         f"Parser error: Unexpected binary operator: {op}\n{BeakscriptInterpretError.curr_equation}\n{' ' * index + '^'}"
     )

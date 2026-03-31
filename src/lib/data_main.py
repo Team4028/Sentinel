@@ -14,7 +14,7 @@ try:
     import apputils
 except ModuleNotFoundError:
     from src.lib.data_config import eval_beakscript, FANCY_FIL
-    import src.apputils
+    import src.apputils as apputils
 from collections import defaultdict
 from collections.abc import Iterable
 import logging

@@ -35,7 +35,7 @@ services:
     container_name: grafana
     restart: unless-stopped
     ports:
-      - "3005:3000"
+      - "3005:3005"
     volumes:
       - "grafana_storage:/var/lib/grafana" # save all of the files
       - appdata:/app # share storage with flask
@@ -52,7 +52,7 @@ services:
     container_name: grafana
     restart: unless-stopped
     ports:
-      - "3005:3000"
+      - "3005:3005"
     volumes:
       - "grafana_storage:/var/lib/grafana" # save all of the files
       - appdata:/app # share storage with flask

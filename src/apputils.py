@@ -152,6 +152,7 @@ def test_tba_key(key: str) -> bool:
     # use time.time to force a refresh of the server and prevent caches from accepting junk keys
     response = requests.get(
         f"https://www.thebluealliance.com/api/v3/status?_={int(time.time()*1_000)}",
+        timeout=20,
         headers={
             "X-TBA-Auth-Key": key,
             "Cache-Control": "no-store, no-cache, max-age=0",
@@ -182,7 +183,8 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
             )
             fetch_oprs = requests.get(
                 f"https://www.thebluealliance.com/api/v3/event/{event_key}/oprs",
-                {"X-TBA-Auth-Key": api_key},
+                timeout=20,
+                headers={"X-TBA-Auth-Key": api_key},
             ).json()
             for x, y in fetch_oprs["oprs"].items():
                 oprs |= {int(x.removeprefix("frc")): round(float(y), 1)}
@@ -212,7 +214,8 @@ def get_tba_coprs(event_key, api_key):
             )
             coprs = requests.get(
                 f"https://www.thebluealliance.com/api/v3/event/{event_key}/coprs",
-                {"X-TBA-Auth-Key": api_key},
+                timeout=20,
+                headers={"X-TBA-Auth-Key": api_key},
             ).json()
             coprs = invert_jeson(coprs)
             for team in list(coprs.keys()):
@@ -245,6 +248,7 @@ def get_tba_opr(event_key, api_key, year, teams):
                 )
                 events = requests.get(
                     f"https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}",
+                    timeout=20,
                     headers={"X-TBA-Auth-Key": api_key},
                 ).json()  # get events that team was in
                 curr_date = date.today().strftime("%Y-%m-%d")
@@ -267,6 +271,7 @@ def get_tba_opr(event_key, api_key, year, teams):
                         opr = float(
                             requests.get(
                                 f"https://www.thebluealliance.com/api/v3/event/{latest_no_event["key"]}/oprs",
+                                timeout=20,
                                 headers={"X-TBA-Auth-Key": api_key},
                             ).json()["oprs"][f"frc{team}"]
                         )  # get the teams opr from that event
@@ -288,6 +293,7 @@ def get_tba_images(api_key, year, photo_dir, teams):
         )
         pics = requests.get(
             f"https://www.thebluealliance.com/api/v3/team/frc{team}/media/{year}",
+            timeout=20,
             headers={"X-TBA-Auth-Key": api_key},
         ).json()
         for i, pic in enumerate(pics):
@@ -298,7 +304,7 @@ def get_tba_images(api_key, year, photo_dir, teams):
                 output_image_name += os.path.splitext(img_src)[1]
                 try:
                     logger.info(f"Fetch: {img_src}")
-                    response = requests.get(img_src, headers={
+                    response = requests.get(img_src, timeout=5, headers={
                         "User-Agent": "curl/7.88.1", # pretend to be curl to avoid 429
                         "Accept": "*/*"
                     }, allow_redirects=False)
@@ -318,7 +324,7 @@ def get_tba_images(api_key, year, photo_dir, teams):
                     output_image_name += os.path.splitext(img_src)[1]
                 try:
                     logger.info(f"Fetch: {img_src}")
-                    response = requests.get(img_src, headers={
+                    response = requests.get(img_src, timeout=5, headers={
                         "User-Agent": "curl/7.88.1", # pretend to be curl to avoid 429
                         "Accept": "*/*"
                     }, allow_redirects=False)
@@ -360,6 +366,7 @@ def get_tba_ranks(event_key, api_key, teams):
             )
             ranks = requests.get(
                 f"https://www.thebluealliance.com/api/v3/event/{event_key}/rankings",
+                timeout=20,
                 headers={"X-TBA-Auth-Key": api_key},
             ).json()
         else:
@@ -385,7 +392,7 @@ def get_tba_ranks(event_key, api_key, teams):
     
 def get_tba_events(key, year, team):
     logger.info(f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}")
-    json = requests.get(f"https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}", headers={
+    json = requests.get(f"https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}", timeout=20, headers={
         "X-TBA-Auth-Key": key
     }).json()
     events = []
@@ -437,6 +444,7 @@ def load_tba_data_static(event_key, api_key, year, last_opr_disabled) -> TBAData
     )
     teamJSON = requests.get(
         f"https://www.thebluealliance.com/api/v3/event/{event_key}/teams",
+        timeout=20,
         headers={"X-TBA-Auth-Key": api_key},
     ).json()
     teams = [x["team_number"] for x in teamJSON]
@@ -457,6 +465,7 @@ def load_tba_data_static(event_key, api_key, year, last_opr_disabled) -> TBAData
     )
     schedJson = requests.get(
         f"https://www.thebluealliance.com/api/v3/event/{event_key}/matches",
+        timeout=20,
         headers={"X-TBA-Auth-Key": api_key},
     ).json()
 
@@ -557,7 +566,7 @@ def set_auth_key(key: str) -> None:
 def data_in_exists(app) -> bool:
     """checks whether the data_in file exists for `app` based on its config"""
     return os.path.exists(
-        f"./{app.config["UPLOAD_DIR"]}/{app.config["INPUT_FILENAME"]}"
+        os.path.join("datain", "data_in.csv")
     )
 
 

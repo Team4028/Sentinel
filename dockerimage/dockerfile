@@ -14,6 +14,7 @@ RUN pip install gunicorn
 COPY src src
 COPY config config
 COPY scouting_app.py ./
+COPY gunicorn-conf.py ./
 COPY dockerimage/boot.sh /
 
 # make boot.sh executable

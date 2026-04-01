@@ -817,7 +817,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @require_admin
     def reset_dash():
         try:
-            compile_scouting_dashboard()
+            compile_scouting_dashboard(request.host_url)
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -941,6 +941,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 if not apputils.test_tba_key(auth_key):  # health check
                     return "Bad TBA key", 400
                 apputils.set_auth_key(auth_key)
+                processor.tba_key = auth_key
                 if processor.event_key != "" and not processor.has_sched_data:
                     processor.load_event_data()
                     processor.perform_periodic_calls()

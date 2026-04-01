@@ -456,10 +456,11 @@ class Processor:
             logger.info("Loading TBA images...")
             try:
                 apputils.get_tba_images(self.tba_key, self.year, "photos", self.tba_data_static.teams)
-            except:
+            except Exception as e:
                 logger.warning(f"Error fetching images: {apputils.exception_format(e)}")
         except Exception as e:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
+
 
 
     def __load_remote_data_dyn(self):

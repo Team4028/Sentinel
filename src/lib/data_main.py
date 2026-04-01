@@ -20,6 +20,7 @@ from collections.abc import Iterable
 import logging
 from scipy.linalg import svd
 import statbotics
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +129,24 @@ ET = TypeVar("ET", bound=Callable)
 
 
 class Event[ET]:
+    event_progress = {}
+    current_event = ""
+    current_event_len = 0
+    current_handle_index_progress: float = 0.0
+    global_lock = asyncio.Lock()
+
+    def get_event_progress():
+        if Event.current_event != "":
+            return Event.event_progress | { Event.current_event: { 
+                    "prog": round(Event.event_progress[Event.current_event]["prog"] + Event.current_handle_index_progress / Event.current_event_len, 2),
+                    "step": Event.event_progress[Event.current_event]["step"],
+                    "status": Event.event_progress[Event.current_event]["status"]
+                }}
+        return Event.event_progress
 
     def __init__(self, name: str = ""):
         self._handlers = []
+        self.task: asyncio.Task | None = None
         self.name = name
 
     def __iadd__(self, f: ET | list[ET]):
@@ -148,14 +164,40 @@ class Event[ET]:
             self._handlers.remove(f)
         return self
 
-    def fire(self, logging_callback: Callable[[str], None], *args, **kwargs):
-        for i, f in enumerate(self._handlers):
-            if logging_callback != None:
-                logging_callback(
-                    f"{self.name} [{i + 1}/{len(self._handlers)}]: {f.__name__}"
-                )
-            f(*args, **kwargs)
-
+    async def fire(self, logging_callback: Callable[[str], None], *args, **kwargs):
+        if self.task and not self.task.done():
+            logging_callback(f"Task {self.name} already running. Cancelling and restarting...")
+            self.task.cancel()
+            try:
+                await self.task
+            except asyncio.CancelledError:
+                pass
+        self.event_progress[self.name] = {"prog": 0.0, "step": "", "status": 'queued'}
+        async def fire_task():
+            logging_callback(f"Task for {self.name} queued, waiting for lock.")
+            async with Event.global_lock:
+                logging_callback(f"{self.name} has lock.")
+                Event.current_event = self.name
+                Event.current_event_len = len(self._handlers)
+                try:
+                    for i, f in enumerate(self._handlers):
+                        if logging_callback != None:
+                            logging_callback(
+                                f"{self.name} [{i + Event.current_handle_index_progress}/{len(self._handlers)}]: {f.__name__}"
+                            )
+                            Event.event_progress[self.name] = { "prog": i / len(self._handlers), "step": f.__name__, "status": "in-progress" }
+                        f(*args, **kwargs)
+                    Event.event_progress[self.name]["prog"] = 1.0
+                    Event.event_progress[self.name]["status"] = "done"
+                    Event.current_handle_index_progress = 0
+                except asyncio.CancelledError:
+                    Event.event_progress[self.name]["prog"] = 0.0
+                    Event.event_progress[self.name]["status"] = "cancelled"
+                    logging_callback(f"Event {self.name} cancelled.")
+                    raise
+                await asyncio.sleep(0)
+        self.task = asyncio.create_task(fire_task(), name=self.name)
+        return None
 
 class ObjectHolder[T]:
     """Pass-by-reference for noobs"""
@@ -302,6 +344,7 @@ class Processor:
         if self.__check_tables_exist():
             logger.info("Static match data preset, loading into memory...")
             self.__read_static_tba_info()
+            logger.info("Static match data preset, loaded")
         else:
             logger.warning("Warning: tables do not exist. Until an event is loaded there will be no data")
 
@@ -452,10 +495,12 @@ class Processor:
         try:
             logger.info("Loading TBA data...")
             self.tba_data_static = apputils.load_tba_data_static(self.event_key, self.tba_key, self.year, self.disable_last_opr)
+            Event.current_handle_index_progress = 0.5
             self.has_sched_data = True
             logger.info("Loading TBA images...")
             try:
                 apputils.get_tba_images(self.tba_key, self.year, "photos", self.tba_data_static.teams)
+                Event.current_handle_index_progress = 1.0
             except Exception as e:
                 logger.warning(f"Error fetching images: {apputils.exception_format(e)}")
         except Exception as e:
@@ -472,6 +517,7 @@ class Processor:
             self.tba_data_dyn = apputils.load_tba_data_dynamic(
                 self.event_key, self.tba_key, self.tba_data_static.teams
             )
+            Event.current_handle_index_progress = 0.33
             logger.info("Loading Statbotics EPAs...")
             self.__sb_epas = {
                 s["team"]: round(s["epa"]["total_points"]["mean"], 1)
@@ -479,8 +525,10 @@ class Processor:
                     event=self.event_key, limit=1000, fields=["team", "epa"]
                 )
             }
+            Event.current_handle_index_progress = 0.66 # no
             logger.info("Loading Statbotics match data...")
             self.__sb_matches = self.__sb.get_matches(event=self.event_key)
+            Event.current_handle_index_progress = 1.0
         except Exception as e:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
@@ -497,6 +545,7 @@ class Processor:
                     | {f"Blue_{i + 1}": v for i, v in enumerate(match["b"])}
                 )
             all_fields = self.sql_fields["matches"]
+            Event.current_handle_index_progress = 0.5
             fields_not_writing_to = [
                 x for x in all_fields if x not in matches[0].keys()
             ]
@@ -518,11 +567,13 @@ class Processor:
                     + [None] * len(fields_not_writing_to),
                 )
             conn.commit()
+            Event.current_handle_index_progress = 1.0
 
     def __write_teams_file(self):
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             all_fields = self.sql_fields["teams"]
-            for team in self.tba_data_static.teams:
+            for i, team in enumerate(self.tba_data_static.teams):
+                Event.current_handle_index_progress = i / len(self.tba_data_static.teams)
                 data = []
                 for field in all_fields:
                     if field in list(self.tba_data_static.team_info.values())[0].keys():
@@ -560,6 +611,8 @@ class Processor:
                     ),
                 }
             )
+        
+        Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             for team in df:
@@ -578,6 +631,7 @@ class Processor:
                     ),
                 )
             conn.commit()
+        Event.current_handle_index_progress = 1.0
 
     def __write_team_fields(self):
         df = []
@@ -593,6 +647,8 @@ class Processor:
         if len(df) <= 0:
             logger.warning("No team fields")
             return
+        
+        Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
@@ -605,6 +661,8 @@ class Processor:
                     """,
                         (team["Team"], field, str(team[field])),
                     )
+
+        Event.current_handle_index_progress = 1.0
 
     def __write_match_predictions_file(self):
         df = []
@@ -634,6 +692,8 @@ class Processor:
                 )  # trust
                 | {"Predict_Winner": "blue" if sum(score[0]) > sum(score[1]) else "red"}
             )
+        
+        Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
@@ -648,6 +708,7 @@ class Processor:
                     [*(list(match.values())[1:]), match["Match"]],
                 )
             conn.commit()
+            Event.current_handle_index_progress = 1.0
 
     def __write_statbotics_analytics(self):
         df = []
@@ -658,6 +719,7 @@ class Processor:
                 }
                 | match["pred"]
             )
+        Event.current_handle_index_progress = 0.5
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
@@ -671,10 +733,12 @@ class Processor:
                     [*(list(match.values())[1:]), match["Match"]],
                 )
             conn.commit()
+            Event.current_handle_index_progress = 1.0
 
     def __write_statbotics_epa(self):
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
-            for team in self.tba_data_static.teams:
+            for i, team in enumerate(self.tba_data_static.teams):
+                Event.current_handle_index_progress = i / len(self.tba_data_static.teams)
                 conn.execute(
                     f"""
                     UPDATE teams
@@ -700,6 +764,8 @@ class Processor:
         if len(df) <= 0:
             logger.warning("No statbotics analytics fields.")
             return
+        
+        Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
@@ -714,6 +780,7 @@ class Processor:
                         (match["Match"], match["Team"], field, str(match[field])),
                     )
             conn.commit()
+            Event.current_handle_index_progress = 1.0
 
     def __write_match_depth_predictions(self):
         df = []
@@ -745,6 +812,8 @@ class Processor:
         if len(df) <= 0:
             logger.warning("No depth predictions")
             return
+        
+        Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
@@ -759,6 +828,7 @@ class Processor:
                         (match["Match"], match["Team"], field, str(match[field])),
                     )
             conn.commit()
+            Event.current_handle_index_progress = 1.0
 
     @staticmethod
     def mad_filter(
@@ -864,6 +934,7 @@ class Processor:
     def __pre_filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
         df.obj["Pre-filter-keep"] = True
         for i in range(len(self.config_data["pre-tests"])):
+            Event.current_handle_index_progress = i / len(self.config_data["pre-tests"])
             logger.info(
                 f"\tPerforming pre-test: {self.config_data["pre-tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["pre-tests"]) - (i + 1)))}]"
             )
@@ -902,6 +973,7 @@ class Processor:
                 )
 
             for i in range(len(self.config_data["preproc"])):
+                Event.current_handle_index_progress = i / len(self.config_data["preproc"])
                 last_cols = df.obj.columns
                 logger.info(
                     f"\tPerforming preprocess operation: {self.config_data["preproc"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["preproc"]) - (i + 1)))}]"
@@ -942,6 +1014,7 @@ class Processor:
     def __filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
         df.obj["filter-keep"] = True
         for i in range(len(self.config_data["tests"])):
+            Event.current_handle_index_progress = i / len(self.config_data["tests"])
             logger.info(
                 f"\tPerforming test: {self.config_data["tests"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["tests"]) - (i + 1)))}]"
             )
@@ -958,7 +1031,8 @@ class Processor:
         df.obj.drop(columns=["filter-keep"], inplace=True)
 
     def __compute_fields_chunk(self, df: ObjectHolder[pd.DataFrame]):
-        for comp in self.config_data["compute"]:
+        for i, comp in enumerate(self.config_data["compute"]):
+            Event.current_handle_index_progress = i / len(self.config_data["compute"])
             # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
             # this works because beakscript fully supports pd.DataFrame's, of which chunk is one
             df.obj[comp["name"]] = eval_beakscript(
@@ -971,7 +1045,8 @@ class Processor:
 
     def __svd_data_chunk(self, df: ObjectHolder[pd.DataFrame]):
         tn = self.config_data["tn"]
-        for subj in self.config_data["svd"]:
+        for i, subj in enumerate(self.config_data["svd"]):
+            Event.current_handle_index_progress = i / len(self.config_data["svd"])
             u, v, s = self.__get_svd_analysis(
                 df.obj[[self.config_data["tn"], subj["comp-team"], subj["source"]]],
                 subj["comp-team"],
@@ -1013,9 +1088,10 @@ class Processor:
                 )
 
     def __team_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
-        for team in df.obj[
+        for i, team in enumerate(df.obj[
             self.config_data["tn"]
-        ].unique():  # teams will be in the chunk multiple times, but we just want to loop through all of the DIFFERENT teams there are
+        ].unique()):  # teams will be in the chunk multiple times, but we just want to loop through all of the DIFFERENT teams there are
+            Event.current_handle_index_progress = i / len(df.obj[self.config_data["tn"]].unique())
             team_data = {}
             for field in self.config_data["teams"]:
                 # call the beakscript functions for the derived fields where the TN == team
@@ -1037,7 +1113,8 @@ class Processor:
 
     def __match_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
         tn, mn = self.config_data["tn"], self.config_data["mn"]
-        for match in df.obj[mn].unique():  # same thing as teams
+        for m, match in enumerate(df.obj[mn].unique()):  # same thing as teams
+            Event.current_handle_index_progress = m / len(df.obj[mn].unique())
             row = df.obj.loc[
                 df.obj[mn] == match
             ]  # row is actually 6 rows here to be used for static fields
@@ -1088,13 +1165,13 @@ class Processor:
                     int(team), data
                 )
 
-    def proccess_data(self, data_filepath: str) -> None:
+    async def proccess_data(self, data_filepath: str) -> None:
         """Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files"""
 
         if ((time.time() - self.last_fetch_timestamp) / 60 >= self.period_min) or (
             self.tba_data_static.teams == None or self.tba_data_static.schedule == None
         ):
-            self.__periodic_calls.fire(logger.info)
+            await self.__periodic_calls.fire(logger.info)
             self.last_fetch_timestamp = time.time()
 
         if self.tba_data_static.teams == None or self.tba_data_static.schedule == None:
@@ -1111,7 +1188,7 @@ class Processor:
             first = True
             for chunk in reader:  # read in chunks in case big
                 chunk_holder = ObjectHolder(chunk)
-                self.__chunk_processing_routine.fire(logger.info, chunk_holder)
+                await self.__chunk_processing_routine.fire(logger.info, chunk_holder)
                 logger.info("Writing chunk...")
                 # write the main csv
                 chunk.to_csv(
@@ -1121,16 +1198,16 @@ class Processor:
                 )
                 first = False
         # write all the other files
-        self.__post_process_routine.fire(logger.info)
+        await self.__post_process_routine.fire(logger.info)
         logger.info("Done!!!!")
 
-    def perform_periodic_calls(self):
-        self.__periodic_calls.fire(logger.info)
+    async def perform_periodic_calls(self):
+        await self.__periodic_calls.fire(logger.info)
 
-    def load_event_data(self):
-        self.__load_in_event_data.fire(logger.info)
+    async def load_event_data(self):
+        await self.__load_in_event_data.fire(logger.info)
 
-    def clear_database(self) -> None:
+    async def clear_database(self) -> None:
         if os.path.exists(os.path.join("dataout", "sentinel.db")):
             os.remove(os.path.join("dataout", "sentinel.db"))
         self.has_sched_data = False

@@ -18,6 +18,7 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from datetime import datetime, timedelta, UTC
+import asyncio
 
 
 logger = logging.getLogger(__name__)
@@ -166,6 +167,23 @@ def test_tba_key(key: str) -> bool:
     raise Exception(
         f"Error testing tba key: unexpected reseponse {response.status_code}: {response.text}"
     )
+
+def get_tasks_snapshot(loop=None):
+    """
+    Returns a snapshot of all asyncio tasks without blocking.
+    Can be called from synchronous code.
+    """
+    loop = loop or asyncio.get_running_loop()
+    tasks_info = {}
+
+    for task in asyncio.all_tasks(loop=loop):
+        task_info = {
+            "done": task.done(),
+            "stack": [line.strip() for stack in task.get_stack(limit=1) for line in traceback.format_stack(stack)]
+        }
+        tasks_info[task.get_name()] = task_info
+
+    return tasks_info
 
 
 def clear_pictures() -> None:
@@ -563,7 +581,7 @@ def set_auth_key(key: str) -> None:
         w.write(key.strip())
 
 
-def data_in_exists(app) -> bool:
+def data_in_exists() -> bool:
     """checks whether the data_in file exists for `app` based on its config"""
     return os.path.exists(
         os.path.join("datain", "data_in.csv")

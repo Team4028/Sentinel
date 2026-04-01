@@ -392,6 +392,17 @@
     <div class="back-cont">
         <button onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Back</button>
     </div>
+    <div id="j*b-status" style="
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        width: 250px;
+        padding: 5px;
+        border: 1px solid #333;
+        background: #222;
+        color: #fff;
+        z-index: 9999;
+    "></div>
     <script>
         const tbakey = document.getElementById("tbakey");
         const acolor = document.getElementById("acola");
@@ -414,6 +425,53 @@
         let selectedCredSet = "admin";
         const creds = ["admin", "viewer"];
 
+        async function getUpdateEventStatuses() {
+            res = await (await fetch("/jobs")).json();
+            const container = document.getElementById("j*b-status");
+            container.innerHTML = "";
+            for (const [name, status] of Object.entries(res)) {
+                const wrapper = document.createElement("div");
+                wrapper.style.marginBottom = "6px";
+
+                const label = document.createElement("div");
+                label.innerText = `${
+                    status["status"] === "done" ? "🟢" : (
+                        status["status"] === "in-progress" ? "🟡" : (
+                            status["status"] === "cancelled" ? "🔴" : "⚪"
+                        )
+                    )}${name} (${(status["prog"] * 100).toFixed(2)}%)`;
+                label.style.marginBottom = "2px";
+
+                const mini = document.createElement("h4");
+                mini.style.color = "#666";
+                mini.style.padding = 0;
+                mini.style.margin = 0;
+                mini.style.fontSize = 2;
+                mini.innerText = status["step"];
+
+                const barOuter = document.createElement("div");
+                barOuter.style.background = "#555";
+                barOuter.style.width = "100%";
+                barOuter.style.height = "16px";
+                barOuter.style.borderRadius = "4px";
+                barOuter.style.overflow = "hidden";
+
+                const barInner = document.createElement("div");
+                barInner.style.background = "#4caf50";
+                barInner.style.width = `${status["prog"] * 100}%`;
+                barInner.style.height = "100%";
+
+                barOuter.appendChild(barInner);
+                wrapper.appendChild(label);
+                wrapper.appendChild(mini);
+                wrapper.appendChild(barOuter);
+
+                container.appendChild(wrapper);
+            }
+        }
+
+        setInterval(getUpdateEventStatuses, 1000);
+
         function loaderSlideOutAnim(card) {
             card.classList.add("open");
 
@@ -425,7 +483,7 @@
                     el.style.height = height;
                 });
                 el.addEventListener('transitionend', function handler() {
-                    if (el.parentElement.classList.includes("open")) {
+                    if (el.parentElement.classList.contains("open")) {
                         el.style.height = 'auto';
                     }
                     el.removeEventListener('transitionend', handler);

@@ -14,13 +14,13 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 
 try:  # janky import stuff: running src/app.py and running scouting_app.py via gunicorn lead to different import paths
-    from lib.data_main import Processor
+    from lib.data_main import Processor, Event
     import lib.mesh as mesh
     from lib.data_config import lex_config
     import apputils
     from auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app
 except ModuleNotFoundError:
-    from src.lib.data_main import Processor
+    from src.lib.data_main import Processor, Event
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
     import src.apputils as apputils
@@ -39,11 +39,15 @@ import argparse
 import shlex
 import shutil
 from jinja2 import Environment, FileSystemLoader
-import sqlite3
+import asyncio
 
 
 def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because_its_slow = False):  # cursed but whatever
     """Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy"""
+
+    loop = asyncio.new_event_loop()
+
+
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
     # setup logging
@@ -69,6 +73,15 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
 
     notification_queue = []
 
+    def start_loop(loop: asyncio.AbstractEventLoop):
+        app.logger.info("Starting app async thread")
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
+
+    def run_async_task(coro):
+        app.logger.info(f"Async thread add coroutine: {coro.__name__}")
+        return asyncio.run_coroutine_threadsafe(coro, loop)
+    
     # check docker
     is_docker = False
     if os.path.exists("/.dockerenv"):
@@ -92,13 +105,15 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             **context,
         )
 
-    def do_data_processing():
+    async def do_data_processing():
+        app.logger.info("Starting data proceessing...")
         if not processor.has_sched_data:
             app.logger.warning("Processing aborted: processor does not have valid data")
             return
-        processor.proccess_data(infile)
+        await processor.proccess_data(infile)
         app.logger.info("Finished processing data.")
         reload_js()
+        return
         
 
     # =======================================================
@@ -183,7 +198,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
 
     if inital_process:
         try:
-            do_data_processing()
+            run_async_task(do_data_processing()).result()
             app.logger.info("initial processing success.")
         except Exception as e:
             app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
@@ -276,7 +291,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                     outf.write(("" if firstLine else "\n") + line.strip())
                     firstLine = False
         apputils.safer_replace(temp_path, infile)
-        do_data_processing()
+        run_async_task(do_data_processing())
 
     def append_lines_nofile(lines_to_write: list[str], sending: bool = False):
         """Appends `lines_to_write` to the input csv and reprocesses the data. <br>
@@ -297,7 +312,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                     app.logger.info(f"Adding notification for data {lines_to_write}")
                     send_change_notification(lines_to_write)
         if not sending or mesh.get_is_meshed():
-            do_data_processing()
+            run_async_task(do_data_processing())
 
     def save_photo(filestorage, team: str):
         """saves the given filestorage to PHOTO_STORAGE/{team}.ext where ext is the extension of filestorage"""
@@ -348,9 +363,9 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.before_request
     def log_request():
         """logs the method and path of the request"""
-        if not "/notifyq" in request.path:  # that spam is annoying
+        if not "/notifyq" in request.path and not '/jobs' in request.path:  # that spam is annoying
             app.logger.info(f"{request.method} {request.path}")
-        else:
+        elif "/notifyq" in request.path:
             app.logger.info(f"Service worker polled queue")
 
 
@@ -439,6 +454,10 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             else:
                 return "Invalid Credentials", 401
         return render_template_style("login.html", form=form)
+    
+    @app.get('/jobs')
+    def jobs():
+        return jsonify(Event.get_event_progress())
 
     @app.get("/我是谁")
     def whoami():
@@ -532,7 +551,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 d_file = request.files["data"]
                 if d_file.filename != "":
                     d_file.save(infile)  # saves the file
-                    do_data_processing()
+                    run_async_task(do_data_processing())
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -801,10 +820,10 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             event = request.headers.get('event', "").strip()
             if event and event != "":
                 try:
-                    processor.clear_database()
+                    run_async_task(processor.clear_database())
                     processor.event_key = event
-                    processor.load_event_data()
-                    processor.perform_periodic_calls()
+                    run_async_task(processor.load_event_data())
+                    run_async_task(processor.perform_periodic_calls())
                     return "", 200
                 except Exception as e:
                     return apputils.exception_format(e), 500
@@ -943,8 +962,8 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 apputils.set_auth_key(auth_key)
                 processor.tba_key = auth_key
                 if processor.event_key != "" and not processor.has_sched_data:
-                    processor.load_event_data()
-                    processor.perform_periodic_calls()
+                    run_async_task(processor.load_event_data())
+                    run_async_task(processor.perform_periodic_calls())
                 return "", 200
             else:
                 return "Invalid Request", 400
@@ -1036,11 +1055,11 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                     json.dump(
                         request.json, w, indent=4
                     )  # indent=4 auto-formats the json with \t = 4 spaces
-                if apputils.data_in_exists(app):
+                if processor.has_sched_data and apputils.data_in_exists():
                     try:
-                        processor.proccess_data(
+                        run_async_task(processor.proccess_data(
                             infile
-                        )  # updated processor, so this
+                        )) # updated processor, so this
                         app.logger.info("Finished processing data.")
                         reload_js()
                     except Exception as e:
@@ -1048,7 +1067,6 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                         # os.remove(
                         #     infile
                         # )  # remove data_in if it's not playing nice (ie. 2025 data in, switches to 2026)
-                ensure_untracked_dirs()  # if either of the the upl/out dirs were changed, they may no longer exist
                 return "", 200
             except Exception as e:
                 return apputils.exception_format(e), 500
@@ -1100,6 +1118,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     # Initialize Meshtastic Listener
     # =======================================================
     Thread(target=mesh_listen, daemon=True).start()  # peak multithreading
+    Thread(target=start_loop, args=(loop,), daemon=True).start()
 
     return app
 

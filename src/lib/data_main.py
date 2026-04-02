@@ -136,12 +136,27 @@ class Event[ET]:
     global_lock = asyncio.Lock()
 
     def get_event_progress():
+        keys = list(Event.event_progress.keys())
+        for event in keys:
+            if (
+                "time_complete" in Event.event_progress[event]
+                and time.time() - Event.event_progress[event]["time_complete"] > 5
+            ):
+                Event.event_progress.pop(event)
+                if event == Event.current_event:
+                    Event.current_event = ""
         if Event.current_event != "":
-            return Event.event_progress | { Event.current_event: { 
-                    "prog": round(Event.event_progress[Event.current_event]["prog"] + Event.current_handle_index_progress / Event.current_event_len, 2),
+            return Event.event_progress | {
+                Event.current_event: {
+                    "prog": round(
+                        Event.event_progress[Event.current_event]["prog"]
+                        + Event.current_handle_index_progress / Event.current_event_len,
+                        2,
+                    ),
                     "step": Event.event_progress[Event.current_event]["step"],
-                    "status": Event.event_progress[Event.current_event]["status"]
-                }}
+                    "status": Event.event_progress[Event.current_event]["status"],
+                }
+            }
         return Event.event_progress
 
     def __init__(self, name: str = ""):
@@ -166,13 +181,16 @@ class Event[ET]:
 
     async def fire(self, logging_callback: Callable[[str], None], *args, **kwargs):
         if self.task and not self.task.done():
-            logging_callback(f"Task {self.name} already running. Cancelling and restarting...")
+            logging_callback(
+                f"Task {self.name} already running. Cancelling and restarting..."
+            )
             self.task.cancel()
             try:
                 await self.task
             except asyncio.CancelledError:
                 pass
-        self.event_progress[self.name] = {"prog": 0.0, "step": "", "status": 'queued'}
+        self.event_progress[self.name] = {"prog": 0.0, "step": "", "status": "queued"}
+
         async def fire_task():
             logging_callback(f"Task for {self.name} queued, waiting for lock.")
             async with Event.global_lock:
@@ -185,19 +203,37 @@ class Event[ET]:
                             logging_callback(
                                 f"{self.name} [{i + Event.current_handle_index_progress}/{len(self._handlers)}]: {f.__name__}"
                             )
-                            Event.event_progress[self.name] = { "prog": i / len(self._handlers), "step": f.__name__, "status": "in-progress" }
-                        f(*args, **kwargs)
+                            Event.event_progress[self.name] = {
+                                "prog": i / len(self._handlers),
+                                "step": f.__name__,
+                                "status": "in-progress",
+                            }
+                        try:
+                            f(*args, **kwargs)
+                        except Warning as w:
+                            logging_callback(
+                                f"Warning in {f.__name__}: {apputils.exception_format(w)}"
+                            )
                     Event.event_progress[self.name]["prog"] = 1.0
                     Event.event_progress[self.name]["status"] = "done"
+                    Event.event_progress[self.name]["time_complete"] = time.time()
                     Event.current_handle_index_progress = 0
                 except asyncio.CancelledError:
                     Event.event_progress[self.name]["prog"] = 0.0
                     Event.event_progress[self.name]["status"] = "cancelled"
                     logging_callback(f"Event {self.name} cancelled.")
-                    raise
+                except Exception as e:
+                    logging_callback(
+                        f"Error in {self.name}: {apputils.exception_format(e)}"
+                    )
+                    Event.event_progress[self.name][
+                        "error"
+                    ] = f"{apputils.exception_format(e)}"
                 await asyncio.sleep(0)
+
         self.task = asyncio.create_task(fire_task(), name=self.name)
         return None
+
 
 class ObjectHolder[T]:
     """Pass-by-reference for noobs"""
@@ -219,10 +255,8 @@ class Processor:
         period_min,
         tba_key,
         year,
-        chunk_size,
         config_data,
     ) -> None:
-        self.chunk_size = chunk_size
         self.disable_last_opr = disable_last_opr
         self.period_min = period_min
         self.tba_data_static = apputils.TBADataStatic()
@@ -238,10 +272,12 @@ class Processor:
         self.config_data = config_data
         self.__load_in_event_data = Event[Callable[[], None]]("Load in event data")
         self.__periodic_calls = Event[Callable[[], None]]("Periodic Fetch Routine")
-        self.__chunk_processing_routine = Event[
+        self.__data_processing_routine = Event[
             Callable[[ObjectHolder[pd.DataFrame]], None]
         ]("Processing Routine")
-        self.__post_process_routine = Event[Callable[[], None]]("Post-processing Routine")
+        self.__post_process_routine = Event[Callable[[], None]](
+            "Post-processing Routine"
+        )
 
         self.__load_in_event_data += [
             self.__ensure_tables_exist,
@@ -258,7 +294,7 @@ class Processor:
             self.__reset_fetch_timestamp,
         ]
 
-        self.__chunk_processing_routine += [
+        self.__data_processing_routine += [
             self.__pre_filter_chunk,
             self.__pre_process_chunk,
             self.__drop_duplicates_chunk,
@@ -266,8 +302,10 @@ class Processor:
             self.__compute_fields_chunk,
             self.__build_teams_chunk,
             self.__svd_data_chunk,
+            self.__reduce_df,
             self.__team_proc_chunk,
             self.__match_proc_chunk,
+            self.__write_output_file,
         ]
 
         self.__post_process_routine += [
@@ -341,19 +379,38 @@ class Processor:
             ],
         }
 
+        tables_exist = False
+
         if self.__check_tables_exist():
             logger.info("Static match data preset, loading into memory...")
             self.__read_static_tba_info()
             logger.info("Static match data preset, loaded")
+            tables_exist = True
         else:
-            logger.warning("Warning: tables do not exist. Until an event is loaded there will be no data")
+            logger.warning(
+                "Warning: tables do not exist. Until an event is loaded there will be no data"
+            )
+
+        self.__check_load_event_key_cache(tables_exist)
 
     def __check_tables_exist(self) -> bool:
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             return len(cursor.fetchall()) == Processor.NUM_TABLES
-        
+
+    def __check_load_event_key_cache(self, tables_exist: bool):
+        if os.path.exists("last_loaded_event_key.txt"):
+            with open("last_loaded_event_key.txt", "r") as r:
+                self.event_key = r.read().strip()
+        if not self.has_sched_data and tables_exist:
+            with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT Team FROM teams")
+                self.has_sched_data = (
+                    len(cursor.fetchall()) > 0
+                )  # if teams are loaded in there's at least scouted data
+
     def __ensure_tables_exist(self):
         # Create Tables
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
@@ -462,11 +519,15 @@ class Processor:
                     "School": row_dict["School"],
                     "RookieYear": row_dict["RookieYear"],
                     "PostalCode": row_dict["PostalCode"],
-                    "Website": row_dict["Website"]
+                    "Website": row_dict["Website"],
                 }
                 last_oprs[row_dict["Team"]] = row_dict["Last_OPR"]
 
-            self.tba_data_static.teams, self.tba_data_static.team_info, self.tba_data_static.oprs = teams, team_info, last_oprs
+            (
+                self.tba_data_static.teams,
+                self.tba_data_static.team_info,
+                self.tba_data_static.oprs,
+            ) = (teams, team_info, last_oprs)
 
             # LOAD SCHEDULE
             fields = ["MatchIdx", "Match"] + self.sql_fields["matches"]
@@ -475,42 +536,53 @@ class Processor:
             matches = []
             for row in rows:
                 row_dict = dict(zip(fields, row))
-                if self.event_key.strip() == "": self.event_key = row_dict["Match"].split('_')[0]
+                if self.event_key.strip() == "":
+                    self.event_key = row_dict["Match"].split("_")[0]
                 red = [row_dict[f"Red_{i+1}"] for i in range(3)]
                 blue = [row_dict[f"Blue_{i+1}"] for i in range(3)]
                 entry = {
                     "k": row_dict["Match"],
-                    'r': list(map(str, red)),
-                    'b': list(map(str, blue)),
+                    "r": list(map(str, red)),
+                    "b": list(map(str, blue)),
                 }
                 matches.append(entry)
             self.tba_data_static.schedule = matches
             if len(rows) > 0:
                 self.has_sched_data = True
-            
+
     def __load_remote_data_static(self):
         if self.event_key.strip() == "":
-            logger.error("Error, cannot process. No event is currently loaded in. Please load one in from the settings page.")
+            logger.error(
+                "Error, cannot process. No event is currently loaded in. Please load one in from the settings page."
+            )
             return
         try:
             logger.info("Loading TBA data...")
-            self.tba_data_static = apputils.load_tba_data_static(self.event_key, self.tba_key, self.year, self.disable_last_opr)
+            self.tba_data_static = apputils.load_tba_data_static(
+                self.event_key, self.tba_key, self.year, self.disable_last_opr
+            )
             Event.current_handle_index_progress = 0.5
             self.has_sched_data = True
             logger.info("Loading TBA images...")
             try:
-                apputils.get_tba_images(self.tba_key, self.year, "photos", self.tba_data_static.teams)
+                apputils.get_tba_images(
+                    self.tba_key, self.year, "photos", self.tba_data_static.teams
+                )
                 Event.current_handle_index_progress = 1.0
             except Exception as e:
                 logger.warning(f"Error fetching images: {apputils.exception_format(e)}")
+        except Warning as w:
+            logger.warning(
+                f"Warning fetching remote data: {apputils.exception_format(w)}"
+            )
         except Exception as e:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
-
-
     def __load_remote_data_dyn(self):
         if self.event_key.strip() == "":
-            logger.error("Error, cannot process. No event is currently loaded in. Please load one in from the settings page.")
+            logger.error(
+                "Error, cannot process. No event is currently loaded in. Please load one in from the settings page."
+            )
             return
         try:
             logger.info("Loading TBA data...")
@@ -525,10 +597,14 @@ class Processor:
                     event=self.event_key, limit=1000, fields=["team", "epa"]
                 )
             }
-            Event.current_handle_index_progress = 0.66 # no
+            Event.current_handle_index_progress = 0.66  # no
             logger.info("Loading Statbotics match data...")
             self.__sb_matches = self.__sb.get_matches(event=self.event_key)
             Event.current_handle_index_progress = 1.0
+        except Warning as w:
+            logger.warning(
+                f"Warning fetching remote data: {apputils.exception_format(w)}"
+            )
         except Exception as e:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
@@ -546,6 +622,9 @@ class Processor:
                 )
             all_fields = self.sql_fields["matches"]
             Event.current_handle_index_progress = 0.5
+            if len(matches) <= 0:
+                logger.warning("Warning, no match schedule")
+                return
             fields_not_writing_to = [
                 x for x in all_fields if x not in matches[0].keys()
             ]
@@ -573,7 +652,9 @@ class Processor:
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             all_fields = self.sql_fields["teams"]
             for i, team in enumerate(self.tba_data_static.teams):
-                Event.current_handle_index_progress = i / len(self.tba_data_static.teams)
+                Event.current_handle_index_progress = i / len(
+                    self.tba_data_static.teams
+                )
                 data = []
                 for field in all_fields:
                     if field in list(self.tba_data_static.team_info.values())[0].keys():
@@ -607,11 +688,13 @@ class Processor:
                         else None
                     ),
                     "Last_OPR": (
-                        self.tba_data_static.oprs[team] if team in self.tba_data_static.oprs else None
+                        self.tba_data_static.oprs[team]
+                        if team in self.tba_data_static.oprs
+                        else None
                     ),
                 }
             )
-        
+
         Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
@@ -647,7 +730,7 @@ class Processor:
         if len(df) <= 0:
             logger.warning("No team fields")
             return
-        
+
         Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
@@ -692,7 +775,11 @@ class Processor:
                 )  # trust
                 | {"Predict_Winner": "blue" if sum(score[0]) > sum(score[1]) else "red"}
             )
-        
+
+        if len(df) <= 0:
+            logger.warning("No match schedule, skipping match predictions")
+            return
+
         Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
@@ -719,6 +806,9 @@ class Processor:
                 }
                 | match["pred"]
             )
+        if len(df) <= 0:
+            logger.warning("No matches, skipping statbotics analysis")
+            return
         Event.current_handle_index_progress = 0.5
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             fields_to_write = list(df[0].keys())
@@ -738,7 +828,9 @@ class Processor:
     def __write_statbotics_epa(self):
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             for i, team in enumerate(self.tba_data_static.teams):
-                Event.current_handle_index_progress = i / len(self.tba_data_static.teams)
+                Event.current_handle_index_progress = i / len(
+                    self.tba_data_static.teams
+                )
                 conn.execute(
                     f"""
                     UPDATE teams
@@ -758,13 +850,14 @@ class Processor:
             for matTeam in v.output_dict(self.config_data):
                 if int(k) <= len(self.tba_data_static.schedule):
                     df.append(
-                        {"Match": self.tba_data_static.schedule[int(k) - 1]["k"]} | matTeam
+                        {"Match": self.tba_data_static.schedule[int(k) - 1]["k"]}
+                        | matTeam
                     )
 
         if len(df) <= 0:
             logger.warning("No statbotics analytics fields.")
             return
-        
+
         Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
@@ -810,9 +903,9 @@ class Processor:
                     df.append(dat)
 
         if len(df) <= 0:
-            logger.warning("No depth predictions")
+            logger.warning("No match schedule, skipping depth predictions")
             return
-        
+
         Event.current_handle_index_progress = 0.5
 
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
@@ -839,7 +932,7 @@ class Processor:
         diff = np.abs(data - median)  # diffs
         mad = np.median(diff)
         return data[diff <= (c * mad)]
-    
+
     @staticmethod
     def round_sigfigs(x, sig=3):
         if np.isscalar(x):
@@ -892,7 +985,7 @@ class Processor:
             / len(self.tba_data_static.teams),
             2,  # use 2 because %
         )
-    
+
     def get_team_pred_score(self, team):
         score = 0
         source_string = self.config_data["p-metric"]["source"]
@@ -973,7 +1066,9 @@ class Processor:
                 )
 
             for i in range(len(self.config_data["preproc"])):
-                Event.current_handle_index_progress = i / len(self.config_data["preproc"])
+                Event.current_handle_index_progress = i / len(
+                    self.config_data["preproc"]
+                )
                 last_cols = df.obj.columns
                 logger.info(
                     f"\tPerforming preprocess operation: {self.config_data["preproc"][i]["name"]} [{('x' * (i + 1)) + ('-' * (len(self.config_data["preproc"]) - (i + 1)))}]"
@@ -1087,11 +1182,29 @@ class Processor:
                     }
                 )
 
+    def __reduce_df(self, df: ObjectHolder[pd.DataFrame]):
+        df.obj.drop_duplicates(
+            subset=self.config_data["uniques-post"], inplace=True
+        )  # remove CT dupe, everything same from here
+        df_numeric = df.obj.apply(lambda col: pd.to_numeric(col, errors="coerce"))
+        agg_dict = {}
+        for col in df.obj.columns:
+            if col in ["A", "B"]:
+                continue
+            if df_numeric[col].notna().any():
+                df.obj[col] = df_numeric[col]
+                agg_dict[col] = "mean"
+            else:
+                agg_dict[col] = "first"
+        df.obj = df.obj.groupby([x for x in self.config_data['uniques-post'] if x != self.config_data['si']], as_index=False).agg(agg_dict)
+
     def __team_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
-        for i, team in enumerate(df.obj[
-            self.config_data["tn"]
-        ].unique()):  # teams will be in the chunk multiple times, but we just want to loop through all of the DIFFERENT teams there are
-            Event.current_handle_index_progress = i / len(df.obj[self.config_data["tn"]].unique())
+        for i, team in enumerate(
+            df.obj[self.config_data["tn"]].unique()
+        ):  # teams will be in the chunk multiple times, but we just want to loop through all of the DIFFERENT teams there are
+            Event.current_handle_index_progress = i / len(
+                df.obj[self.config_data["tn"]].unique()
+            )
             team_data = {}
             for field in self.config_data["teams"]:
                 # call the beakscript functions for the derived fields where the TN == team
@@ -1100,12 +1213,10 @@ class Processor:
                     df.obj.loc[df.obj[self.config_data["tn"]] == team],
                     "Team Field " + field["name"],
                 )
+
                 if isinstance(val, pd.Series):
-                    val = val.tolist()  # pythonify the pandas datatypes
-                if apputils.is_iterable(val) and not field["iter"]:
-                    val = sum(val) / (1 if len(val) <= 0 else len(val))
-                elif field["iter"]:
-                    val = [val]
+                        val = val.tolist()
+                        
                 team_data[field["name"]] = val  # write the field to the csv
             self.__teams[int(team)].extend_data(
                 team_data
@@ -1131,10 +1242,6 @@ class Processor:
                     if isinstance(val, pd.Series):
                         val = val.tolist()
 
-                    if apputils.is_iterable(val) and not field["iter"]:
-                        val = sum(val) / (1 if len(val) <= 0 else len(val))
-                    elif field["iter"]:
-                        val = [val]
                     static_fields |= {field["name"]: val}
             for i, team in enumerate(
                 df.obj.loc[df.obj[mn] == match, tn].unique()
@@ -1152,8 +1259,6 @@ class Processor:
                     )
                     if isinstance(val, pd.Series):
                         val = val.tolist()
-                    if apputils.is_iterable(val) and not field["iter"]:
-                        val = sum(val) / (1 if len(val) <= 0 else len(val))
 
                     data[field["name"]] = val
                 for f, fv in static_fields.items():
@@ -1165,8 +1270,15 @@ class Processor:
                     int(team), data
                 )
 
+    def __write_output_file(self, df: ObjectHolder[pd.DataFrame]):
+        logger.info("Writing chunk...")
+        df.obj.to_csv(os.path.join("dataout", "output.csv"), index=False, header=True)
+
     async def proccess_data(self, data_filepath: str) -> None:
         """Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files"""
+
+        if not self.has_sched_data:
+            return asyncio.sleep(0)
 
         if ((time.time() - self.last_fetch_timestamp) / 60 >= self.period_min) or (
             self.tba_data_static.teams == None or self.tba_data_static.schedule == None
@@ -1180,26 +1292,12 @@ class Processor:
         self.__teams.clear()
         self.__matches.clear()
 
-        with pd.read_csv(
-            data_filepath,
-            chunksize=self.chunk_size,
-            iterator=True,
-        ) as reader:
-            first = True
-            for chunk in reader:  # read in chunks in case big
-                chunk_holder = ObjectHolder(chunk)
-                await self.__chunk_processing_routine.fire(logger.info, chunk_holder)
-                logger.info("Writing chunk...")
-                # write the main csv
-                chunk.to_csv(
-                    os.path.join("dataout", "output.csv"),
-                    index=False,
-                    header=first,
-                )
-                first = False
+        df = pd.read_csv(data_filepath)
+        df_holder = ObjectHolder(df)
+        await self.__data_processing_routine.fire(logger.info, df_holder)
+
         # write all the other files
         await self.__post_process_routine.fire(logger.info)
-        logger.info("Done!!!!")
 
     async def perform_periodic_calls(self):
         await self.__periodic_calls.fire(logger.info)

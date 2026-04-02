@@ -11,6 +11,10 @@
             "type": "string",
             "description": "Name of the header cooresponding to the match number"
         },
+        "si-header-name": {
+            "type": "string",
+            "description": "Name of the header cooresponding to the scouter initials"
+        },
         "headers": {
             "type": "array",
             "items": {
@@ -120,6 +124,12 @@
             },
             "description": "Fields with which to deliniate distinct rows and detect duplicates"
         },
+        "unique-fields-post-svd": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
         "team-fields": {
             "type": "array",
             "items": {
@@ -132,10 +142,6 @@
                     "derive": {
                         "type": "string",
                         "description": "A beakscript string defining the process by which the elements of this set are obtained"
-                    },
-                    "iterable": {
-                        "type": "boolean",
-                        "description": "Whether the returned field should be a list (iterable) or not"
                     },
                     "avg": {
                         "type": "null",
@@ -152,8 +158,7 @@
                 },
                 "required": [
                     "name",
-                    "derive",
-                    "iterable"
+                    "derive"
                 ]
             }
         },
@@ -169,10 +174,6 @@
                     "derive": {
                         "type": "string",
                         "description": "A beakscript string defining the process by which the elements of this set are obtained"
-                    },
-                    "iterable": {
-                        "type": "boolean",
-                        "description": "Whether the returned field should be a list (iterable) or not"
                     },
                     "static": {
                         "type": [
@@ -196,8 +197,7 @@
                 },
                 "required": [
                     "name",
-                    "derive",
-                    "iterable"
+                    "derive"
                 ]
             }
         },
@@ -274,6 +274,7 @@
     "required": [
         "team-header-name",
         "match-header-name",
+        "si-header-name",
         "headers",
         "compute-fields",
         "team-fields",

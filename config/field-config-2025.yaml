@@ -62,6 +62,7 @@ headers:
 
 team-header-name: TN
 match-header-name: MN
+si-header-name: SI
 
 filter-unique-fields: [MN, TN]
 
@@ -99,106 +100,82 @@ compute-fields:
 team-fields:
     - name: Algae Auton
       derive: $Total AAlgae
-      iterable: false
       avg:
       max:
       fil:
     - name: Algae Teleop
       derive: $Total TAlgae
-      iterable: false
       avg:
       max:
       fil:
     - name: Total Algae
       derive: $Total AAlgae,Total TAlgae
-      iterable: false
       max:
     - name: Coral Auton
       derive: $Total ACoral
-      iterable: false
       avg:
       max:
       fil:
     - name: Coral Teleop
       derive: $Total TCoral
-      iterable: false
       avg:
       max:
       fil:
     - name: Total Coral
       derive: $Total ACoral,Total TCoral
-      iterable: false
       max:
     - name: Cycles Auton
       derive: $Total ACycles
-      iterable: false
       avg:
       max:
       fil:
     - name: Cycles Teleop
       derive: $Total TCycles
-      iterable: false
       avg:
       max:
       fil:
     - name: Total Cycles
       derive: $Total ACycles,Total TCycles
-      iterable: false
       max:
     - name: Shallow
       derive: $CS
-      iterable: false
       avg:
     - name: Deep
       derive: $CD
-      iterable: false
       avg:
     - name: Score
       derive: $Total Score
-      iterable: false
       avg:
       max:
       fil:
     - name: Defensive Rating
       derive: $DR[$D = 1]
-      iterable: false
       avg:
       max:
     - name: Matches Playing Defense
       derive: "@len$DR[$D = 1]"
-      iterable: false
 
 match-fields:
     - name: Total Coral Auton
       derive: $Total ACoral
-      iterable: false
     - name: Total Coral Teleop
       derive: $Total TCoral
-      iterable: false
     - name: Total Algae Auton
       derive: $Total AAlgae
-      iterable: false
     - name: Total Algae Teleop
       derive: $Total TAlgae
-      iterable: false
     - name: Total Cycles Auton
       derive: $Total ACycles
-      iterable: false
     - name: Total Cycles Teleop
       derive: $Total TCycles
-      iterable: false
     - name: Score
       derive: $Total Score
-      iterable: false
     - name: Park
       derive: $CP
-      iterable: false
     - name: Shallow Climb
       derive: $CS
-      iterable: false
     - name: Deep Climb
       derive: $CD
-      iterable: false
 
 predict-metric:
     name: Score

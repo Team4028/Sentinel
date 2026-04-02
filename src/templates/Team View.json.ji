@@ -44,7 +44,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 12,
         "x": 0,
         "y": 0
@@ -812,6 +812,106 @@
     },
     {
       "datasource": {
+        "type": "marcusolsson-csv-datasource",
+        "uid": "bfhumji7jrklcb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "marcusolsson-csv-datasource",
+            "uid": "bfhumji7jrklcb"
+          },
+          "header": true,
+          "refId": "A",
+          "schema": [
+            {
+              "name": "",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "title": "Auton Scouting",
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": "\\b${Team:regex}\\b"
+                  }
+                },
+                "fieldName": "tn"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Match",
+                "autoData"
+              ]
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "afh372g20yt4wd"
       },
@@ -862,7 +962,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 16
       },
       "id": 1,
       "options": {
@@ -948,6 +1048,10 @@
           "id": "convertFieldType",
           "options": {
             "conversions": [
+              {
+                "destinationType": "string",
+                "targetField": "Team"
+              },
               {% for header, type in td_headers %}{
                 "destinationType": "{{type}}",
                 "targetField": "{{header}}"
@@ -1030,8 +1134,8 @@
       {
         "allowCustomValue": false,
         "current": {
-          "text": "",
-          "value": ""
+          "text": "0",
+          "value": "0"
         },
         "datasource": {
           "type": "yesoreyeram-infinity-datasource",
@@ -1050,7 +1154,7 @@
             "root_selector": "",
             "source": "url",
             "type": "json",
-            "url": "{{sentinel_url}}/team-photo-indicies",
+            "url": "{{ sentinel_url | replace("localhost", "sentinel") | replace("127.0.0.1", "sentinel") }}/team-photo-indicies",
             "url_options": {
               "data": "",
               "method": "GET",
@@ -1079,5 +1183,5 @@
   "timezone": "browser",
   "title": "Team View",
   "uid": "ad962jv",
-  "version": 28
+  "version": 29
 }

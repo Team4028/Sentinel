@@ -76,6 +76,7 @@ headers:
 
 team-header-name: TN
 match-header-name: MN
+si-header-name: SI
 
 preproc-operations:
   - name: Split Team Row
@@ -91,6 +92,7 @@ preproc-operations:
       }
 
 filter-unique-fields: [MN, SI, TN, CT] # SI lets multiple people scout the same alliance
+unique-fields-post-svd: [MN, TN, SI]
 
 subjective-svd-fields:
   - name: Infeed Speed
@@ -123,30 +125,24 @@ compute-fields: []
 team-fields:
   - name: Vibe Lemons
     derive: $VL
-    iterable: false
     avg:
     max:
     fil:
   - name: Infeed Break
     derive: $IB
-    iterable: false
     avg:
   - name: Defensive Rating
     derive: $DF[$D = true]
-    iterable: false
     avg:
     max:
     fil:
   - name: Matches Playing Defense
     derive: "@len$DF[$D = true]"
-    iterable: false
 match-fields:
   - name: Vibe Lemons
     derive: $VL
-    iterable: false
   - name: Infeed Broke
     derive: $IB
-    iterable: false
 copr-keys:
   - Hub Auto Fuel Count
   - Hub Teleop Fuel Count

@@ -311,11 +311,6 @@
             TBA Data fetch period (min)
             <input type="number" id="tba-period">
         </label>
-        <label
-            title="Size in bytes of the maximum amount of csv data that the processor can load into memory at a time">
-            CSV Parsing Chunk Size (bytes)
-            <input type="number" id="chunksize">
-        </label>
         <label title="Which game to process data for">
             Scouting Year
             <select id="game-year">
@@ -407,7 +402,6 @@
         const tbakey = document.getElementById("tbakey");
         const acolor = document.getElementById("acola");
         const tcolor = document.getElementById("tcolor");
-        const chunkSize = document.getElementById("chunksize");
         const year = document.getElementById("game-year");
         const restrictLevel = document.getElementById("restrict-level");
         const nextN = document.getElementById("next-n");
@@ -426,7 +420,7 @@
         const creds = ["admin", "viewer"];
 
         async function getUpdateEventStatuses() {
-            res = await (await fetch("/jobs")).json();
+             res = await (await fetch("/jobs")).json();
             const container = document.getElementById("j*b-status");
             container.innerHTML = "";
             for (const [name, status] of Object.entries(res)) {
@@ -435,11 +429,12 @@
 
                 const label = document.createElement("div");
                 label.innerText = `${
+                    Object.keys(status).includes("error") ? "🔴" : (
                     status["status"] === "done" ? "🟢" : (
                         status["status"] === "in-progress" ? "🟡" : (
-                            status["status"] === "cancelled" ? "🔴" : "⚪"
+                            status["status"] === "cancelled" ? "⚪" : "🔵"
                         )
-                    )}${name} (${(status["prog"] * 100).toFixed(2)}%)`;
+                    ))}${name} (${(status["prog"] * 100).toFixed(2)}%)`;
                 label.style.marginBottom = "2px";
 
                 const mini = document.createElement("h4");
@@ -447,7 +442,11 @@
                 mini.style.padding = 0;
                 mini.style.margin = 0;
                 mini.style.fontSize = 2;
-                mini.innerText = status["step"];
+                if (Object.keys(status).includes("error")) {
+                    mini.innerText = status["error"];
+                    mini.style.color = "#a00";
+                } else
+                    mini.innerText = status["step"];
 
                 const barOuter = document.createElement("div");
                 barOuter.style.background = "#555";
@@ -664,7 +663,6 @@
             tcolor.value = json["TEXT_COLOR"];
             grafUrl.value = json["GRAFANA_URL"];
             tbaPeriod.value = parseInt(json["TBA_FETCH_PERIOD_MIN"]);
-            chunkSize.value = json["CHUNK_SIZE"];
             year.value = json["YEAR"];
             teamNum.value = parseInt(json["TEAM"]);
             restrictLevel.value = json["RESTRICT_APPEND_LEVEL"];
@@ -794,7 +792,6 @@
                 "TEXT_COLOR": tcolor.value,
                 "GRAFANA_URL": grafUrl.value,
                 "TBA_FETCH_PERIOD_MIN": parseInt(tbaPeriod.value),
-                "CHUNK_SIZE": parseInt(chunkSize.value),
                 "YEAR": year.value,
                 "TEAM": teamNum.value.toString(),
                 "RESTRICT_APPEND_LEVEL": parseInt(restrictLevel.value),

@@ -77,6 +77,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         app.logger.info("Starting app async thread")
         asyncio.set_event_loop(loop)
         loop.run_forever()
+        loop.close()
 
     def run_async_task(coro):
         app.logger.info(f"Async thread add coroutine: {coro.__name__}")
@@ -146,7 +147,6 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         app.config["TBA_FETCH_PERIOD_MIN"],
         auth_key,
         app.config["YEAR"].split("_")[0] if "_" in app.config["YEAR"] else app.config["YEAR"],
-        app.config["CHUNK_SIZE"],
         lex_config(app.config["YEAR"]),
     )  # what's wrong with my copy of python why are their pointers (it's just the unpack operator)
 
@@ -198,8 +198,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
 
     if inital_process:
         try:
-            run_async_task(do_data_processing()).result()
-            app.logger.info("initial processing success.")
+            run_async_task(do_data_processing()).add_done_callback(lambda _: app.logger.info("initial processing finished."))
         except Exception as e:
             app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
 
@@ -508,11 +507,19 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         if request and request.json:
             try:
                 csv_file = os.path.join("dataout", "output.csv" + "-auton-scouting.csv")
-                need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0 
-                with open(os.path.join("dataout", "output.csv" + "-auton-scouting.csv"), mode='a', newline='') as f:
-                    writer = csv.DictWriter(f, fieldnames=request.json.keys())
+                need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
+                js: dict = request.json
+                was_pre = js.pop("wasPre") if "wasPre" in js else False
+                if os.path.exists(csv_file):
+                    with open(csv_file, mode='r', newline='') as r:
+                        matches_scouted = len(list(filter(lambda s: (f"{js["tn"]}" in s.strip()) and ((not was_pre) ^ ("Pre" in s.strip())), r.readlines())))
+                else:
+                    matches_scouted = 0
+                js = { "Match": f"{"Pre " if was_pre else ""}{matches_scouted + 1}" } | js
+                with open(csv_file, mode='a', newline='') as f:
+                    writer = csv.DictWriter(f, fieldnames=js.keys())
                     if need_write: writer.writeheader()
-                    writer.writerow(request.json)
+                    writer.writerow(js)
                 return "Success", 200
             except Exception as e:
                 return apputils.exception_format(e), 500
@@ -552,6 +559,19 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 if d_file.filename != "":
                     d_file.save(infile)  # saves the file
                     run_async_task(do_data_processing())
+            return "", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
+        
+    @app.post("/upload-alt")
+    @login_required
+    @require_admin
+    def upload_other_files():
+        try:
+            if "data" in request.files and "name" in request.headers:
+                d_file = request.files["data"]
+                if d_file.filename != "" and request.headers.get("name", "").strip() != "":
+                    d_file.save(os.path.join("dataout", request.headers.get("name")))
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -603,7 +623,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     def reprocess():
         """Reprocesses the data with no additional inputs; for testing or manual csv changes"""
         try:
-            do_data_processing()
+            run_async_task(do_data_processing())
             return "Data reloaded.", 200
         except Exception as e:
             return apputils.exception_format(e), 500
@@ -810,6 +830,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.get("/events-from-team")
     @login_required
     def events_from_team():
+        app.logger.info(f"Get events from team {app.config["TEAM"]} for year {processor.year}")
         return jsonify(apputils.get_tba_events(auth_key, processor.year, app.config["TEAM"]))
 
     @app.post("/load-event-data")
@@ -822,6 +843,8 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 try:
                     run_async_task(processor.clear_database())
                     processor.event_key = event
+                    with open("last_loaded_event_key.txt", 'w') as w:
+                        w.write(event)
                     run_async_task(processor.load_event_data())
                     run_async_task(processor.perform_periodic_calls())
                     return "", 200
@@ -888,7 +911,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             with open(config_file, "w") as f:  # save
                 f.write(data)
             processor.config_data = lex_config(app.config["YEAR"])  # reload config data
-            do_data_processing()
+            run_async_task(do_data_processing())
             return jsonify({"ok": True, "message": "Saved"})
         except Exception as e:
             return jsonify({"ok": False, "message": str(e)})
@@ -961,9 +984,6 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                     return "Bad TBA key", 400
                 apputils.set_auth_key(auth_key)
                 processor.tba_key = auth_key
-                if processor.event_key != "" and not processor.has_sched_data:
-                    run_async_task(processor.load_event_data())
-                    run_async_task(processor.perform_periodic_calls())
                 return "", 200
             else:
                 return "Invalid Request", 400
@@ -1055,6 +1075,9 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                     json.dump(
                         request.json, w, indent=4
                     )  # indent=4 auto-formats the json with \t = 4 spaces
+                app.config.from_file(os.path.join(app.root_path, "config", "app-config.json"), load=json.load)
+                processor.year = app.config["YEAR"].split("_")[0] if "_" in app.config["YEAR"] else app.config["YEAR"]
+                processor.period_min = app.config["TBA_FETCH_PERIOD_MIN"]
                 if processor.has_sched_data and apputils.data_in_exists():
                     try:
                         run_async_task(processor.proccess_data(
@@ -1064,9 +1087,6 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                         reload_js()
                     except Exception as e:
                         app.logger.error(apputils.exception_format(e))
-                        # os.remove(
-                        #     infile
-                        # )  # remove data_in if it's not playing nice (ie. 2025 data in, switches to 2026)
                 return "", 200
             except Exception as e:
                 return apputils.exception_format(e), 500
@@ -1134,4 +1154,4 @@ if __name__ == "__main__":
         elif sys.argv[1] == "sign":
             apputils.generate_ssl_sign()
     else:
-        create_app(inital_process=False, skip_last_opr_fetching_for_testing_because_its_slow=True).run(port=5001, use_reloader=False)  # debug run python
+        create_app(False, True).run(port=5001, use_reloader=False)  # debug run python

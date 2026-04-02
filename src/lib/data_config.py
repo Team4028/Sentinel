@@ -51,10 +51,10 @@ class GrafanaDataPreset(Enum):
         l := [s for s in data["copr-keys"]],
         ["number" for _ in l]
     ))
-    + list(zip(
+    + (list(zip(
         l := [_ for svd in data["subjective-svd-fields"] for _ in GrafanaDataPreset.get_svd_headers(svd)], # walrus to avoid reparse list
         ["number" for _ in l]
-    )) if "subjective-svd-fields" in data else list()
+    )) if "subjective-svd-fields" in data else list())
     + list(
         zip(
             l := [
@@ -125,6 +125,7 @@ def lex_config(year: str):
                 config["dash-panel"][k][ki] = vi(data)
         config["tn"] = data["team-header-name"]
         config["mn"] = data["match-header-name"]
+        config["si"] = data["si-header-name"]
         for field in data["headers"]:
             config["headers"].append(field["name"])
         if "preproc-operations" in data:
@@ -136,6 +137,7 @@ def lex_config(year: str):
         for field in data["compute-fields"]:
             config["compute"].append({"name": field["name"], "eq": field["equation"]})
         config["uniques"] = data["filter-unique-fields"]
+        config["uniques-post"] = data["unique-fields-post-svd"]
         if 'copr-keys' in data:
             config['copr'] = data['copr-keys']
         if "subjective-svd-fields" in data:
@@ -154,7 +156,6 @@ def lex_config(year: str):
                     "name": field["name"],
                     "filters": [x for x in FILTERS if x in field],
                     "derive": field["derive"],
-                    "iter": field["iterable"],
                 }
             )
         if "data-tests" in data:
@@ -179,7 +180,6 @@ def lex_config(year: str):
                     "name": field["name"],
                     "derive": field["derive"],
                     "filters": [x for x in FILTERS if x in field],
-                    "iter": field["iterable"],
                 }
             )
         config["p-metric"] = data["predict-metric"]

@@ -75,6 +75,30 @@
         input[type="checkbox"] {
             width: 18px;
             height: 18px;
+            appearance: none;
+            -webkit-appearance: none;
+            border: 2px solid #555;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            top: 0%;
+            left: 25%;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
         }
 
         input[type="text"],
@@ -214,9 +238,12 @@
                 <label style="display: flex; justify-content: center; gap: 10px;">
                     <input type="checkbox" id="a-stop"><span>ASTOP</span>
                 </label>
+                <label style="display: flex; justify-content: center; gap: 10px;">
+                    <input type="checkbox" id="was-pre"><span>Was pre-scouting?</span>
+                </label>
             </div>
         </div>
-        <button id="sub" disabled>Submit</button>
+        <button id="sub" disabled title="Enter a team number">Submit</button>
         <button onclick="window.location.reload()">Reset</button>
     </div>
     <div id="status"></div>
@@ -231,7 +258,14 @@
         const statusDiv = document.getElementById("status");
         const sub = document.getElementById('sub');
 
-        tn.addEventListener("input", () => sub.disabled = (tn.value === "" || Number.isNaN(parseInt(tn.value)) || parseInt(tn.value) <= 0));
+        tn.addEventListener("input", () => {
+            sub.disabled = (tn.value === "" || Number.isNaN(parseInt(tn.value)) || parseInt(tn.value) <= 0);
+            if (sub.disabled) {
+                sub.title = "Enter a team number"
+            } else {
+                sub.title = "";
+            }
+        });
 
         sub.addEventListener('click', savePitScouting);
 
@@ -241,9 +275,11 @@
             const json = {
                 "tn": parseInt(tn.value),
                 "autoData": Array.from(document.querySelectorAll("input[type=checkbox]"))
-                    .map(v => v.checked ? v.parentElement.querySelector("span").innerText : "-1")
-                    .filter(s => s !== "-1")
-                    .concat(document.getElementById("vl-range").value)
+                    .filter(cb => cb.id !== "was-pre")
+                    .map(v => v.checked ? v.parentElement.querySelector("span").innerText : "")
+                    .filter(s => s !== "")
+                    .concat(document.getElementById("vl-range").value),
+                "wasPre": document.getElementById("was-pre").checked
             };
 
             const res = await fetch('{{url_for("save_auto_simple")}}', {

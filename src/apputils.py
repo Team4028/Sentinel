@@ -204,8 +204,9 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
                 timeout=20,
                 headers={"X-TBA-Auth-Key": api_key},
             ).json()
-            for x, y in fetch_oprs["oprs"].items():
-                oprs |= {int(x.removeprefix("frc")): round(float(y), 1)}
+            if "oprs" in fetch_oprs:
+                for x, y in fetch_oprs["oprs"].items():
+                    oprs |= {int(x.removeprefix("frc")): round(float(y), 1)}
         else:
             logger.error("Error: no wifi or tba cache or invalid api key")
             return {}
@@ -395,11 +396,11 @@ def get_tba_ranks(event_key, api_key, teams):
             map(
                 lambda x: (
                     x,
-                    [
+                    next(iter([
                         (t["rank"], t["sort_orders"][0])
                         for t in ranks["rankings"]
                         if t["team_key"] == f"frc{x}"
-                    ][0],
+                    ]), (0, 0.0)),
                 ),
                 teams,
             )

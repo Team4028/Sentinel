@@ -290,14 +290,30 @@
                 <option title="output.csv" value="output.csv">Data Output</option>
                 <option title="sentinel.db" value="sentinel.db">SQLite Database</option>
                 <option title="pit-scouting.csv" value="output.csv-pit-scouting.csv">Pit Scouting</option>
+                <option title="auton-scouting.csv" value="output.csv-auton-scouting.csv">Auton Scouting</option>
                 <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
             </select>
             <button id="send-it" class="btn">Download</button>
             <button id="cancel" class="btn">Cancel</button>
         </dialog>
+        
+        <dialog id="surprise-upl">
+            <h1>Pick a file</h1>
+            <select id="cake-select-upl">
+                <!-- All of the files -->
+                <option title="output.csv" value="output.csv">Data Output</option>
+                <option title="sentinel.db" value="sentinel.db">SQLite Database</option>
+                <option title="pit-scouting.csv" value="output.csv-pit-scouting.csv">Pit Scouting</option>
+                <option title="auton-scouting.csv" value="output.csv-auton-scouting.csv">Auton Scouting</option>
+                <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
+            </select>
+            <button id="send-upl-dg" class="btn">Upload</button>
+            <button id="upl-dg-cancel" class="btn">Cancel</button>
+        </dialog>
 
         <!-- Buttons -->
         <button id="upload-btn" class="btn" disabled title="Ctrl+U">Upload</button>
+        <button id="upl-alt" class="btn" disabled>Upload other data</button>
         <button id="reload-btn" class="btn" title="Ctrl+A (a for again because Ctrl+R is important)">Reload</button>
         <button id="pic-btn" class="btn" title="Ctrl+P">Upload Picture</button>
         <button id="download-btn" class="btn" title="Ctrl+D">Download</button>
@@ -357,7 +373,7 @@
 
     <script>
         async function getUpdateEventStatuses() {
-            res = await (await fetch("/jobs")).json();
+             res = await (await fetch("/jobs")).json();
             const container = document.getElementById("j*b-status");
             container.innerHTML = "";
             for (const [name, status] of Object.entries(res)) {
@@ -366,9 +382,12 @@
 
                 const label = document.createElement("div");
                 label.innerText = `${
+                    Object.keys(status).includes("error") ? "🔴" : (
                     status["status"] === "done" ? "🟢" : (
-                        status["status"] === "in-progress" ? "🟡" : "⚪"
-                    )}${name} (${(status["prog"] * 100).toFixed(2)}%)`;
+                        status["status"] === "in-progress" ? "🟡" : (
+                            status["status"] === "cancelled" ? "⚪" : "🔵"
+                        )
+                    ))}${name} (${(status["prog"] * 100).toFixed(2)}%)`;
                 label.style.marginBottom = "2px";
 
                 const mini = document.createElement("h4");
@@ -376,7 +395,11 @@
                 mini.style.padding = 0;
                 mini.style.margin = 0;
                 mini.style.fontSize = 2;
-                mini.innerText = status["step"];
+                if (Object.keys(status).includes("error")) {
+                    mini.innerText = status["error"];
+                    mini.style.color = "#a00";
+                } else
+                    mini.innerText = status["step"];
 
                 const barOuter = document.createElement("div");
                 barOuter.style.background = "#555";
@@ -458,6 +481,7 @@
         const fileInput = document.getElementById("file-input");
         const textInput = document.getElementById("text-input");
         const uploadBtn = document.getElementById("upload-btn");
+        const uploadOtherBtn = document.getElementById("upl-alt");
         const progressContainer = document.getElementById("progress-container");
         const progressBar = document.getElementById("progress-bar");
         const endpointSelect = document.getElementById("endpoint-select");
@@ -516,6 +540,7 @@
          */
         function updateUploadEnabled() {
             uploadBtn.disabled = !(selectedFile || ((textInput.value.trim().length > 0 && textInput.value.match(new RegExp(',', 'g')) || []).length === headers.length - 1));
+            uploadOtherBtn.disabled = !selectedFile;
         }
 
         dropZone.addEventListener("click", () => fileInput.click()); // passthrough from normal div to file selector
@@ -534,11 +559,9 @@
         });
 
         dropZone.addEventListener("keydown", ev => { // support tab select
-            if (ev.key == "Enter")
+            if (ev.key === "Enter")
                 fileInput.click();
         });
-
-
 
         dropZone.addEventListener("dragleave", () => {
             dropZone.classList.remove("dragover");
@@ -559,6 +582,16 @@
                 uploadText(textInput.value.trim());
             }
         });
+
+        uploadOtherBtn.addEventListener('click', async () => {
+            const file = await fakeWaitingForGodot(document.getElementById("surprise-upl"), "send-upl-dg", "upl-dg-cancel", "cake-select-upl", false);
+            if (!file.cancelled) {
+                uploadFile(selectedFile, "{{url_for('upload_other_files')}}", [{
+                    "name": "name",
+                    "value": file.file
+                }]);
+            }
+        })
 
         speedNum.addEventListener('input', () => {
             speedNum.value = Math.min(60, Math.max(0, speedNum.value));
@@ -643,7 +676,7 @@
                 if (mutation.type === "childList" || mutation.type === "characterData") {
                     if (statusText.innerText.toLowerCase().includes("error"))
                         statusText.style.color = "#a00";
-                    else statusText.style.color = "#000";
+                    else statusText.style.color = "#fff";
                 }
             }
         });
@@ -821,8 +854,8 @@
         /**
          * Send the selected file to the selected endpoint on the backend
          */
-        function uploadFile(file) {
-            const url = endpointSelect.value;
+        function uploadFile(file, upload_url = null, extra_headers = null) {
+            const url = upload_url ?? endpointSelect.value;
 
             statusText.textContent = `[${new Date().toLocaleString()}] Uploading: ${file.name}`; // timestamp
             // reset progressbar
@@ -834,6 +867,12 @@
 
             const xhr = new XMLHttpRequest();
             xhr.open("POST", url, true);
+
+            if (extra_headers) {
+                for (header of extra_headers) {
+                    xhr.setRequestHeader(header["name"], header["value"]);
+                }
+            }
 
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {

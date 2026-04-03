@@ -885,11 +885,15 @@ class Processor:
                         "Match": match["k"],
                         "Color": color,
                         "Team": team,
-                        "OPR": self.tba_data_dyn.oprs[int(team)],
-                        "EPA": self.__sb_epas[int(team)],
+                        "OPR": self.tba_data_dyn.oprs[int(team)] if len(self.tba_data_dyn.oprs) > 0 and int(team) in self.tba_data_dyn.oprs else 0.0,
+                        "EPA": self.__sb_epas[int(team)] if len(self.__sb_epas) > 0 and int(team) in self.__sb_epas else 0.0,
                     }
                     for copr in self.config_data["copr"]:
-                        dat |= {copr: self.tba_data_dyn.copr[int(team)][copr]}
+                        val = 0.0
+                        if (len(self.tba_data_dyn.copr) > 0 and int(team) in self.tba_data_dyn.copr
+                            and copr in self.tba_data_dyn.copr[int(team)]):
+                            val = self.tba_data_dyn.copr[int(team)][copr]
+                        dat |= {copr: 0.0}
                     if int(team) in self.__teams:
                         teamO = self.__teams[int(team)].output_dict(self.config_data)
                         for field in self.config_data["deep-predict"]:

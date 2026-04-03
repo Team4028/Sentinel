@@ -27,7 +27,7 @@ jobs:
         uses: ./.github/workflows/unittest.yml
 
     build-and-release:
-        name: Build Docker images -- ${{inputs.comment}}
+        name: Build Docker images -- ${{inputs.version}}
         runs-on: ubuntu-latest # ofc
         needs: test
 

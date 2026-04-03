@@ -10,3 +10,4 @@ autos
 dockerout
 *.zip
 teststuff.py
+last_loaded_event_key.txt

@@ -1106,6 +1106,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 if (
                     "output.csv" in file
                     or file == "other-metrics.json"
+                    or file == "sentinel.db"
                 )
                 else "datain"
             ),

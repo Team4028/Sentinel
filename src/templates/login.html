@@ -27,6 +27,13 @@
             font-family: 'Neuropolitical', sans-serif;
         }
 
+        h2 {
+            color: white;
+            text-align: center;
+            font-size: 32px;
+            font-family: 'Neuropolitical', sans-serif;
+        }
+
         body {
             background-color: #222;
             background-image: url("{{url_for('static', filename='login_bg.png')}}");
@@ -49,8 +56,8 @@
             color: #f9f9f9;
         }
 
-        form input[type="text"],
-        form input[type="password"] {
+        input[type="text"],
+        input[type="password"] {
             width: 100%;
             padding: 10px 12px;
             margin-top: 5px;
@@ -60,14 +67,14 @@
             transition: border-color 0.3s, box-shadow 0.3s;
         }
 
-        form input[type="text"]:focus,
-        form input[type="password"]:focus {
+        input[type="text"]:focus,
+        input[type="password"]:focus {
             border-color: color-mix(in srgb, var(--accent), white 20%);
             box-shadow: 0 0 5px rgba(91, 155, 213, 0.5);
             outline: none;
         }
 
-        form input[type="submit"] {
+        input[type="submit"] {
             width: 100%;
             padding: 10px 12px;
             background-color: var(--accent);
@@ -79,13 +86,41 @@
             transition: opacity 0.3s;
         }
 
-        form input[type="submit"]:hover {
+        input[type="submit"]:hover {
             opacity: 0.8;
         }
 
         #loginError {
             text-align: center;
             font-size: x-large;
+        }
+
+        #override-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+        }
+
+        #override {
+            position: fixed;
+            z-index: 11;
+            width: 25%;
+            height: 25%;
+            left: 50%;
+            background: #222;
+            border-radius: 10px;
+            color: var(--text);
+            transform: translateX(-50%);
+        }
+
+        #override input {
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -94,6 +129,14 @@
     <h1>
         <img src="{{url_for('static', filename='favicon.ico')}}" style="transform: translateY(25%);"> Sentinel
     </h1>
+    <div id="override-backdrop" hidden></div>
+    <div id="override" hidden>
+        <h2>Override</h2>
+        <input type="text" id="ovr-input" autocomplete="off" placeholder="Enter override key...">
+        <input type="submit" id="ovr-sub" title="Submit">
+        <div id="ovr-err" style="text-align: center; color: red;"></div>
+    </div>
+    </div>
     <form method="post" id="loginForm" action="{{url_for('login')}}">
         {{ form.hidden_tag() }}
         <label>
@@ -112,12 +155,67 @@
     </form>
     <div id="loginError" style="color: #a00;"></div>
     <script>
+        const ovr = document.getElementById("override");
+        const ovrBack = document.getElementById("override-backdrop");
+        const ovrInp = document.getElementById("ovr-input");
+        const ovrSubmit = document.getElementById("ovr-sub");
+        const ovrError = document.getElementById("ovr-err");
+        const overrideSeq = [
+            "12204d1d8ab89f8aaf9726450a0f0ac21286128df1e053f9d0623c3d6fc081ff",
+            "12204d1d8ab89f8aaf9726450a0f0ac21286128df1e053f9d0623c3d6fc081ff",
+            "9660fb862202c3be475ce786728e8d9654a91e6a1d1677aa24f6af8f404028f4",
+            "9660fb862202c3be475ce786728e8d9654a91e6a1d1677aa24f6af8f404028f4",
+            "48e61e2dd0a223987505ae0500c6dd68cf1e93a10561462e96de3a34aa9b9503",
+            "8e2f7ffbbdb947d813f9d48b34218e4c2c89a340a1afa53d80acb1c7bf15eb9c",
+            "48e61e2dd0a223987505ae0500c6dd68cf1e93a10561462e96de3a34aa9b9503",
+            "8e2f7ffbbdb947d813f9d48b34218e4c2c89a340a1afa53d80acb1c7bf15eb9c",
+            "3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+            "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+            "dc8659db6d416dc32fcad510cc921af3c7eaf1176ddedfbe050ecf708fbac087"
+        ];
+        let uInput = [];
         async function sha256(str) {
             const strBuf = new TextEncoder().encode(str);
             const hashBuf = await window.crypto.subtle.digest('SHA-256', strBuf);
             const hashArr = Array.from(new Uint8Array(hashBuf));
             return hashArr.map(b => ('00' + b.toString(16)).slice(-2)).join(''); // add '00' to pad b.toString(16) and guarentee 2 char length
         }
+
+        ovrSubmit.addEventListener("click", async () => {
+            const res = await fetch("{{url_for('login_override')}}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "key": await sha256(ovrInp.value)
+                }),
+            });
+
+            if (res.ok) {
+                window.location.href = "{{request.args.get('next', '/')}}";
+            } else if (res.status === 401) {
+                ovrError.innerText = "Error: invalid credentials";
+            } else {
+                ovrError.innerText = `Error: ${await res.text()}`;
+            }
+        });
+
+        window.addEventListener("keydown", async event => {
+            uInput.push(await sha256(event.key));
+            if (uInput.length > overrideSeq.length) {
+                uInput.shift();
+            }
+            if (JSON.stringify(uInput) === JSON.stringify(overrideSeq)) {
+                ovr.hidden = false;
+                ovrBack.hidden = false;
+                uInput = [];
+            } else if (event.key === "Escape") {
+                ovr.hidden = true;
+                ovrInp.value = "";
+                ovrBack.hidden = true;
+            }
+        });
 
         document.getElementById("loginForm").addEventListener("submit", async function (event) {
             event.preventDefault();

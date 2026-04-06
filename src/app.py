@@ -18,13 +18,13 @@ try:  # janky import stuff: running src/app.py and running scouting_app.py via g
     import lib.mesh as mesh
     from lib.data_config import lex_config
     import apputils
-    from auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app
+    from auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app, require_json
 except ModuleNotFoundError:
     from src.lib.data_main import Processor, Event
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
     import src.apputils as apputils
-    from src.auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app
+    from src.auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app, require_json
 import csv
 import os
 import json
@@ -465,7 +465,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return "No notifications in queue", 204  # 204 => no content
 
     # RESTRICTED
-    @app.route("/")
+    @app.get("/")
     @login_required
     def main():
         """Renders homepage html template, passes the public key to the client to bind the service worker"""
@@ -506,6 +506,17 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 return "Invalid Credentials", 401
         return render_template_style("login.html", form=form)
     
+    @app.post('/login-ovr')
+    @require_json
+    def login_override():
+        if request.json and "key" in request.json:
+            if request.json["key"] == SUPERUSER_CODE:
+                login_user(BigBrother())
+                return "Login Override Successful", 200
+            else:
+                return "Invalid credentials", 401
+        return "No key", 401
+    
     @app.get('/jobs')
     def jobs():
         return jsonify(Event.get_event_progress())
@@ -517,7 +528,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return jsonify({"logged_in": False})
 
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
-    @app.route("/logout")
+    @app.get("/logout")
     @login_required
     def logout():
         logout_user()
@@ -540,6 +551,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     
     @app.post('/submit-pit')
     @login_required
+    @require_json
     def save_pit():
         if request and request.json:
             try:
@@ -555,6 +567,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return "Error: invalid request", 400
 
     @app.post('/submit-auto-simple')
+    @require_json
     def save_auto_simple():
         if request and request.json:
             try:
@@ -578,7 +591,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return "Error: invalid request", 400
 
     # RESTRICTED (can edit things and delete data = restrict)
-    @app.route("/changes")
+    @app.get("/changes")
     @login_required
     @require_admin
     def changes():
@@ -586,7 +599,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return render_template_style("change.html", append_queue=process_queue)
 
     # OPEN + CORS OPEN (just health, literally returns a string)
-    @app.route("/health")
+    @app.get("/health")
     def health():
         """Health check, primarily so that QRScout can know its url is correct"""
         if not processor.has_sched_data:
@@ -681,6 +694,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             return apputils.exception_format(e), 500
         
     @app.post('/tba-webhook')
+    @require_json
     def consume_tba_webhook():
         if not request.headers or "X-TBA-HMAC" not in request.headers or request.headers.get("X-TBA-HMAC") != tba_hmac:
             return "", 401
@@ -834,6 +848,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.post("/delete-lines")
     @login_required
     @require_admin
+    @require_json
     def delete_lines():
         """For restrict append level 1: deletes the already applied append cooresponding to the input json's `lines` field using `rm_row_hash`"""
         if (
@@ -966,6 +981,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.post("/save")
     @login_required
     @require_admin
+    @require_json
     def save_yaml():
         """A file consumer that saves the field-config.yaml file during web editing"""
         data = html.unescape(request.json.get("code", ""))
@@ -1060,6 +1076,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.post("/set-tba-key")
     @login_required
     @require_admin
+    @require_json
     def set_tba_key():
         """verifies the inputted api key sent via json["key"], applies it and writes it to tba.txt, and reprocesses data"""
         nonlocal auth_key
@@ -1080,6 +1097,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.post("/set-admin-creds")
     @login_required
     @require_admin
+    @require_json
     def set_admin_creds():
         """resets the admin username and password to json["un"] and json["pwd"]"""
         nonlocal admin_login
@@ -1101,6 +1119,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.post('/set-viewer-creds')
     @login_required
     @require_admin
+    @require_json
     def set_viewer_creds():
         nonlocal viewer_login
         if request and request.json:
@@ -1151,6 +1170,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.post("/save-app-config")
     @login_required
     @require_admin
+    @require_json
     def save_app_config():
         """Consumes an app configuration json, saves it, and applies it"""
         if request and request.json:

@@ -1,4 +1,4 @@
-from flask import Flask, abort
+from flask import Flask, abort, request
 from flask_login import LoginManager, UserMixin, current_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
@@ -17,6 +17,14 @@ def require_admin(f):
             abort(403)  # forbidden
         return f(*args, **kwargs)
 
+    return decorated
+
+def require_json(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not request.is_json:
+            return "Error, Content-Type must be application/json", 415
+        return f(*args, **kwargs)
     return decorated
 
 

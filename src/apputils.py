@@ -567,19 +567,36 @@ def read_secrets():
     else:
         viewer_login["un"], viewer_login["pwd"] = generate_default_viewer()
 
-    if os.path.exists("./secrets/key.txt"):
-        with open("./secrets/key.txt", "r") as f:
-            auth_key = f.read().strip()
+    if os.path.exists("./secrets/tba.txt"):
+        with open("./secrets/tba.txt", "r") as f:
+            auth_key = f.readline().strip()
+            tba_hmac = f.readline().strip()
     else:
-        auth_key = ""
+        auth_key, tba_hmac = "", ""
 
-    return (admin_login, viewer_login, key, auth_key)
+    return (admin_login, viewer_login, key, auth_key, tba_hmac)
 
 
 def set_auth_key(key: str) -> None:
     """sets the tba key to `key`"""
-    with open("./secrets/key.txt", "w") as w:
-        w.write(key.strip())
+    hmac_old = ""
+    if os.path.exists("./secrets/tba.txt"):
+        with open("./secrets/tba.txt", 'r') as r:
+            lines = r.readlines()
+            if len(lines) > 1:
+                hmac_old = lines[1].strip()
+    with open("./secrets/tba.txt", "w") as w:
+        w.write(f"{key}\n{hmac_old}")
+
+def set_tba_hmac(hmac: str) -> None:
+    key_old = ""
+    if os.path.exists("./secrets/tba.txt"):
+        with open("./secrets/tba.txt", 'r') as r:
+            lines = r.readlines()
+            if len(lines) > 0:
+                key_old = lines[0].strip()
+    with open("./secrets/tba.txt", 'w') as w:
+        w.write(f"{key_old}\n{hmac}")
 
 
 def data_in_exists() -> bool:

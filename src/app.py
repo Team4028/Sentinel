@@ -47,6 +47,11 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
 
     loop = asyncio.new_event_loop()
 
+    SUPERUSER_CODE = os.getenv("SU_CODE")
+
+    if not SUPERUSER_CODE or SUPERUSER_CODE == "":
+        print("Error, su code not specified.")
+        sys.exit(1)
 
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -61,6 +66,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     )
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
+    app.logger.info(f"Key: {SUPERUSER_CODE}")
     # match the x in field-config-x.yaml to get the different configs
     POSS_YEARS = [
         f.stem.split("-", 2)[-1] for f in Path("./config").glob("field-config-*.yaml")
@@ -137,7 +143,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     # Load Auth Keys
     # =======================================================
 
-    admin_login, viewer_login, app.config["SECRET_KEY"], auth_key = apputils.read_secrets()
+    admin_login, viewer_login, app.config["SECRET_KEY"], auth_key, tba_hmac = apputils.read_secrets()
 
     # =======================================================
     # Parse field config and setup processor
@@ -244,6 +250,9 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
 
     reload_js()
 
+    def send_generic_notification(data: dict):
+        notification_queue.append((data | { "icon": '/static/favicon.ico' }, time.time() + 300, []))
+
     def send_change_notification(lines: str | None = None):
         """Sends a notification. <br>
         If 'lines' is None, this will send a notification letting the user know that
@@ -274,6 +283,49 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             (data, time.time() + 300, [])
         )  # gone is the toilsome webpush shenanigens (ik i spelled that wrong)
 
+
+    def handle_tba_webhook(notification_json):
+        if not "message_type" in notification_json or not "message_data" in notification_json:
+            return
+        match (notification_json["message_type"]):
+            case "match_score":
+                if processor.event_key and notification_json["message_data"]["event_key"] == processor.event_key:
+                    run_async_task(processor.perform_periodic_calls())
+                return
+            case "schedule_updated":
+                if processor.event_key and notification_json["message_data"]["event_key"] == processor.event_key:
+                    event = processor.event_key
+                    run_async_task(processor.clear_database())
+                    processor.event_key = event
+                    with open("last_loaded_event_key.txt", 'w') as w:
+                        w.write(event)
+                    run_async_task(processor.load_event_data())
+                    run_async_task(processor.perform_periodic_calls())
+                    return
+            case "ping":
+                md = notification_json["message_data"]
+                app.logger.info(f"TBA pinged server:\nTitle: {md["title"]}\nDesc: {md["desc"]}")
+                send_generic_notification({
+                    "title": f"TBA Ping: {md["title"]}",
+                    "body": md["desc"]
+                })
+                return
+            case "broadcast":
+                md = notification_json["message_data"]
+                app.logger.info(f"TBA announcement:\nTitle: {notification_json["message_data"]["title"]}\nDesc: {notification_json["message_data"]["desc"]}\nUrl: {notification_json["message_data"]["url"] if "url" in notification_json["message_data"] else "None"}")
+                send_generic_notification({
+                    "title": f"TBA Broadcast: {md["title"]}",
+                    "body": md["desc"] + (md["url"] if "url" in md else "")
+                })
+            case "verification":
+                app.logger.info(f"TBA webhook verification recieved")
+                send_generic_notification({
+                    "title": "TBA Webhook verification",
+                    "body": notification_json["message_data"]["verification_key"]
+                })
+                return
+        return
+            
     def rm_row_hash(hashes):
         """Deletes rows of data from the input csv by matching their hashes with the ones provided and then reprocesses the data"""
         hasty_hashes = set(hashes)  # set is O(1) trust
@@ -628,6 +680,18 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         except Exception as e:
             return apputils.exception_format(e), 500
         
+    @app.post('/tba-webhook')
+    def consume_tba_webhook():
+        if not request.headers or "X-TBA-HMAC" not in request.headers or request.headers.get("X-TBA-HMAC") != tba_hmac:
+            return "", 401
+        if not request.json:
+            return "Invalid request", 400
+        try:
+            handle_tba_webhook(request.json)
+        except Exception as e:
+            app.logger.exception(f"Error handling tba webhook: {apputils.exception_format(e)}")
+            return apputils.exception_format(e), 500
+        
     # OPEN (grafana required)
     @app.get("/team-photo")
     def get_team_pics():
@@ -777,11 +841,11 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             and request.headers.get("sending", "false") == "true"
             and "si" in request.json
             and "mn" in request.json
+            and mesh.get_is_meshed()
         ):
             mesh.send_command(
                 f"rm {request.json["mn"]},{request.json["si"]}", admin_login["pwd"]
             )
-            return "", 200
         if request.json and request.json["lines"]:
             rm_row_hash(request.json["lines"])
             return "", 200
@@ -925,6 +989,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return render_template_style("appconfig.html", years=POSS_YEARS)
 
     # RESTRICTED (don't want to share app config because it has secrets)
+    # TODO: make POST probably
     @app.get("/get-config")
     @login_required
     @require_admin
@@ -932,6 +997,27 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         """Returns the app configuration for the editor at /edit-app-conf to read"""
         with open(os.path.join(app.root_path, "config", "app-config.json"), "r") as r:
             return jsonify(json.load(r))
+        
+    @app.post("/get-log")
+    @login_required
+    @require_admin
+    def get_log():
+        if not request.headers or "log" not in request.headers:
+            return "Error: invalid request", 400
+        logfile = request.headers.get("log", "")
+        if os.path.exists(os.path.join("log", "gunicorn", os.path.basename(logfile))):
+            with open(os.path.join("log", "gunicorn", os.path.basename(logfile)), 'r') as r:
+                # TODO: more secure transfer
+                return r.read(), 200
+        else:
+            return f"File {os.path.join("log", "gunicorn", os.path.basename(logfile))} does not exist", 400
+        
+    @app.get("/read-log")
+    @login_required
+    @require_admin
+    def read_log():
+        return render_template_style("view-logs.html")
+            
 
     # RESTRICTED (obviously don't want to share this)
     @app.get("/tba-key")
@@ -975,7 +1061,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @login_required
     @require_admin
     def set_tba_key():
-        """verifies the inputted api key sent via json["key"], applies it and writes it to key.txt, and reprocesses data"""
+        """verifies the inputted api key sent via json["key"], applies it and writes it to tba.txt, and reprocesses data"""
         nonlocal auth_key
         try:
             if request.json and request.json["key"]:

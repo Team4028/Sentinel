@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>View Logs</title>
+    <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        body {
+            background-color: #1e1e1e;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        select {
+            color: #e0e0e0;
+            text-align: center;
+            font-size: large;
+            width: 100%;
+            margin-top: 0.3rem;
+            padding: 0.5rem;
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        html,
+        body,
+        #editor {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+
+        #backBtn {
+            position: absolute;
+            top: 10px;
+            right: 80px;
+            z-index: 10;
+            padding: 8px;
+            opacity: 1;
+            background: var(--accent);
+            transition: opacity 0.4s;
+            color: var(--text);
+            border: none;
+            border-radius: 10%;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #backBtn:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="backBtn" onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Back</button>
+    <select id="which-log" style="width: 25%; display: block; margin: 0 auto;">
+        <option value="access.log" selected>Access</option>
+        <option value="app.log">App</option>
+        <option value="error.log">Error</option>
+    </select>
+    <div id="editor"></div>
+    <!-- oh yes i did -->
+    <!-- loads in monaco (basically vscode web)  -->
+    <script src="{{url_for('static', filename='monaco-editor/0.44.0/min/vs/loader.js')}}"></script>
+    <script>
+        const logSel = document.getElementById("which-log");
+
+        async function getLogContent() {
+            const res = await fetch("{{url_for('get_log')}}", {
+                method: 'POST',
+                headers: {
+                    "log": logSel.value
+                }
+            });
+
+            if (res.ok) {
+                window.editor.setValue(await res.text());
+            } else {
+                console.log(`Error fetching log: ${await res.text()}`);
+            }
+        }
+
+        // configuer monaco
+        require.config({ paths: { vs: "{{url_for('static', filename='monaco-editor/0.44.0/min/vs')}}" } });
+        require(['vs/editor/editor.main'], function () {
+
+            window.editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '',
+                theme: 'vs-dark',
+                language: "yaml", // doesn't really exist but wtvr
+                tabSize: 4,
+                insertSpaces: true,
+                detectIndentation: false,
+                readOnly: true,
+                automaticLayout: true
+            });
+            getLogContent();
+            logSel.addEventListener("change", getLogContent);
+            setInterval(getLogContent, 1000);
+        });
+
+
+
+        window.addEventListener("keydown", ev => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace" && document.activeElement.id !== "editor") {
+                ev.preventDefault();
+                window.location.href = "{{url_for('main')}}";
+            }
+        });
+
+    </script>
+    <script src="{{url_for('static', filename='js/register-sw.js')}}"
+        onload="registerServiceWorker('/service_worker.js')"></script>
+</body>
+
+</html>

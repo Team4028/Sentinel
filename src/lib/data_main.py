@@ -718,6 +718,16 @@ class Processor:
 
     def __write_team_fields(self):
         df = []
+        
+        def get_coprs_safe(team: int) -> dict:
+            if team in self.tba_data_dyn.copr:
+                return self.tba_data_dyn.copr[team]
+            else:
+                return {
+                    c: 0.0
+                    for c in self.config_data["copr"]
+                } if "copr" in self.config_data else {}
+        
         for (
             k,
             v,
@@ -725,7 +735,7 @@ class Processor:
             self.__teams.items()
         ):  # _teams is a dict with team: TeamStruct (ex. {422: TeamData()})
             # bind each team to the dict serialization of its cooresponding struct
-            df.append({"Team": k} | v.output_dict(self.config_data))
+            df.append({"Team": k} | v.output_dict(self.config_data) | get_coprs_safe(int(team)))
 
         if len(df) <= 0:
             logger.warning("No team fields")
@@ -893,7 +903,7 @@ class Processor:
                         if (len(self.tba_data_dyn.copr) > 0 and int(team) in self.tba_data_dyn.copr
                             and copr in self.tba_data_dyn.copr[int(team)]):
                             val = self.tba_data_dyn.copr[int(team)][copr]
-                        dat |= {copr: 0.0}
+                        dat |= {copr: val}
                     if int(team) in self.__teams:
                         teamO = self.__teams[int(team)].output_dict(self.config_data)
                         for field in self.config_data["deep-predict"]:

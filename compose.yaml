@@ -4,6 +4,8 @@ services:
     restart: unless-stopped
     container_name: sentinel
     profiles: [prod] # already exists
+    env_file:
+      - .env
     ports:
       - "5000:5000"
     device_cgroup_rules:
@@ -21,6 +23,8 @@ services:
     restart: unless-stopped
     container_name: sentinel
     profiles: [localbuild] # build it yourself
+    env_file:
+      - .env
     ports:
       - "5000:5000"
     device_cgroup_rules:

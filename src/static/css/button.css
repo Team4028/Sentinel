@@ -1,0 +1,20 @@
+.sbutton {
+    color: var(--text);
+    text-align: center;
+    font-size: medium;
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background: var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.sbutton:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.sbutton:enabled:hover {
+    opacity: 0.8;
+}

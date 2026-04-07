@@ -1,0 +1,89 @@
+.panel h1 {
+    margin-bottom: 1rem;
+    text-align: center;
+    font-family: 'Neuropolitical', sans-serif;
+}
+
+.panel {
+    background: #1e1e1e;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #333;
+    width: 80%;
+}
+
+.panel label {
+    display: block;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #9aa0a6;
+}
+
+.panel input[type="color"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 60px;
+    height: 60px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    transform: translateY(25%);
+}
+
+.panel input[type='color']::-webkit-color-swatch {
+    border-radius: 10px;
+    border: none;
+}
+
+.panel input[type='color']::-moz-color-swatch {
+    border-radius: 10px;
+    border: none;
+}
+
+.panel input[type="text"],
+.panel input[type="number"],
+.panel input[type="password"],
+.panel select,
+.panel textarea {
+    color: #e0e0e0;
+    text-align: center;
+    font-size: large;
+    width: 100%;
+    margin-top: 0.3rem;
+    padding: 0.5rem;
+    background: #181818;
+    border: 1px solid #333;
+    border-radius: 4px;
+}
+
+.no-white-border:focus {
+    outline: none;
+}
+
+.panel textarea {
+    min-height: 200px;
+    font-family: monospace;
+    resize: vertical;
+}
+
+.back-cont {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+}
+
+.button-cont {
+    position: fixed;
+    top: 1rem;
+    right: 2rem;
+}
+
+.floating-panel {
+    position: fixed;
+    display: grid;
+    place-items: center;
+    right: 1rem;
+    width: 20%;
+    top: 10rem;
+}

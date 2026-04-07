@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/button.css')}}">
     <title>View Logs</title>
     <style>
         :root {
@@ -45,25 +46,13 @@
             top: 10px;
             right: 80px;
             z-index: 10;
-            padding: 8px;
-            opacity: 1;
-            background: var(--accent);
-            transition: opacity 0.4s;
-            color: var(--text);
-            border: none;
-            border-radius: 10%;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        #backBtn:hover {
-            opacity: 0.8;
         }
     </style>
 </head>
 
 <body>
-    <button id="backBtn" onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Back</button>
+    <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
+    <button class="sbutton" id="backBtn" onclick="window.goBack();" title="Ctrl+Backspace">Back</button>
     <select id="which-log" style="width: 25%; display: block; margin: 0 auto;">
         <option value="access.log" selected>Access</option>
         <option value="app.log">App</option>
@@ -115,7 +104,7 @@
         window.addEventListener("keydown", ev => {
             if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace" && document.activeElement.id !== "editor") {
                 ev.preventDefault();
-                window.location.href = "{{url_for('main')}}";
+                window.goBack();
             }
         });
 

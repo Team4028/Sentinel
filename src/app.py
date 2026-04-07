@@ -202,6 +202,34 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 # inject the new dash to the provisioning dir
                 shutil.copy(out_path, "/var/lib/grafana/dashboards/")
 
+    def get_fa_icon(name: str):
+        ext = name.lower().split(".")[-1]
+
+        return {
+            "csv": "fa-file-excel-o",
+            "png": "fa-file-image-o",
+            "jpg": "fa-file-image-o",
+            "jpeg": "fa-file-image-o",
+            "ico": "fa-file-image-o",
+            "py": "fa-code",
+            "js": "fa-code",
+            "html": "fa-code",
+            "css": "fa-code",
+            "json": "fa-code",
+            "ji": "fa-code",
+            "css": "fa-code",
+            "env": "fa-gear",
+            "txt": "fa-file-text-o",
+            "md": "fa-file-text-o",
+            "zip": "fa-file-archive-o",
+            "gitattributes": "fa-git",
+            "gitignore": "fa-git",
+            "bat": "fa-windows",
+            "sh": "fa-dollar",
+        }.get(ext, "fa-file-o")
+    
+    app.jinja_env.globals.update(get_fa_icon=get_fa_icon)
+
     if inital_process:
         try:
             run_async_task(do_data_processing()).add_done_callback(lambda _: app.logger.info("initial processing finished."))
@@ -516,6 +544,58 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             else:
                 return "Invalid credentials", 401
         return "No key", 401
+    
+    @app.get("/explore")
+    @login_required
+    @require_admin
+    def explore():
+        def build_tree(path):
+            tree = []
+            try:
+                for item in sorted(os.listdir(path)):
+                    full_path = os.path.join(path, item)
+                    if os.path.isdir(full_path):
+                        tree.append({
+                            "type": "folder",
+                            "name": item,
+                            "children": build_tree(full_path)
+                        })
+                    else:
+                        tree.append({
+                            "type": "file",
+                            "name": item
+                        })
+            except PermissionError:
+                pass
+            
+            tree.sort(key=lambda x: (
+                0 if x["type"] == "folder" else 1,
+                x["name"].lower()
+            ))
+
+            return tree
+        return render_template_style("file-explorer.html", tree=build_tree("."))
+    
+    @app.get("/edit-file")
+    @login_required
+    @require_admin
+    def edit_file():
+        if request.args and "filepath" in request.args:
+            filepath = request.args.get("filepath")
+            filepath =  html.unescape(filepath)
+            if os.path.exists(filepath) and os.path.isfile(filepath):
+                with open(filepath, 'r', encoding='utf-8') as r:
+                    content = r.read()
+                return render_template_style(
+                    "edit-file.html",
+                    file_path=filepath,
+                    file_name=os.path.basename(filepath),
+                    file_content=content
+                )
+            else:
+                return "Error, path does not exist"
+        else:
+            return "Invalid Request", 400
     
     @app.get('/jobs')
     def jobs():
@@ -964,7 +1044,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             return apputils.exception_format(e), 500
 
     # RESTRICTED (can edit field-config = bad (technically not but still))
-    @app.get("/edit")
+    @app.get("/edit-yaml")
     @login_required
     @require_admin
     def edit_yaml():
@@ -975,10 +1055,28 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             content = r.read()
         with open(os.path.join("config", "schema.json"), "r") as r:
             schema = r.read()
-        return render_template_style("edit.html", yaml_content=content, schema=schema)
+        return render_template_style("edit-config.html", yaml_content=content, schema=schema)
+    
+    @app.post('/save-file')
+    @login_required
+    @require_admin
+    @require_json
+    def save_file():
+        data = html.unescape(request.json.get("code", ""))
+        path = html.unescape(request.json.get("path", ""))
+        app.logger.info(f"Overwriting file {path}")
+        try:
+            if (os.path.exists(path) and os.path.isfile(path)):
+                with open(path, 'w') as f:
+                    f.write(data)
+                return jsonify({"ok": True, "message": "Saved"})
+            else:
+                return jsonify({"ok": False, "message": "File does not exist"})
+        except Exception as e:
+            return jsonify({"ok": False, "message": f"Error: {apputils.exception_format(e)}"})
 
     # RESTRICTED (overwrites field-config = bad)
-    @app.post("/save")
+    @app.post("/save-yaml")
     @login_required
     @require_admin
     @require_json
@@ -994,7 +1092,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             run_async_task(do_data_processing())
             return jsonify({"ok": True, "message": "Saved"})
         except Exception as e:
-            return jsonify({"ok": False, "message": str(e)})
+            return jsonify({"ok": False, "message": apputils.exception_format(e)})
 
     # RESTRICTED (technically doesn't write to app config but still bad)
     @app.get("/edit-app-conf")

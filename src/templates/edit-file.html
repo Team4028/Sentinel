@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/button.css')}}">
+    <title>Editing File -- {{file_name}}</title>
+    <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        body {
+            background-color: #1e1e1e;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        html,
+        body,
+        #editor {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+
+        #backBtn {
+            position: absolute;
+            top: 10px;
+            right: 80px;
+            z-index: 10;
+        }
+
+        #saveBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 50px;
+            right: 20px;
+            z-index: 10;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: rgba(0,0,0,0.3);
+            font-size: large;
+        }
+
+        #status:empty {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
+    <button class="sbutton" id="backBtn" onclick="window.goBack();" title="Ctrl+Backspace">Back</button>
+    <button class="sbutton" id="saveBtn" title="Ctrl+S">Save</button>
+    <div id="status"></div>
+    <div id="editor"></div>
+    <!-- oh yes i did -->
+    <!-- loads in monaco (basically vscode web)  -->
+    <script src="{{url_for('static', filename='monaco-editor/0.44.0/min/vs/loader.js')}}"></script>
+    <script>
+        const filename = `{{file_name}}`;
+        // configuer monaco
+        require.config({ paths: { vs: "{{url_for('static', filename='monaco-editor/0.44.0/min/vs')}}" } });
+        const fileContent = {{file_content | tojson}};
+        require(['vs/editor/editor.main'], function () {
+
+            const ext = filename.split(".").pop().toLowerCase();
+
+            let lang = {
+                js: "javascript",
+                py: "python",
+                html: "html",
+                css: "css",
+                json: "json",
+                md: "markdown",
+                env: "shell",
+                sh: "shell",
+                bat: "bat",
+                ini: "ini",
+                ji: "json",
+                txt: "plaintext",
+                yaml: "yaml"
+            }[ext] || "plaintext";
+
+            
+            if (filename === "dockerfile") {
+                lang = "shell";
+            } else if (filename === "requirements.txt") {
+                lang = "ini";
+            }
+            console.log(`${filename}, ${lang}`);
+            
+            window.editor = monaco.editor.create(document.getElementById('editor'), {
+                value: fileContent,
+                theme: 'vs-dark',
+                language: lang,
+                tabSize: 4,
+                insertSpaces: true,
+                detectIndentation: false,
+                automaticLayout: true
+            });
+
+            window.editor.onDidChangeModelContent(() => {
+                const current = window.editor.getValue();
+                dirty = current !== lastSaved;
+                saveBtn.innerHTML = dirty ? "Save &#9679" : "Save"; // add a dot if unsaved
+            });
+        });
+
+        let lastSaved = fileContent;
+        // dirty = unsaved changes (its a git term)
+        let dirty = false;
+
+        const saveBtn = document.getElementById('saveBtn');
+        const statusDiv = document.getElementById('status');
+
+        window.addEventListener("keydown", ev => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") { // override Ctrl+S to save
+                ev.preventDefault(); // stop Ctrl+S from doing what it normally does
+                saveFile();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace" && document.activeElement.id !== "editor") {
+                ev.preventDefault();
+                window.goBack();
+            }
+        });
+
+        saveBtn.addEventListener('click', () => {
+            saveFile();
+        });
+
+        /**
+         * Sends the current yaml file to the server to be saved
+         */
+        async function saveFile() {
+            const code = window.editor.getValue();
+            try {
+                const res = await fetch("{{url_for('save_file')}}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "file_path": "{{file_path}}"
+                    },
+                    body: JSON.stringify({
+                        "code": code,
+                        "path": "{{file_path}}"
+                    })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    statusDiv.innerText = "Saved";
+                    statusDiv.style.color = "green";
+                    lastSaved = code;
+                    saveBtn.innerHTML = "Save";
+                    dirty = false;
+                    setTimeout(() => statusDiv.innerText = "", 2000); // clear after a second
+                } else {
+                    statusDiv.innerText = "Error: " + data.message;
+                    statusDiv.style.color = "red";
+                }
+            } catch (err) {
+                statusDiv.innerText = "Network error";
+                statusDiv.style.color = "red";
+            }
+        }
+    </script>
+    <script src="{{url_for('static', filename='js/register-sw.js')}}"
+        onload="registerServiceWorker('/service_worker.js')"></script>
+</body>
+
+</html>

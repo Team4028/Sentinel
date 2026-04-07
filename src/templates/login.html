@@ -154,6 +154,7 @@
         {{ form.submit() }}
     </form>
     <div id="loginError" style="color: #a00;"></div>
+    <script src="{{url_for('static', filename='js/sha256.js')}}"></script>
     <script>
         const ovr = document.getElementById("override");
         const ovrBack = document.getElementById("override-backdrop");
@@ -174,13 +175,6 @@
             "dc8659db6d416dc32fcad510cc921af3c7eaf1176ddedfbe050ecf708fbac087"
         ];
         let uInput = [];
-        async function sha256(str) {
-            const strBuf = new TextEncoder().encode(str);
-            const hashBuf = await window.crypto.subtle.digest('SHA-256', strBuf);
-            const hashArr = Array.from(new Uint8Array(hashBuf));
-            return hashArr.map(b => ('00' + b.toString(16)).slice(-2)).join(''); // add '00' to pad b.toString(16) and guarentee 2 char length
-        }
-
         ovrSubmit.addEventListener("click", async () => {
             const res = await fetch("{{url_for('login_override')}}", {
                 method: "POST",
@@ -188,7 +182,7 @@
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    "key": await sha256(ovrInp.value)
+                    "key": await window.sha256(ovrInp.value)
                 }),
             });
 
@@ -202,7 +196,7 @@
         });
 
         window.addEventListener("keydown", async event => {
-            uInput.push(await sha256(event.key));
+            uInput.push(await window.sha256(event.key));
             if (uInput.length > overrideSeq.length) {
                 uInput.shift();
             }
@@ -220,7 +214,7 @@
         document.getElementById("loginForm").addEventListener("submit", async function (event) {
             event.preventDefault();
             const fData = new FormData(this);
-            fData.set('password', await sha256(fData.get('password'))); // sha client-side so communication is encrypted, otherwise intercepting a successful login would reveal pwd
+            fData.set('password', await window.sha256(fData.get('password'))); // sha client-side so communication is encrypted, otherwise intercepting a successful login would reveal pwd
             const res = await fetch(this.action, { method: "POST", body: fData });
             if (res.ok)
                 window.location.href = "{{request.args.get('next', '/')}}";

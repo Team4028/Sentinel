@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/button.css')}}">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/form.css')}}">
     <title>Auton Scouting</title>
     <style>
         :root {
@@ -27,146 +29,6 @@
             justify-content: center;
         }
 
-        h1 {
-            margin-bottom: 1rem;
-            text-align: center;
-            font-family: 'Neuropolitical', sans-serif;
-        }
-
-        .panel {
-            background: #1e1e1e;
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid #333;
-            width: 80%;
-            height: fit-content;
-            /* overflow-x: hidden; */
-        }
-
-        label, .label-div {
-            display: block;
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            color: #9aa0a6;
-        }
-
-        input[type="color"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 60px;
-            height: 60px;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            transform: translateY(25%);
-        }
-
-        input[type='color']::-webkit-color-swatch {
-            border-radius: 10px;
-            border: none;
-        }
-
-        input[type=color]::-moz-color-swatch {
-            border-radius: 10px;
-            border: none;
-        }
-
-        input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            appearance: none;
-            -webkit-appearance: none;
-            border: 2px solid #555;
-            border-radius: 4px;
-            cursor: pointer;
-            position: relative;
-            display: flex;
-        }
-
-        input[type="checkbox"]:checked {
-            background-color: var(--accent);
-            border-color: var(--accent);
-        }
-
-        input[type="checkbox"]:checked::after {
-            content: '';
-            position: absolute;
-            top: 0%;
-            left: 25%;
-            width: 5px;
-            height: 10px;
-            border: solid white;
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg);
-        }
-
-        input[type="text"],
-        input[type="number"],
-        input[type="password"],
-        select,
-        .cbox-cont,
-        textarea,
-        button {
-            color: #e0e0e0;
-            text-align: center;
-            font-size: large;
-            width: 100%;
-            margin-top: 0.3rem;
-            padding: 0.5rem;
-            background: #181818;
-            border: 1px solid #333;
-            border-radius: 4px;
-        }
-
-        .no-white-border:focus {
-            outline: none;
-        }
-
-        textarea {
-            min-height: 200px;
-            font-family: monospace;
-            resize: vertical;
-        }
-
-        .back-cont {
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
-        }
-
-        .button-cont {
-            position: fixed;
-            top: 1rem;
-            right: 2rem;
-        }
-
-        button {
-            font-size: medium;
-            margin-top: 1rem;
-            cursor: pointer;
-            background: var(--accent);
-            border: none;
-            color: var(--text);
-            font-weight: 600;
-            min-height: 100px;
-        }
-
-        button:disabled {
-            background: color-mix(in srgb, var(--accent), black 30%);
-        }
-
-        button:hover {
-            opacity: 0.8;
-        }
-
-        .floating-panel {
-            position: fixed;
-            right: 1rem;
-            width: 20%;
-            top: 10rem;
-        }
-
         #status {
             font-size: large;
             position: fixed;
@@ -176,13 +38,14 @@
         }
 
         button, select, input[type="file"] {
-            max-width: 100%;
+            width: 100%;
             box-sizing: border-box;
         }
     </style>
 </head>
 
 <body>
+    <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
     <div class="panel">
         <h1> <img src="{{ url_for('static', filename='favicon.ico') }}"
                 style="height: 5rem; transform: translateY(2rem);">Auton Scouting</h1>
@@ -243,12 +106,12 @@
                 </label>
             </div>
         </div>
-        <button id="sub" disabled title="Enter a team number">Submit</button>
-        <button onclick="window.location.reload()">Reset</button>
+        <button class="sbutton" id="sub" disabled title="Enter a team number">Submit</button>
+        <button class="sbutton" onclick="window.location.reload()">Reset</button>
     </div>
     <div id="status"></div>
     <div class="back-cont">
-        <button onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Back</button>
+        <button class="sbutton" onclick="window.goBack();" title="Ctrl+Backspace">Back</button>
     </div>
     <script>
         const tn = document.getElementById("tn");
@@ -304,7 +167,7 @@
         window.addEventListener('keydown', e => {
             if ((e.ctrlKey || e.metaKey) && e.key === "Backspace" && document.activeElement.tagName.toLowerCase() !== "input") {
                 e.preventDefault();
-                window.location.href = "{{url_for('main')}}";
+                window.goBack();
             }
         });
     </script>

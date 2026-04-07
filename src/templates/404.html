@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/button.css')}}">
     <title>404: Page not found</title>
     <style>
         :root {
@@ -54,7 +55,7 @@
     <p style="text-align: center;">Error: the path LOC is not defined for this server. If it should, please submit an
         issue at
         https://github.com/Team4028/Sentinel/issues</p>
-    <button onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Return Home</button>
+    <button class="sbutton" onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Return Home</button>
 
     <script>
         window.addEventListener("keydown", ev => {

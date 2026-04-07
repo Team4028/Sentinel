@@ -1,0 +1,155 @@
+<html>
+
+<head>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background-color: #1e1e1e;
+        }
+
+        #hierarchy {
+            font-family: FontAwesome;
+            width: 300px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        .foldercontainer,
+        .file,
+        .noitems {
+            display: block;
+            padding: 5px 5px 5px 50px;
+        }
+
+        .folder {
+            color: #4fc3f7;
+        }
+
+        .file {
+            color: #c5e1a5;
+        }
+
+        .folder,
+        .file {
+            cursor: pointer;
+        }
+
+        .noitems {
+            display: none;
+            pointer-events: none;
+            color: #777;
+        }
+
+        .folder:hover,
+        .file:hover {
+            background: #2a2d2e;
+        }
+
+        .folder:before,
+        .file:before {
+            padding-right: 10px;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
+    <div id="hierarchy">
+        {% macro render_tree(nodes) %}
+        {% for node in nodes %}
+        {% if node.type == "folder" %}
+        <div class="foldercontainer">
+            <span class="folder fa-folder-o" data-isexpanded="true">
+                {{ node.name }}
+            </span>
+
+            {% if node.children %}
+            {{ render_tree(node.children) }}
+            {% else %}
+            <span class="noitems">No Items</span>
+            {% endif %}
+        </div>
+        {% elif node.type == "file" %}
+        <span class="file {{ get_fa_icon(node.name) }}">
+            {{ node.name }}
+        </span>
+        {% endif %}
+        {% endfor %}
+        {% endmacro %}
+        {{ render_tree(tree) }}
+    </div>
+    <script>
+        var hierarchy = document.getElementById("hierarchy");
+        document.addEventListener("DOMContentLoaded", () => {
+            var folders = hierarchy.querySelectorAll(".folder");
+            folders.forEach(function (folder) {
+                folder.dataset.isexpanded = "false";
+
+                folder.classList.remove("fa-folder-o");
+                folder.classList.add("fa-folder");
+
+                var children = [].slice.call(folder.parentElement.children);
+                var classnames = ["file", "foldercontainer", "noitems"];
+
+                children.forEach(function (el) {
+                    if (classnames.some(cls => el.classList.contains(cls))) {
+                        el.style.display = "none";
+                    }
+                });
+            });
+        });
+
+        function getFullPath(element) {
+            let subpaths = [];
+            if (element.classList.contains('file')) {
+                subpaths.unshift(element.textContent.trim());
+            }
+
+            let current = element.parentElement;
+            while (current && current.id != "hierarchy") {
+                if (current.classList.contains("foldercontainer")) {
+                    let folder = current.querySelector(":scope > .folder");
+                    if (folder) {
+                        subpaths.unshift(folder.textContent.trim());
+                    }
+                }
+                current = current.parentElement;
+            }
+
+            return subpaths.join("/");
+        }
+
+        hierarchy.addEventListener("click", function (event) {
+            var elem = event.target;
+            if (elem.tagName.toLowerCase() == "span" && elem !== event.currentTarget) {
+                var type = elem.classList.contains("folder") ? "folder" : "file";
+                if (type == "file") {
+                    window.goTo(`{{url_for('edit_file')}}?filepath=${encodeURIComponent(getFullPath(elem))}`);
+                }
+                if (type == "folder") {
+                    var isexpanded = elem.dataset.isexpanded == "true";
+                    if (isexpanded) {
+                        elem.classList.remove("fa-folder-o");
+                        elem.classList.add("fa-folder");
+                    }
+                    else {
+                        elem.classList.remove("fa-folder");
+                        elem.classList.add("fa-folder-o");
+                    }
+                    elem.dataset.isexpanded = !isexpanded;
+
+                    var toggleelems = [].slice.call(elem.parentElement.children);
+                    var classnames = "file,foldercontainer,noitems".split(",");
+
+                    toggleelems.forEach(function (element) {
+                        if (classnames.some(function (val) { return element.classList.contains(val); }))
+                            element.style.display = isexpanded ? "none" : "block";
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="{{url_for('static', filename='fonts/neuropolitical.css')}}" rel="stylesheet">
+    <link href="{{url_for('static', filename='css/button.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{url_for('static', filename='tabulator/tabulator.css')}}">
     <script src="{{url_for('static', filename='tabulator/parser.js')}}"></script>
     <script src="{{url_for('static', filename='tabulator/tabulator.js')}}"></script>
@@ -113,31 +114,6 @@
             display: none;
         }
 
-        .btn {
-            margin-top: 18px;
-            display: inline-block;
-            padding: 10px 18px;
-            background: var(--accent);
-            color: var(--text);
-            font-weight: bold;
-            box-shadow: none;
-            border-radius: 6px;
-            opacity: 1;
-            cursor: pointer;
-            font-size: 14px;
-            transition: opacity 0.4s;
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: default;
-        }
-
-        .btn:enabled:hover {
-            /* .btn:enabled so that the bg no change when hvr :| */
-            opacity: 0.8;
-        }
-
         select {
             margin-top: 15px;
             padding: 8px;
@@ -238,6 +214,8 @@
 
 <body
     style="background-size: cover; background-position: center; background-image: url({{url_for('static', filename='4028.jpeg')}});">
+    <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
+    <script src="{{url_for('static', filename='js/job-status.js')}}"></script>
     <div class="overlay">
     </div>
     <div class="upload-box" id="the-box">
@@ -277,8 +255,8 @@
                 Picture
                 <input type="file" id="team-file" style="display: block;">
             </label>
-            <button id="send-pic" class="btn">Upload</button>
-            <button id="pic-cancel" class="btn">Cancel</button>
+            <button id="send-pic" class="sbutton">Upload</button>
+            <button id="pic-cancel" class="sbutton">Cancel</button>
         </dialog>
 
         <!-- Download dialog box -->
@@ -293,8 +271,8 @@
                 <option title="auton-scouting.csv" value="output.csv-auton-scouting.csv">Auton Scouting</option>
                 <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
             </select>
-            <button id="send-it" class="btn">Download</button>
-            <button id="cancel" class="btn">Cancel</button>
+            <button id="send-it" class="sbutton">Download</button>
+            <button id="cancel" class="sbutton">Cancel</button>
         </dialog>
         
         <dialog id="surprise-upl">
@@ -307,34 +285,37 @@
                 <option title="auton-scouting.csv" value="output.csv-auton-scouting.csv">Auton Scouting</option>
                 <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
             </select>
-            <button id="send-upl-dg" class="btn">Upload</button>
-            <button id="upl-dg-cancel" class="btn">Cancel</button>
+            <button id="send-upl-dg" class="sbutton">Upload</button>
+            <button id="upl-dg-cancel" class="sbutton">Cancel</button>
         </dialog>
 
         <!-- Buttons -->
-        <button id="upload-btn" class="btn" disabled title="Ctrl+U">Upload</button>
-        <button id="upl-alt" class="btn" disabled>Upload other data</button>
-        <button id="reload-btn" class="btn" title="Ctrl+A (a for again because Ctrl+R is important)">Reload</button>
-        <button id="pic-btn" class="btn" title="Ctrl+P">Upload Picture</button>
-        <button id="download-btn" class="btn" title="Ctrl+D">Download</button>
-        <button class="btn" onclick="window.location.href='{{url_for('edit_yaml')}}'" title="Ctrl+E"
-            id="edit-cfg-btn">Edit
-            Config</button>
-        <button id="picklist-btn" class="btn" title="Ctrl+Q" style="width: 120px;"
-            onclick="window.location.href='{{url_for('picklist')}}'">Picklist</button>
-        <button id="pit-btn" class="btn" title="Ctrl+S" style="width: 120px;"
-            onclick="window.location.href='{{url_for('pit_scout')}}'">Pit Scout</button>
-        <button id="dash-btn" class="btn" title="Ctrl+V" style="width: 120px;"
+        <button id="upload-btn" class="sbutton" disabled title="Ctrl+U">Upload</button>
+        <button id="upl-alt" class="sbutton" disabled>Upload other data</button>
+        <button id="reload-btn" class="sbutton" title="Ctrl+A (a for again because Ctrl+R is important)">Reload</button>
+        <button id="pic-btn" class="sbutton" title="Ctrl+P">Upload Picture</button>
+        <button id="download-btn" class="sbutton" title="Ctrl+D">Download</button>
+        <button class="sbutton" onclick="window.goTo('{{url_for('edit_yaml')}}');" title="Ctrl+E"
+            id="edit-cfg-btn">Edit Config</button>
+        <button class="sbutton" onclick="window.goTo('{{url_for('read_log')}}');" title="Ctrl+N (notes idk)"
+            id="view-logs-btn">View Logs</button>
+        <button class="sbutton" onclick="window.goTo('{{url_for('explore')}}');" title="Ctrl+F"
+            id="explore-files-btn">Explore Files</button>
+        <button id="picklist-btn" class="sbutton" title="Ctrl+Q" style="width: 120px;"
+            onclick="window.goTo('{{url_for('picklist')}}');">Picklist</button>
+        <button id="pit-btn" class="sbutton" title="Ctrl+S" style="width: 120px;"
+            onclick="window.goTo('{{url_for('pit_scout')}}')">Pit Scout</button>
+        <button id="dash-btn" class="sbutton" title="Ctrl+V" style="width: 120px;"
             onclick="window.open('{{graf_url}}', '_blank').focus()">Dashboard</button>
         <div class="top-corner-div">
-            <button class="btn logout-btn" id="mode-btn" style="width: 120px;" onclick="setSending(!isSending)"
+            <button class="sbutton logout-btn" id="mode-btn" style="width: 120px;" onclick="setSending(!isSending)"
                 title="Ctrl+M">Pit Mode</button>
-            <button class="btn logout-btn" id="lock-btn" style="width: 100px;"
+            <button class="sbutton logout-btn" id="lock-btn" style="width: 100px;"
                 onclick="lockTab=!lockTab;document.getElementById('lock-btn').style.backgroundColor = lockTab ? '#a00' : 'var(--accent)';document.getElementById('speed-qr-container').style.display = lockTab ? 'flex' : 'none';"
                 title="Ctrl+B">Scan Mode</button>
-            <button class="btn settings-btn" id="settings"
-                onclick="window.location.href='{{url_for('edit_app_conf_page')}}'" title="Ctrl+I">⚙️</button>
-            <button class="btn logout-btn" id="logout" onclick="window.location.href='{{url_for('logout')}}'"
+            <button class="sbutton settings-btn" id="settings"
+                onclick="window.goTo('{{url_for('edit_app_conf_page')}}');" title="Ctrl+I">⚙️</button>
+            <button class="sbutton logout-btn" id="logout" onclick="window.goTo('{{url_for('logout')}}');"
                 title="Ctrl+L">Log out</button>
         </div>
 
@@ -358,71 +339,11 @@
 
         <!-- Status text -->
         <div id="status"></div>
-        <div id="j*b-status" style="
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            width: 250px;
-            padding: 5px;
-            border: 1px solid #333;
-            background: #222;
-            color: #fff;
-            z-index: 9999;
-        "></div>
+        <job-status></job-status>
     </div>
-
+    <script src="{{url_for('static', filename='js/sha256.js')}}"></script>
+    <script src="{{url_for('static', filename='js/page-utils/home.js')}}"></script>
     <script>
-        async function getUpdateEventStatuses() {
-             res = await (await fetch("/jobs")).json();
-            const container = document.getElementById("j*b-status");
-            container.innerHTML = "";
-            for (const [name, status] of Object.entries(res)) {
-                const wrapper = document.createElement("div");
-                wrapper.style.marginBottom = "6px";
-
-                const label = document.createElement("div");
-                label.innerText = `${
-                    Object.keys(status).includes("error") ? "🔴" : (
-                    status["status"] === "done" ? "🟢" : (
-                        status["status"] === "in-progress" ? "🟡" : (
-                            status["status"] === "cancelled" ? "⚪" : "🔵"
-                        )
-                    ))}${name} (${(status["prog"] * 100).toFixed(2)}%)`;
-                label.style.marginBottom = "2px";
-
-                const mini = document.createElement("h4");
-                mini.style.color = "#666";
-                mini.style.padding = 0;
-                mini.style.margin = 0;
-                mini.style.fontSize = 2;
-                if (Object.keys(status).includes("error")) {
-                    mini.innerText = status["error"];
-                    mini.style.color = "#a00";
-                } else
-                    mini.innerText = status["step"];
-
-                const barOuter = document.createElement("div");
-                barOuter.style.background = "#555";
-                barOuter.style.width = "100%";
-                barOuter.style.height = "16px";
-                barOuter.style.borderRadius = "4px";
-                barOuter.style.overflow = "hidden";
-
-                const barInner = document.createElement("div");
-                barInner.style.background = "#4caf50";
-                barInner.style.width = `${status["prog"] * 100}%`;
-                barInner.style.height = "100%";
-
-                barOuter.appendChild(barInner);
-                wrapper.appendChild(label);
-                wrapper.appendChild(mini);
-                wrapper.appendChild(barOuter);
-
-                container.appendChild(wrapper);
-            }
-        }
-
-        setInterval(getUpdateEventStatuses, 1000);
         let isSending = false;
         let data = [];
         const headers = JSON.parse(`{{headers|safe}}`);
@@ -436,13 +357,6 @@
             data: data,
             columns: headers.map(s => ({ title: s, field: s.toLowerCase() }))
         });
-
-        async function sha256(str) {
-            const strBuf = new TextEncoder().encode(str);
-            const hashBuf = await window.crypto.subtle.digest('SHA-256', strBuf);
-            const hashArr = Array.from(new Uint8Array(hashBuf));
-            return hashArr.map(b => ('00' + b.toString(16)).slice(-2)).join('');
-        }
 
         async function tableRowDCHandler(_, row) {
             const cells = row.getCells();
@@ -501,6 +415,8 @@
         const pitScoutButton = document.getElementById("pit-btn");
         const dashButton = document.getElementById("dash-btn");
         const picklistButton = document.getElementById("picklist-btn");
+        const viewLogBtn = document.getElementById("view-logs-btn");
+        const exploreBtn = document.getElementById("explore-files-btn");
         const speedQRCode = new QRCode(speedQr, {
             text: "@01993505@",
             width: 128,
@@ -620,13 +536,13 @@
         window.addEventListener("keydown", ev => {
             if ((ev.ctrlKey || ev.metaKey) && ev.key === "e" && !isSending) { // override Ctrl+S to save
                 ev.preventDefault(); // stop Ctrl+S from doing what it normally does
-                window.location.href = "{{url_for('edit_yaml')}}";
+                window.goTo("{{url_for('edit_yaml')}}");
             } else if (ev.key === "Enter" && lockTab && isSending && document.activeElement === textInput) {
                 ev.preventDefault();
                 if (!uploadBtn.disabled) uploadBtn.click();
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "s" && !isSending) {
                 ev.preventDefault();
-                window.location.href = "{{url_for('pit_scout')}}";
+                window.goTo("{{url_for('pit_scout')}}");
             } else if (ev.key === "Tab" && lockTab && isSending && document.activeElement === textInput) {
                 ev.preventDefault();
                 const start = textInput.selectionStart;
@@ -641,16 +557,16 @@
                 document.getElementById('speed-qr-container').style.display = lockTab ? 'flex' : 'none';
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "i" && !isSending) {
                 ev.preventDefault();
-                window.location.href = "{{url_for('edit_app_conf_page')}}";
+                window.goTo("{{url_for('edit_app_conf_page')}}");
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "m") {
                 ev.preventDefault();
                 setSending(!isSending);
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "l") {
                 ev.preventDefault();
-                window.location.href = "{{url_for('logout')}}";
+                window.goTo("{{url_for('logout')}}");
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "q") {
                 ev.preventDefault();
-                window.location.href = "{{url_for('picklist')}}";
+                window.goTo("{{url_for('picklist')}}");
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "v" && document.activeElement !== textInput) {
                 ev.preventDefault();
                 window.open("{{graf_url}}", '_blank').focus();
@@ -667,6 +583,12 @@
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "p" && !isSending) {
                 ev.preventDefault();
                 pictureButton.click();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === 'n' && !isSending) {
+                ev.preventDefault();
+                window.goTo("{{url_for('read_log')}}");
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === 'f' && !isSending) {
+                ev.preventDefault();
+                window.goTo("{{url_for('explore')}}");
             }
         });
 
@@ -732,6 +654,7 @@
             endpointSelect.value = "/append";
             if (isSending = sending) {
                 dropZone.style.display = "none";
+                uploadOtherBtn.style.display = "none";
                 endpointSelect.style.display = "none";
                 pictureButton.style.display = "none";
                 reloadButton.style.display = "none";
@@ -740,6 +663,8 @@
                 pitScoutButton.style.display = "none";
                 picklistButton.style.display = "none";
                 dashButton.style.display = "none";
+                viewLogBtn.style.display = "none";
+                exploreBtn.style.display = "none";
                 textInput.style.width = "95%";
                 modeBtn.innerText = "Stands Mode";
                 document.getElementById("the-box").style.width = "90%";
@@ -750,6 +675,7 @@
             } else {
                 dropZone.style.display = "block";
                 endpointSelect.style.display = "block";
+                uploadOtherBtn.style.display = "inline-block";
                 pictureButton.style.display = "inline-block";
                 reloadButton.style.display = "inline-block";
                 editCfgBtn.style.display = "inline-block";
@@ -757,6 +683,8 @@
                 pitScoutButton.style.display = "inline-block";
                 picklistButton.style.display = "inline-block";
                 dashButton.style.display = "inline-block";
+                viewLogBtn.style.display = "inline-block";
+                exploreBtn.style.display = "inline-block";
                 textInput.style.width = "90%";
                 modeBtn.innerText = "Pit Mode";
                 document.getElementById("the-box").style.width = "40%";

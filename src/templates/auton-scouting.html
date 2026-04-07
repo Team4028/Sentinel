@@ -8,6 +8,7 @@
     <link href="{{url_for('static', filename='fonts/neuropolitical.css')}}" rel="stylesheet">
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/button.css')}}">
     <title>Auton Scouting</title>
     <style>
         :root {
@@ -72,7 +73,7 @@
     <div id="menu_div" style="overflow-x: hidden;">
         Match : <select id="selMatch">
         </select>
-        <button onclick="clearArea();">Clear Area</button>
+        <button class="sbutton" onclick="clearArea();">Clear Area</button>
         Line width : <select id="selWidth">
             <option value="5" selected="selected">5</option>
             <option value="9">9</option>
@@ -90,7 +91,7 @@
             <option value="yellow">yellow</option>
             <option value="gray">gray</option>
         </select>
-        <button onclick="saveAuto()" ;>Submit</button>
+        <button class="sbutton" onclick="saveAuto()" ;>Submit</button>
         <div id="status-div"></div>
     </div>
     <img id="bg" src="{{url_for('static', filename='fields/2026-field.png')}}">

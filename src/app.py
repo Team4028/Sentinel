@@ -638,6 +638,12 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     def delete_file():
         if request.json and "filepath" in request.json:
             filepath = request.json["filepath"].strip()
+            if "resolve" in request.json:
+                match (filepath):
+                    case "data_in.csv":
+                        filepath = os.path.join("datain", filepath)
+                    case _:
+                        filepath = os.path.join("dataout", filepath)
             if not is_docker:
                 app.logger.warning(f"Tried to delete file {filepath}, only allowed in virtual container.")
                 return "Not allowed in local testing", 401

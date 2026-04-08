@@ -143,6 +143,47 @@
         .sbutton {
             margin: 6px 12px;
         }
+
+        select {
+            margin-top: 15px;
+            padding: 8px;
+            width: 100%;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background: #333;
+            color: #fff;
+        }
+
+        dialog {
+            border: none;
+            border-radius: 12px;
+            padding: 20px 30px;
+            width: 400px;
+            max-width: 90%;
+            background-color: #1e1e2f;
+            color: #f0f0f0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        dialog h1 {
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+
+        dialog select,
+        dialog button {
+            margin-top: 15px;
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            font-size: 1rem;
+        }
+
+        dialog::backdrop {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
     </style>
 </head>
 
@@ -228,8 +269,9 @@
         <button class="sbutton" onclick="setCred()" title="Ctrl+P">Set</button>
         <br><br>
         <button class="sbutton" onclick="confirmDialouge.confirmModal('This will <i>PERMANENTLY</i> delete all Grafana formatting changed since app deployment.', resetDash)">Reset Dashboard</button>
-        <button class="sbutton" onclick="confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete all input data from scouting. This is only meant to be used if data is corrupted. You should probably make a backup from the download button at the <a href='{{url_for('main')}}'>homepage</a>`, clearDatain)">Clear Data input</button>
-        <button class="sbutton" onclick="confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete all processor data. If you have no wifi this will delete all of the cacheed TBA data.`, clearDB)">Clear Database</button>
+        <button class="sbutton" id="delete-button">Delete File</button>
+        <!-- <button class="sbutton" onclick="confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete all input data from scouting. This is only meant to be used if data is corrupted. You should probably make a backup from the download button at the <a href='{{url_for('main')}}'>homepage</a>`, clearDatain)">Clear Data input</button>
+        <button class="sbutton" onclick="confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete all processor data. If you have no wifi this will delete all of the cacheed TBA data.`, clearDB)">Clear Database</button> -->
     </div>
     <div class="loader-overlay" id="loaderOverlay">
         <div class="loader">
@@ -240,6 +282,20 @@
             </div>
         </div>
     </div>
+    <dialog id="surprise">
+            <h1>Pick a file</h1>
+            <select id="cake-select">
+                <!-- All of the files -->
+                <option title="data_in.csv" value="data_in.csv">Data Input</option>
+                <option title="output.csv" value="output.csv">Data Output</option>
+                <option title="sentinel.db" value="sentinel.db">SQLite Database</option>
+                <option title="pit-scouting.csv" value="output.csv-pit-scouting.csv">Pit Scouting</option>
+                <option title="auton-scouting.csv" value="output.csv-auton-scouting.csv">Auton Scouting</option>
+                <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
+            </select>
+            <button id="send-it" class="sbutton">Delete</button>
+            <button id="cancel" class="sbutton">Cancel</button>
+        </dialog>
     <modal-confirm id="confirm-modal" buttonStyle="{{url_for('static', filename='css/button.css')}}"></modal-confirm>
     <div class="button-cont">
         <button class="sbutton" onclick="saveCfg()" title="Ctrl+S">Save Changes</button>
@@ -269,6 +325,27 @@
         const loaderOverlay = document.getElementById("loaderOverlay");
         const loaderCardContainer = document.getElementById("cardContainer");
         const confirmDialouge = document.getElementById("confirm-modal");
+
+        function fakeWaitingForGodot(dlog, confirmBtnID, closeBtnID, selectorID, isRealFile) {
+            return new Promise(resolve => {
+                dlog.showModal();
+                dlog.addEventListener("close", function handler() {
+                    dlog.removeEventListener("close", handler);
+                    resolve({
+                        cancelled: dlog.returnValue === "cancel",
+                        file: isRealFile ? document.getElementById(selectorID).files[0] : document.getElementById(selectorID).value
+                    });
+                });
+
+                document.getElementById(confirmBtnID).onclick = () => {
+                    dlog.returnValue = "";
+                    dlog.close();
+                };
+                document.getElementById(closeBtnID).onclick = () => dlog.close("cancel");
+                dlog.addEventListener("cancel", () => dlog.close("cancel"), { once: true });
+            })
+        }
+
         let selectedCredSet = "admin";
         const creds = ["admin", "viewer"];
 
@@ -408,6 +485,24 @@
 
         tbakey.addEventListener("input", async e => {
             tbakey.style.borderColor = await tbaKeyCheckHealth() ? "#0a0" : "#a00";
+        });
+
+        document.getElementById("delete-button").addEventListener('click', async () => {
+            const res = await fakeWaitingForGodot(document.getElementById("surprise"), "send-it", "cancel", "cake-select", false);
+            if (!res.cancelled) {
+                confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete ${res.file}. This action can not be reversed.`, async () => {
+                    const r2 = fetch('{{url_for("delete_file")}}', {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            "filepath": res.file,
+                            "resolve": null
+                        })
+                    })
+                });
+            }
         });
 
         async function loadCfg() {

@@ -140,38 +140,8 @@
             opacity: 1;
         }
 
-        .confirm-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .confirm-box {
-            background: #333;
-            padding: 20px;
-            border-radius: 12px;
-            color: var(--text);
-            max-width: 90%;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        .confirm-box a {
-            color: color-mix(in srgb, var(--accent), white 40%);
-        }
-
-        .confirm-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        button {
-            padding: 6px 12px;
-            cursor: pointer;
+        .sbutton {
+            margin: 6px 12px;
         }
     </style>
 </head>
@@ -179,7 +149,7 @@
 <body>
     <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
     <script src="{{url_for('static', filename='js/job-status.js')}}"></script>
-    <script src="{{url_for('static', filename='js/page-utils/appconfig.js')}}"></script>
+    <script src="{{url_for('static', filename='js/modal-confirm.js')}}"></script>
     <div class="panel">
         <h1> <img src="{{ url_for('static', filename='favicon.ico') }}"
                 style="height: 5rem; transform: translateY(2rem);"> Sentinel Settings</h1>
@@ -257,9 +227,9 @@
         </label>
         <button class="sbutton" onclick="setCred()" title="Ctrl+P">Set</button>
         <br><br>
-        <button class="sbutton" onclick="confirmModal('This will <i>PERMANENTLY</i> delete all Grafana formatting changed since app deployment.', resetDash)">Reset Dashboard</button>
-        <button class="sbutton" onclick="confirmModal(`This will <i>PERMANENTLY</i> delete all input data from scouting. This is only meant to be used if data is corrupted. You should probably make a backup from the download button at the <a href='{{url_for('main')}}'>homepage</a>`, clearDatain)">Clear Data input</button>
-        <button class="sbutton" onclick="confirmModal(`This will <i>PERMANENTLY</i> delete all processor data. If you have no wifi this will delete all of the cacheed TBA data.`, clearDB)">Clear Database</button>
+        <button class="sbutton" onclick="confirmDialouge.confirmModal('This will <i>PERMANENTLY</i> delete all Grafana formatting changed since app deployment.', resetDash)">Reset Dashboard</button>
+        <button class="sbutton" onclick="confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete all input data from scouting. This is only meant to be used if data is corrupted. You should probably make a backup from the download button at the <a href='{{url_for('main')}}'>homepage</a>`, clearDatain)">Clear Data input</button>
+        <button class="sbutton" onclick="confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete all processor data. If you have no wifi this will delete all of the cacheed TBA data.`, clearDB)">Clear Database</button>
     </div>
     <div class="loader-overlay" id="loaderOverlay">
         <div class="loader">
@@ -270,15 +240,7 @@
             </div>
         </div>
     </div>
-    <div id="confirmModal" class="confirm-overlay">
-        <div class="confirm-box">
-            <p id="confirmMessage"></p>
-            <div class="confirm-actions">
-                <button class="sbutton" id="confirmCancel">Cancel</button>
-                <button class="sbutton" id="confirmOk">I understand, perform this action</button>
-            </div>
-        </div>
-    </div>
+    <modal-confirm id="confirm-modal" buttonStyle="{{url_for('static', filename='css/button.css')}}"></modal-confirm>
     <div class="button-cont">
         <button class="sbutton" onclick="saveCfg()" title="Ctrl+S">Save Changes</button>
         <button class="sbutton" onclick="loadCfg()" title="Ctrl+D">Discard Changes</button>
@@ -306,6 +268,7 @@
         const setslider = document.getElementById("setslider");
         const loaderOverlay = document.getElementById("loaderOverlay");
         const loaderCardContainer = document.getElementById("cardContainer");
+        const confirmDialouge = document.getElementById("confirm-modal");
         let selectedCredSet = "admin";
         const creds = ["admin", "viewer"];
 
@@ -425,52 +388,6 @@
             });
 
             closeLoader();
-        }
-
-        async function confirmModal(message, callbackIfYes) {
-            if (await new Promise((resolve) => {
-                const modal = document.getElementById("confirmModal");
-                const msg = document.getElementById("confirmMessage");
-                const okBtn = document.getElementById("confirmOk");
-                const cancelBtn = document.getElementById("confirmCancel");
-
-                msg.innerHTML = message;
-                modal.style.display = 'flex';
-
-                const cleanup = () => {
-                    modal.style.display = 'none';
-                    okBtn.removeEventListener("click", onOk);
-                    cancelBtn.removeEventListener("click", onCancel);
-                    modal.removeEventListener("click", onOutside);
-                    document.removeEventListener("keydown", onKey);
-                };
-
-                const onOk = () => {
-                    cleanup();
-                    resolve(true);
-                };
-
-                const onCancel = () => {
-                    cleanup();
-                    resolve(false);
-                };
-
-                const onOutside = (e) => {
-                    if (e.target === modal) onCancel();
-                };
-
-                const onKey = (e) => {
-                    if (e.key === "Escape") onCancel();
-                    if (e.key === "Enter") onOk();
-                };
-
-                okBtn.addEventListener("click", onOk);
-                cancelBtn.addEventListener("click", onCancel);
-                modal.addEventListener("click", onOutside);
-                document.addEventListener("keydown", onKey);
-            })) {
-                callbackIfYes();
-            }
         }
         
         async function getCurrentEvent() {

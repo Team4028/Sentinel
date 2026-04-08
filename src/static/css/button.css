@@ -8,6 +8,8 @@
     border-radius: 4px;
     cursor: pointer;
     font-weight: 600;
+    border: none;
+    box-shadow: 2px 2px 5px color-mix(in srgb, var(--accent), black 50%);
 }
 
 .sbutton:disabled {

@@ -581,8 +581,8 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @require_admin
     def edit_file():
         if request.args and "filepath" in request.args:
-            filepath = request.args.get("filepath")
-            filepath =  html.unescape(filepath)
+            filepath = request.args.get("filepath").strip()
+            filepath = html.unescape(filepath)
             if os.path.exists(filepath) and os.path.isfile(filepath):
                 with open(filepath, 'r', encoding='utf-8') as r:
                     content = r.read()
@@ -593,7 +593,62 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                     file_content=content
                 )
             else:
-                return "Error, path does not exist"
+                return "Error, path does not exist", 400
+        else:
+            return "Invalid Request", 400
+        
+    @app.get('/view-file')
+    @login_required
+    @require_admin
+    def view_file():
+        if request.args and "filepath" in request.args:
+            filepath = request.args.get("filepath").strip()
+            filepath = html.unescape(filepath)
+            if os.path.exists(filepath) and os.path.isfile(filepath):
+                return send_file(Path(filepath).resolve())
+            else:
+                return "Error, path does not exist", 400
+        else:
+            return "Invalid Request", 400
+        
+    @app.post('/rename-file')
+    @login_required
+    @require_admin
+    @require_json
+    def rename_file():
+        if request.json and 'old' in request.json and 'new' in request.json:
+            oldf = request.json['old'].strip()
+            if not is_docker:
+                app.logger.warning(f"Tried to rename file {oldf}, only allowed in virtual container.")
+                return "Not allowed in local testing", 401
+            newf = request.json['new'].strip()
+            newf = Path(oldf).with_name(newf).as_posix()
+            if os.path.exists(oldf) and (os.path.isfile(oldf) or os.path.isdir(oldf)):
+                os.rename(oldf, newf)
+                return "Success", 200
+            else:
+                return "Error, path does not exist", 400
+        else:
+            return "Invalid Request", 400
+        
+    @app.post("/delete-file")
+    @login_required
+    @require_admin
+    @require_json
+    def delete_file():
+        if request.json and "filepath" in request.json:
+            filepath = request.json["filepath"].strip()
+            if not is_docker:
+                app.logger.warning(f"Tried to delete file {filepath}, only allowed in virtual container.")
+                return "Not allowed in local testing", 401
+            if os.path.exists(filepath) and (os.path.isfile(filepath) or os.path.isdir(filepath)):
+                if os.path.isfile(filepath):
+                    os.remove(filepath)
+                elif os.path.isdir(filepath):
+                    os.removedirs(filepath)
+                return "Success", 200
+            else:
+                return "Error, path does not exist", 400
         else:
             return "Invalid Request", 400
     

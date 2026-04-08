@@ -1,8 +1,23 @@
 <html>
 
 <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/button.css')}}">
+    <title>File Explorer</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
     <style>
+        :root {
+            --text: {{text}};
+            --accent: {{accent}};
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             background-color: #1e1e1e;
         }
@@ -50,11 +65,108 @@
             padding-right: 10px;
             color: #888;
         }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin-top: 5px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: color-mix(in srgb, var(--accent), white 20%);
+            box-shadow: 0 0 5px rgba(91, 155, 213, 0.5);
+            outline: none;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--accent);
+            color: var(--text);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        input[type="submit"]:hover {
+            opacity: 0.8;
+        }
+
+        #context-menu {
+            position: absolute;
+            display: none;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 6px;
+            min-width: 150px;
+            z-index: 1000;
+            color: white;
+        }
+
+        #context-menu h5 {
+            color: #777;
+            font-size: 1rem;
+            text-align: center;
+            margin: 0;
+            padding: 0 15px;
+            padding-bottom: 0;
+        }
+
+        #context-menu ul {
+            list-style: none;
+            margin: 0;
+            padding: 5px 0;
+        }
+
+        #context-menu li {
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        #context-menu li:hover {
+            background: #353535;
+        }
+
+        #rename-bd {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+        }
+
+        #rename {
+            position: fixed;
+            z-index: 11;
+            width: 25%;
+            height: 25%;
+            left: 50%;
+            top: 50%;
+            background: #222;
+            border-radius: 10px;
+            color: white;
+            transform: translate(-50%, -50%);
+        }
+
+        #rename input {
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 
 <body>
     <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
+    <script src="{{url_for('static', filename='js/modal-confirm.js')}}"></script>
     <div id="hierarchy">
         {% macro render_tree(nodes) %}
         {% for node in nodes %}
@@ -79,13 +191,39 @@
         {% endmacro %}
         {{ render_tree(tree) }}
     </div>
+    <div id="context-menu">
+        <ul>
+            <h5 id="context-title"></h5>
+            <hr width="50%" color="#777">
+            <li id="cm-edit" data-action="edit" hidden>Edit</li>
+            <li id="cm-view" data-action="view" hidden>View</li>
+            <li data-action="rename">Rename</li>
+            <li data-action="delete">Delete</li>
+        </ul>
+    </div>
+    <div id="rename-bd" hidden></div>
+    <div id="rename" hidden>
+        <h2>Rename</h2>
+        <input type="text" id="rename-input" autocomplete="off" placeholder="Enter new name...">
+        <input type="submit" id="rename-sub" title="Submit">
+    </div>
+    <modal-confirm id="confirm-modal" buttonStyle="{{url_for('static', filename='css/button.css')}}"></modal-confirm>
     <script>
         var hierarchy = document.getElementById("hierarchy");
+        const contextMenu = document.getElementById("context-menu");
+        const rename = document.getElementById("rename");
+        const renameBD = document.getElementById("rename-bd");
+        const renameInp = document.getElementById("rename-input");
+        const cmEdit = document.getElementById("cm-edit");
+        const cmView = document.getElementById("cm-view");
+        const confirmDialouge = document.getElementById("confirm-modal");
+        let contextTarget = null;
+        let renameTarget = null;
+
         document.addEventListener("DOMContentLoaded", () => {
             var folders = hierarchy.querySelectorAll(".folder");
             folders.forEach(function (folder) {
                 folder.dataset.isexpanded = "false";
-
                 folder.classList.remove("fa-folder-o");
                 folder.classList.add("fa-folder");
 
@@ -99,6 +237,12 @@
                 });
             });
         });
+
+        const isEditable = function (name) {
+            const ext = (name.split('.').pop() ?? "").toLowerCase();
+            // everything i could think up on the spot, may need more
+            return !["mp4", "mov", "opus", "mp3", "wav", "png", "jpeg", "jpg", "svg", "heic"].includes(ext);
+        }
 
         function getFullPath(element) {
             let subpaths = [];
@@ -120,14 +264,144 @@
             return subpaths.join("/");
         }
 
-        hierarchy.addEventListener("click", function (event) {
+        const removeRightClickDiv = () => {
+            contextMenu.style.display = "none";
+            contextTarget = null;
+            cmEdit.hidden = true;
+            cmView.hidden = true;
+        }
+
+        hierarchy.addEventListener("contextmenu", function (event) {
+            removeRightClickDiv();
             var elem = event.target;
-            if (elem.tagName.toLowerCase() == "span" && elem !== event.currentTarget) {
+            if (elem.tagName.toLowerCase() === "span" && elem !== event.currentTarget) {
                 var type = elem.classList.contains("folder") ? "folder" : "file";
-                if (type == "file") {
-                    window.goTo(`{{url_for('edit_file')}}?filepath=${encodeURIComponent(getFullPath(elem))}`);
+                event.preventDefault();
+                contextTarget = elem;
+                document.getElementById("context-title").innerText = elem.innerText;
+                if (type === "file") {
+                    if (isEditable(elem.innerText.trim())) {
+                        cmEdit.hidden = false;
+                    } else {
+                        cmView.hidden = false;
+                    }
                 }
-                if (type == "folder") {
+                contextMenu.style.display = "block";
+                const menuWidth = contextMenu.offsetWidth;
+                const menuHeight = contextMenu.offsetHeight;
+
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+
+                let x = event.clientX;
+                let y = event.clientY;
+
+                if (x + menuWidth > windowWidth)
+                    x = windowWidth - menuWidth;
+                if (y + menuHeight > windowHeight)
+                    y = windowHeight - menuHeight;
+
+                x = Math.max(0, x);
+                y = Math.max(0, y);
+
+                contextMenu.style.left = x + "px";
+                contextMenu.style.top = y + "px";
+            }
+        });
+
+        const renameFile = async function () {
+            if (!renameTarget) return;
+            const rvalue = renameInp.value;
+            const res = await fetch('{{url_for("rename_file")}}', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    'old': getFullPath(renameTarget),
+                    'new': rvalue
+                })
+            });
+            if (res.ok) {
+                renameTarget.innerText = renameInp.value;
+            }
+            renameBD.style.display = 'none';
+            rename.style.display = 'none';
+            renameInp.value = "";
+            renameTarget = null;
+        }
+
+        window.addEventListener('keydown', async (e) => {
+            if (e.key === "Escape") {
+                rename.hidden = true;
+                renameBD.hidden = true;
+                renameInp.value = "";
+                removeRightClickDiv();
+            } else if (e.key === "Enter" && !rename.hidden) {
+                await renameFile();
+            }
+        });
+
+        document.getElementById("rename-sub").addEventListener('click', async (e) => {
+            await renameFile();
+        });
+
+        contextMenu.addEventListener("click", async (e) => {
+            if (e.target.tagName.toLowerCase() === "li" && contextTarget !== null) {
+                const action = e.target.getAttribute('data-action');
+                switch (action) {
+                    case 'edit':
+                        window.goTo(`{{url_for('edit_file')}}?filepath=${encodeURIComponent(getFullPath(contextTarget))}`);
+                        break;
+                    case 'view':
+                        window.goTo(`{{url_for('view_file')}}?filepath=${encodeURIComponent(getFullPath(contextTarget))}`);
+                        break;
+                    case 'rename':
+                        renameBD.hidden = false;
+                        rename.hidden = false;
+                        renameTarget = contextTarget;
+                        renameInp.value = contextTarget.innerText.trim();
+                        if (contextTarget.innerText.includes('.')) {
+                            renameInp.focus();
+                            renameInp.setSelectionRange(0, contextTarget.innerText.lastIndexOf('.') - 1);
+                        } else {
+                            renameInp.focus();
+                            renameInp.select();
+                        }
+                        break;
+                    case 'delete':
+                        const targ = contextTarget;
+                        confirmDialouge.confirmModal("Warning, this will <i>PERMANENTLY</i> delete this file on the docker image. This can not be undone.", async () => {
+                            const res = await fetch('{{url_for("delete_file")}}', {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({ "filepath": getFullPath(targ) })
+                            });
+                            if (res.ok) {
+                                targ.remove();
+                            }
+                        });
+                        break;
+                }
+                e.preventDefault();
+                removeRightClickDiv();
+            }
+        });
+
+        window.addEventListener("click", function (event) {
+            var elem = event.target;
+            if (elem.tagName.toLowerCase() === "span" && elem !== event.currentTarget) {
+                var type = elem.classList.contains("folder") ? "folder" : "file";
+                if (type === "file") {
+                    if (isEditable(elem.innerText)) {
+                        window.goTo(`{{url_for('edit_file')}}?filepath=${encodeURIComponent(getFullPath(elem))}`);
+                    } else {
+                        window.goTo(`{{url_for('view_file')}}?filepath=${encodeURIComponent(getFullPath(elem))}`);
+                    }
+                }
+                if (type === "folder") {
                     var isexpanded = elem.dataset.isexpanded == "true";
                     if (isexpanded) {
                         elem.classList.remove("fa-folder-o");
@@ -147,6 +421,8 @@
                             element.style.display = isexpanded ? "none" : "block";
                     });
                 }
+            } else if (elem.tagName.toLowerCase() !== "li") {
+                removeRightClickDiv();
             }
         });
     </script>

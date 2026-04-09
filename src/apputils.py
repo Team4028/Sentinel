@@ -224,7 +224,7 @@ def invert_jeson(jeson):
     return result
 
 
-def get_tba_coprs(event_key, api_key):
+def get_tba_coprs(event_key, api_key, config_data):
     coprs = {}
     try:
         if tba_health() and not (api_key == None or api_key.strip() == ""):
@@ -241,7 +241,10 @@ def get_tba_coprs(event_key, api_key):
                 coprs[int(team.removeprefix("frc"))] = coprs.pop(team)
             for team in list(coprs.keys()):
                 for cop in list(coprs[team].keys()):
-                    coprs[team][cop] = round(coprs[team][cop], 1)
+                    if cop not in config_data["copr"]:
+                        del coprs[team][cop]
+                    else:
+                        coprs[team][cop] = round(coprs[team][cop], 1)
         else:
             logger.error("Error: no wifi or tba cache or invalid api key")
             return {}
@@ -532,10 +535,10 @@ def load_tba_data_static(event_key, api_key, year, last_opr_disabled) -> TBAData
         get_tba_opr(event_key, api_key, year, teams) if not last_opr_disabled else {},
     )
 
-def load_tba_data_dynamic(event_key, api_key, teams_list) -> TBADataDynamic:
+def load_tba_data_dynamic(event_key, api_key, config_data, teams_list) -> TBADataDynamic:
     return TBADataDynamic(
         get_tba_ranks(event_key, api_key, teams_list),
-        get_tba_coprs(event_key, api_key),
+        get_tba_coprs(event_key, api_key, config_data),
         get_event_team_oprs(event_key, api_key),
     )
 
@@ -588,7 +591,7 @@ def set_auth_key(key: str) -> None:
     with open("./secrets/tba.txt", "w") as w:
         w.write(f"{key}\n{hmac_old}")
 
-def set_tba_hmac(hmac: str) -> None:
+def set_tba_whook_key(hmac: str) -> None:
     key_old = ""
     if os.path.exists("./secrets/tba.txt"):
         with open("./secrets/tba.txt", 'r') as r:

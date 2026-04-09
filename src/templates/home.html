@@ -270,11 +270,13 @@
                 <option title="pit-scouting.csv" value="output.csv-pit-scouting.csv">Pit Scouting</option>
                 <option title="auton-scouting.csv" value="output.csv-auton-scouting.csv">Auton Scouting</option>
                 <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
+                <option title="notes" value="notes">Notes</option>
+                <option title="photos" value="photos">Photos</option>
             </select>
             <button id="send-it" class="sbutton">Download</button>
             <button id="cancel" class="sbutton">Cancel</button>
         </dialog>
-        
+
         <dialog id="surprise-upl">
             <h1>Pick a file</h1>
             <select id="cake-select-upl">
@@ -284,6 +286,8 @@
                 <option title="pit-scouting.csv" value="output.csv-pit-scouting.csv">Pit Scouting</option>
                 <option title="auton-scouting.csv" value="output.csv-auton-scouting.csv">Auton Scouting</option>
                 <option title="other-metrics.json" value="other-metrics.json">Other Metrics</option>
+                <option title="notes.zip" value="notes.zip">Notes</option>
+                <option title="photos.zip" value="photos.zip">Photos</option>
             </select>
             <button id="send-upl-dg" class="sbutton">Upload</button>
             <button id="upl-dg-cancel" class="sbutton">Cancel</button>
@@ -295,8 +299,8 @@
         <button id="reload-btn" class="sbutton" title="Ctrl+A (a for again because Ctrl+R is important)">Reload</button>
         <button id="pic-btn" class="sbutton" title="Ctrl+P">Upload Picture</button>
         <button id="download-btn" class="sbutton" title="Ctrl+D">Download</button>
-        <button class="sbutton" onclick="window.goTo('{{url_for('edit_yaml')}}');" title="Ctrl+E"
-            id="edit-cfg-btn">Edit Config</button>
+        <button class="sbutton" onclick="window.goTo('{{url_for('edit_yaml')}}');" title="Ctrl+E" id="edit-cfg-btn">Edit
+            Config</button>
         <button class="sbutton" onclick="window.goTo('{{url_for('read_log')}}');" title="Ctrl+N (notes idk)"
             id="view-logs-btn">View Logs</button>
         <button class="sbutton" onclick="window.goTo('{{url_for('explore')}}');" title="Ctrl+F"
@@ -342,7 +346,6 @@
         <job-status></job-status>
     </div>
     <script src="{{url_for('static', filename='js/sha256.js')}}"></script>
-    <script src="{{url_for('static', filename='js/page-utils/home.js')}}"></script>
     <script>
         let isSending = false;
         let data = [];
@@ -350,7 +353,7 @@
         const data_init = JSON.parse(`{{inp_data|safe}}`);
         for (const data_init_row of data_init) {
             if (data_init_row != "")
-                data.push(Object.assign({}, ...Papa.parse(data_init_row, { delimiter: ",", quotes: true, skipEmptyLines: true,  }).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
+                data.push(Object.assign({}, ...Papa.parse(data_init_row, { delimiter: ",", quotes: true, skipEmptyLines: true, }).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
         }
         let lockTab = false;
         const table = new Tabulator('#table', {
@@ -502,10 +505,17 @@
         uploadOtherBtn.addEventListener('click', async () => {
             const file = await fakeWaitingForGodot(document.getElementById("surprise-upl"), "send-upl-dg", "upl-dg-cancel", "cake-select-upl", false);
             if (!file.cancelled) {
-                uploadFile(selectedFile, "{{url_for('upload_other_files')}}", [{
-                    "name": "name",
-                    "value": file.file
-                }]);
+                if (file.file.includes('.zip')) {
+                    uploadFile(selectedFile, "{{url_for('upload_folder')}}", [{
+                        "name": "folderPath",
+                        "value": file.file.replace(".zip", "")
+                    }]);
+                } else {
+                    uploadFile(selectedFile, "{{url_for('upload_other_files')}}", [{
+                        "name": "name",
+                        "value": file.file
+                    }]);
+                }
             }
         })
 
@@ -634,8 +644,11 @@
 
         downloadButton.addEventListener("click", async () => {
             const res = await fakeWaitingForGodot(dialog, "send-it", "cancel", "cake-select", false);
-            if (!res.cancelled)
-                downloadFile(res.file);
+            if (!res.cancelled) {
+                if (res.file.includes('.'))
+                    downloadFile(res.file);
+                else downloadFolder(res.file);
+            }
         });
 
         pictureButton.addEventListener("click", async () => {
@@ -730,6 +743,49 @@
             }
 
             xhr.send(fData);
+        }
+
+        function downloadFolder(folder) {
+            statusText.textContent = `[${new Date().toLocaleString()}] Downloading folder ${folder}`;
+            progressBar.style.width = 0;
+            progressContainer.style.display = "block";
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "{{url_for('download_folder')}}", true);
+            xhr.setRequestHeader("path", encodeURIComponent(folder));
+            xhr.responseType = "blob";
+            xhr.onloadstart = () => {
+                statusText.textContent = `[${new Date().toLocaleString()}] Downloading...`;
+            }
+
+            xhr.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percent = (event.loaded / event.total) * 100;
+                    progressBar.style.width = percent + "%";
+                } else {
+                    statusText.textContent = `[${new Date().toLocaleString()}] Downloaded ${event.loaded} bytes`;
+                }
+            }
+
+            xhr.onerror = (err) => {
+                statusText.textContent = `[${new Date().toLocaleString()}] Error downloading folder: ${err}`;
+            }
+
+            xhr.onload = () => {
+                progressBar.style.width = "100%";
+                if (xhr.status === 200) {
+                    const blob = xhr.response;
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = folder + ".zip";
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    statusText.textContent = `[${new Date().toLocaleString()}] Folder downloaded: ${folder}`;
+                } else {
+                    xhr.response.text().then(t => statusText.textContent = `[${new Date().toLocaleString()}] Error downloading folder: ${t}`);
+                }
+            }
+
+            xhr.send();
         }
 
         /**

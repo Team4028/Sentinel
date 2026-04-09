@@ -87,3 +87,32 @@
     width: 20%;
     top: 10rem;
 }
+
+.cinput[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 2px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+}
+
+.cinput[type="checkbox"]:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.cinput[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 0%;
+    left: 25%;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}

@@ -1,4 +1,6 @@
+import hashlib
 import time
+import zipfile
 from flask import (
     Flask,
     request,
@@ -18,19 +20,34 @@ try:  # janky import stuff: running src/app.py and running scouting_app.py via g
     import lib.mesh as mesh
     from lib.data_config import lex_config
     import apputils
-    from auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app, require_json
+    from auth import (
+        BigBrother,
+        Winston,
+        LoginForm,
+        require_admin,
+        init_loginm_app,
+        require_json,
+    )
 except ModuleNotFoundError:
     from src.lib.data_main import Processor, Event
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
     import src.apputils as apputils
-    from src.auth import BigBrother, Winston, LoginForm, require_admin, init_loginm_app, require_json
+    from src.auth import (
+        BigBrother,
+        Winston,
+        LoginForm,
+        require_admin,
+        init_loginm_app,
+        require_json,
+    )
 import csv
 import os
 import json
 from threading import Thread
 import html
 import yaml
+import hmac
 import sys
 import tempfile
 import logging
@@ -42,7 +59,9 @@ from jinja2 import Environment, FileSystemLoader
 import asyncio
 
 
-def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because_its_slow = False):  # cursed but whatever
+def create_app(
+    inital_process=True, skip_last_opr_fetching_for_testing_because_its_slow=False
+):  # cursed but whatever
     """Wraps the flask app in an exportable context so you can load it into the project root dir to make gunicorn happy"""
 
     loop = asyncio.new_event_loop()
@@ -88,7 +107,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     def run_async_task(coro):
         app.logger.info(f"Async thread add coroutine: {coro.__name__}")
         return asyncio.run_coroutine_threadsafe(coro, loop)
-    
+
     # check docker
     is_docker = False
     if os.path.exists("/.dockerenv"):
@@ -121,7 +140,6 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         app.logger.info("Finished processing data.")
         reload_js()
         return
-        
 
     # =======================================================
     # Ensure directories on gitignore are present
@@ -132,6 +150,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         os.makedirs("datain", exist_ok=True)
         os.makedirs("dataout", exist_ok=True)
         os.makedirs("photos", exist_ok=True)
+        os.makedirs("notes", exist_ok=True)
         os.makedirs("autos", exist_ok=True)
         os.makedirs(
             "secrets", exist_ok=True
@@ -143,7 +162,9 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     # Load Auth Keys
     # =======================================================
 
-    admin_login, viewer_login, app.config["SECRET_KEY"], auth_key, tba_hmac = apputils.read_secrets()
+    admin_login, viewer_login, app.config["SECRET_KEY"], auth_key, tba_webhook_secret = (
+        apputils.read_secrets()
+    )
 
     # =======================================================
     # Parse field config and setup processor
@@ -152,7 +173,11 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         skip_last_opr_fetching_for_testing_because_its_slow,
         app.config["TBA_FETCH_PERIOD_MIN"],
         auth_key,
-        app.config["YEAR"].split("_")[0] if "_" in app.config["YEAR"] else app.config["YEAR"],
+        (
+            app.config["YEAR"].split("_")[0]
+            if "_" in app.config["YEAR"]
+            else app.config["YEAR"]
+        ),
         lex_config(app.config["YEAR"]),
     )  # what's wrong with my copy of python why are their pointers (it's just the unpack operator)
 
@@ -227,21 +252,31 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             "bat": "fa-windows",
             "sh": "fa-dollar",
         }.get(ext, "fa-file-o")
-    
+
     app.jinja_env.globals.update(get_fa_icon=get_fa_icon)
 
     if inital_process:
         try:
-            run_async_task(do_data_processing()).add_done_callback(lambda _: app.logger.info("initial processing finished."))
+            run_async_task(do_data_processing()).add_done_callback(
+                lambda _: app.logger.info("initial processing finished.")
+            )
         except Exception as e:
-            app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
+            app.logger.warning(
+                f"initial processing failed: {apputils.exception_format(e)}"
+            )
 
     DASHBOARD_UIDS = {}
-    for dash in ["Prematch.json", "Full Team Data.json", "Statbotics Viz.json", "Team View.json", "Pit Scouting View.json"]: # TODO: make this a grep
+    for dash in [
+        "Prematch.json",
+        "Full Team Data.json",
+        "Statbotics Viz.json",
+        "Team View.json",
+        "Pit Scouting View.json",
+    ]:  # TODO: make this a grep
         if not os.path.exists(
             f"/var/lib/grafana/dashboards/{dash}"
-                if is_docker
-                else f"./grafana-dashboard/{dash}"
+            if is_docker
+            else f"./grafana-dashboard/{dash}"
         ):
             compile_scouting_dashboard("http://localhost:5000")
         with open(
@@ -257,9 +292,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     def reload_js():
         """Updates the copy of the 'other-metrics.json' file in memory (used for '/percent' endpoint) to use the newest file"""
         nonlocal js
-        if not os.path.exists(
-            os.path.join("dataout", "other-metrics.json")
-        ):
+        if not os.path.exists(os.path.join("dataout", "other-metrics.json")):
             js = None
             return
         with open(
@@ -268,18 +301,16 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         ) as r:
             js = (
                 json.load(r)
-                if os.path.exists(
-                    os.path.join(
-                        "dataout", "other-metrics.json"
-                    )
-                )
+                if os.path.exists(os.path.join("dataout", "other-metrics.json"))
                 else None
             )
 
     reload_js()
 
     def send_generic_notification(data: dict):
-        notification_queue.append((data | { "icon": '/static/favicon.ico' }, time.time() + 300, []))
+        notification_queue.append(
+            (data | {"icon": "/static/favicon.ico"}, time.time() + 300, [])
+        )
 
     def send_change_notification(lines: str | None = None):
         """Sends a notification. <br>
@@ -292,7 +323,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             "body": (
                 "New changes avaliable to apply." if lines == None else "\n".join(lines)
             ),
-            "icon": '/static/favicon.ico',
+            "icon": "/static/favicon.ico",
         }
         data["actions"] = (
             [  # makes a button that invokes the 'goto-changes' action in the service worker (active mod)
@@ -311,49 +342,66 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             (data, time.time() + 300, [])
         )  # gone is the toilsome webpush shenanigens (ik i spelled that wrong)
 
-
     def handle_tba_webhook(notification_json):
-        if not "message_type" in notification_json or not "message_data" in notification_json:
+        if (
+            not "message_type" in notification_json
+            or not "message_data" in notification_json
+        ):
             return
         match (notification_json["message_type"]):
             case "match_score":
-                if processor.event_key and notification_json["message_data"]["event_key"] == processor.event_key:
+                if (
+                    processor.event_key
+                    and notification_json["message_data"]["event_key"]
+                    == processor.event_key
+                ):
                     run_async_task(processor.perform_periodic_calls())
                 return
             case "schedule_updated":
-                if processor.event_key and notification_json["message_data"]["event_key"] == processor.event_key:
+                if (
+                    processor.event_key
+                    and notification_json["message_data"]["event_key"]
+                    == processor.event_key
+                ):
                     event = processor.event_key
                     run_async_task(processor.clear_database())
                     processor.event_key = event
-                    with open("last_loaded_event_key.txt", 'w') as w:
+                    with open("last_loaded_event_key.txt", "w") as w:
                         w.write(event)
                     run_async_task(processor.load_event_data())
                     run_async_task(processor.perform_periodic_calls())
                     return
             case "ping":
                 md = notification_json["message_data"]
-                app.logger.info(f"TBA pinged server:\nTitle: {md["title"]}\nDesc: {md["desc"]}")
-                send_generic_notification({
-                    "title": f"TBA Ping: {md["title"]}",
-                    "body": md["desc"]
-                })
+                app.logger.info(
+                    f"TBA pinged server:\nTitle: {md["title"]}\nDesc: {md["desc"]}"
+                )
+                send_generic_notification(
+                    {"title": f"TBA Ping: {md["title"]}", "body": md["desc"]}
+                )
                 return
             case "broadcast":
                 md = notification_json["message_data"]
-                app.logger.info(f"TBA announcement:\nTitle: {notification_json["message_data"]["title"]}\nDesc: {notification_json["message_data"]["desc"]}\nUrl: {notification_json["message_data"]["url"] if "url" in notification_json["message_data"] else "None"}")
-                send_generic_notification({
-                    "title": f"TBA Broadcast: {md["title"]}",
-                    "body": md["desc"] + (md["url"] if "url" in md else "")
-                })
+                app.logger.info(
+                    f"TBA announcement:\nTitle: {notification_json["message_data"]["title"]}\nDesc: {notification_json["message_data"]["desc"]}\nUrl: {notification_json["message_data"]["url"] if "url" in notification_json["message_data"] else "None"}"
+                )
+                send_generic_notification(
+                    {
+                        "title": f"TBA Broadcast: {md["title"]}",
+                        "body": md["desc"] + (md["url"] if "url" in md else ""),
+                    }
+                )
             case "verification":
                 app.logger.info(f"TBA webhook verification recieved")
-                send_generic_notification({
-                    "title": "TBA Webhook verification",
-                    "body": notification_json["message_data"]["verification_key"]
-                })
+                send_generic_notification(
+                    {
+                        "title": "TBA Webhook verification",
+                        "body": notification_json["message_data"]["verification_key"],
+                    }
+                )
                 return
         return
-            
+
     def rm_row_hash(hashes):
         """Deletes rows of data from the input csv by matching their hashes with the ones provided and then reprocesses the data"""
         hasty_hashes = set(hashes)  # set is O(1) trust
@@ -429,7 +477,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         else:
             lines = [message]
             append_lines_nofile(lines)
-            reload_js() # TODO: is this call redundant?
+            reload_js()  # TODO: is this call redundant?
 
     def mesh_listen():
         """Binds `handle_mesh_line` to the meshtastic port (listens for meshages)"""
@@ -442,11 +490,12 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @app.before_request
     def log_request():
         """logs the method and path of the request"""
-        if not "/notifyq" in request.path and not '/jobs' in request.path:  # that spam is annoying
+        if (
+            not "/notifyq" in request.path and not "/jobs" in request.path
+        ):  # that spam is annoying
             app.logger.info(f"{request.method} {request.path}")
         elif "/notifyq" in request.path:
             app.logger.info(f"Service worker polled queue")
-
 
     @app.errorhandler(Exception)
     def handle_exception(e):
@@ -458,7 +507,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     def handle_401(e):
         app.logger.warning(f"Tried to access page without login: {e.description}")
         return f"Error: unauthorized", 401
-    
+
     @app.errorhandler(403)
     def handle_403(e):
         app.logger.warning(f"Tried to access restricted page: {e.description}")
@@ -518,23 +567,17 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         if form.validate_on_submit():
             username = form.username.data
             password = form.password.data.strip()
-            if (
-                username == admin_login["un"]
-                and password == admin_login["pwd"]
-            ):
+            if username == admin_login["un"] and password == admin_login["pwd"]:
                 login_user(BigBrother())
                 return "Login Successful", 200
-            elif (
-                username == viewer_login["un"]
-                and password == viewer_login["pwd"]
-            ):
+            elif username == viewer_login["un"] and password == viewer_login["pwd"]:
                 login_user(Winston())
                 return "Login Successful", 200
             else:
                 return "Invalid Credentials", 401
         return render_template_style("login.html", form=form)
-    
-    @app.post('/login-ovr')
+
+    @app.post("/login-ovr")
     @require_json
     def login_override():
         if request.json and "key" in request.json:
@@ -544,7 +587,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             else:
                 return "Invalid credentials", 401
         return "No key", 401
-    
+
     @app.get("/explore")
     @login_required
     @require_admin
@@ -555,27 +598,26 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 for item in sorted(os.listdir(path)):
                     full_path = os.path.join(path, item)
                     if os.path.isdir(full_path):
-                        tree.append({
-                            "type": "folder",
-                            "name": item,
-                            "children": build_tree(full_path)
-                        })
+                        tree.append(
+                            {
+                                "type": "folder",
+                                "name": item,
+                                "children": build_tree(full_path),
+                            }
+                        )
                     else:
-                        tree.append({
-                            "type": "file",
-                            "name": item
-                        })
+                        tree.append({"type": "file", "name": item})
             except PermissionError:
                 pass
-            
-            tree.sort(key=lambda x: (
-                0 if x["type"] == "folder" else 1,
-                x["name"].lower()
-            ))
+
+            tree.sort(
+                key=lambda x: (0 if x["type"] == "folder" else 1, x["name"].lower())
+            )
 
             return tree
+
         return render_template_style("file-explorer.html", tree=build_tree("."))
-    
+
     @app.get("/edit-file")
     @login_required
     @require_admin
@@ -584,20 +626,20 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             filepath = request.args.get("filepath").strip()
             filepath = html.unescape(filepath)
             if os.path.exists(filepath) and os.path.isfile(filepath):
-                with open(filepath, 'r', encoding='utf-8') as r:
+                with open(filepath, "r", encoding="utf-8") as r:
                     content = r.read()
                 return render_template_style(
                     "edit-file.html",
                     file_path=filepath,
                     file_name=os.path.basename(filepath),
-                    file_content=content
+                    file_content=content,
                 )
             else:
                 return "Error, path does not exist", 400
         else:
             return "Invalid Request", 400
-        
-    @app.get('/view-file')
+
+    @app.get("/view-file")
     @login_required
     @require_admin
     def view_file():
@@ -610,18 +652,20 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 return "Error, path does not exist", 400
         else:
             return "Invalid Request", 400
-        
-    @app.post('/rename-file')
+
+    @app.post("/rename-file")
     @login_required
     @require_admin
     @require_json
     def rename_file():
-        if request.json and 'old' in request.json and 'new' in request.json:
-            oldf = request.json['old'].strip()
+        if request.json and "old" in request.json and "new" in request.json:
+            oldf = request.json["old"].strip()
             if not is_docker:
-                app.logger.warning(f"Tried to rename file {oldf}, only allowed in virtual container.")
+                app.logger.warning(
+                    f"Tried to rename file {oldf}, only allowed in virtual container."
+                )
                 return "Not allowed in local testing", 401
-            newf = request.json['new'].strip()
+            newf = request.json["new"].strip()
             newf = Path(oldf).with_name(newf).as_posix()
             if os.path.exists(oldf) and (os.path.isfile(oldf) or os.path.isdir(oldf)):
                 os.rename(oldf, newf)
@@ -630,7 +674,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 return "Error, path does not exist", 400
         else:
             return "Invalid Request", 400
-        
+
     @app.post("/delete-file")
     @login_required
     @require_admin
@@ -645,9 +689,13 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                     case _:
                         filepath = os.path.join("dataout", filepath)
             if not is_docker:
-                app.logger.warning(f"Tried to delete file {filepath}, only allowed in virtual container.")
+                app.logger.warning(
+                    f"Tried to delete file {filepath}, only allowed in virtual container."
+                )
                 return "Not allowed in local testing", 401
-            if os.path.exists(filepath) and (os.path.isfile(filepath) or os.path.isdir(filepath)):
+            if os.path.exists(filepath) and (
+                os.path.isfile(filepath) or os.path.isdir(filepath)
+            ):
                 if os.path.isfile(filepath):
                     os.remove(filepath)
                 elif os.path.isdir(filepath):
@@ -657,15 +705,21 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 return "Error, path does not exist", 400
         else:
             return "Invalid Request", 400
-    
-    @app.get('/jobs')
+
+    @app.get("/jobs")
     def jobs():
         return jsonify(Event.get_event_progress())
 
     @app.get("/我是谁")
     def whoami():
         if current_user.is_authenticated:
-            return jsonify({"logged_in": True, "username": current_user.id, "admin": current_user.is_admin})
+            return jsonify(
+                {
+                    "logged_in": True,
+                    "username": current_user.id,
+                    "admin": current_user.is_admin,
+                }
+            )
         return jsonify({"logged_in": False})
 
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
@@ -680,51 +734,69 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     def send_sw():
         """Passthrough for the service worker so that the client can fetch it"""
         return send_file("service_worker.js")
-    
-    @app.get('/pit')
+
+    @app.get("/pit")
     @login_required
     def pit_scout():
-        return render_template_style('pit-scouting.html')
-    
-    @app.get('/auton-simple')
+        return render_template_style("pit-scouting.html")
+
+    @app.get("/auton-simple")
     def auto_scout_simple():
-        return render_template_style('auton-scouting-simple.html')
-    
-    @app.post('/submit-pit')
+        return render_template_style("auton-scouting-simple.html")
+
+    @app.post("/submit-pit")
     @login_required
     @require_json
     def save_pit():
         if request and request.json:
             try:
                 csv_file = os.path.join("dataout", "output.csv" + "-pit-scouting.csv")
-                need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0 
-                with open(os.path.join("dataout", "output.csv" + "-pit-scouting.csv"), mode='a', newline='') as f:
+                need_write = (
+                    not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
+                )
+                with open(
+                    os.path.join("dataout", "output.csv" + "-pit-scouting.csv"),
+                    mode="a",
+                    newline="",
+                ) as f:
                     writer = csv.DictWriter(f, fieldnames=request.json.keys())
-                    if need_write: writer.writeheader()
+                    if need_write:
+                        writer.writeheader()
                     writer.writerow(request.json)
                 return "Success", 200
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Error: invalid request", 400
 
-    @app.post('/submit-auto-simple')
+    @app.post("/submit-auto-simple")
     @require_json
     def save_auto_simple():
         if request and request.json:
             try:
                 csv_file = os.path.join("dataout", "output.csv" + "-auton-scouting.csv")
-                need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
+                need_write = (
+                    not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
+                )
                 js: dict = request.json
                 was_pre = js.pop("wasPre") if "wasPre" in js else False
                 if os.path.exists(csv_file):
-                    with open(csv_file, mode='r', newline='') as r:
-                        matches_scouted = len(list(filter(lambda s: (f"{js["tn"]}" in s.strip()) and ((not was_pre) ^ ("Pre" in s.strip())), r.readlines())))
+                    with open(csv_file, mode="r", newline="") as r:
+                        matches_scouted = len(
+                            list(
+                                filter(
+                                    lambda s: (f"{js["tn"]}" in s.strip())
+                                    and ((not was_pre) ^ ("Pre" in s.strip())),
+                                    r.readlines(),
+                                )
+                            )
+                        )
                 else:
                     matches_scouted = 0
-                js = { "Match": f"{"Pre " if was_pre else ""}{matches_scouted + 1}" } | js
-                with open(csv_file, mode='a', newline='') as f:
+                js = {"Match": f"{"Pre " if was_pre else ""}{matches_scouted + 1}"} | js
+                with open(csv_file, mode="a", newline="") as f:
                     writer = csv.DictWriter(f, fieldnames=js.keys())
-                    if need_write: writer.writeheader()
+                    if need_write:
+                        writer.writeheader()
                     writer.writerow(js)
                 return "Success", 200
             except Exception as e:
@@ -768,7 +840,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
-        
+
     @app.post("/upload-alt")
     @login_required
     @require_admin
@@ -776,12 +848,15 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         try:
             if "data" in request.files and "name" in request.headers:
                 d_file = request.files["data"]
-                if d_file.filename != "" and request.headers.get("name", "").strip() != "":
+                if (
+                    d_file.filename != ""
+                    and request.headers.get("name", "").strip() != ""
+                ):
                     d_file.save(os.path.join("dataout", request.headers.get("name")))
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
-        
+
     @app.post("/upload-auto")
     @login_required
     def upload_auto():
@@ -796,7 +871,6 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             return "Error: invalid request", 400
         except Exception as e:
             return apputils.exception_format(e), 500
-                
 
     # RESTRICTED (uploads files = writes to server directory = bad)
     @app.post("/upload-photo")
@@ -833,20 +907,28 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             return "Data reloaded.", 200
         except Exception as e:
             return apputils.exception_format(e), 500
-        
-    @app.post('/tba-webhook')
+
+    @app.post("/tba-webhook")
     @require_json
     def consume_tba_webhook():
-        if not request.headers or "X-TBA-HMAC" not in request.headers or request.headers.get("X-TBA-HMAC") != tba_hmac:
+        if "message_type" not in request.json:
+            return "Invalid Request", 400
+        if (
+            not request.headers
+            or "X-TBA-HMAC" not in request.headers
+            or request.headers.get("X-TBA-HMAC") != hmac.new(tba_webhook_secret.encode('utf-8'), json.dumps(request.json, ensure_ascii=True).encode('utf-8'), hashlib.sha256).hexdigest()
+        ):
+            app.logger.warning(f"Invalid webhook: key = {request.headers.get('X-TBA-HMAC') if request.headers and 'X-TBA-HMAC' in request.headers else "None"}")
             return "", 401
-        if not request.json:
-            return "Invalid request", 400
         try:
             handle_tba_webhook(request.json)
+            return "", 200
         except Exception as e:
-            app.logger.exception(f"Error handling tba webhook: {apputils.exception_format(e)}")
+            app.logger.exception(
+                f"Error handling tba webhook: {apputils.exception_format(e)}"
+            )
             return apputils.exception_format(e), 500
-        
+
     # OPEN (grafana required)
     @app.get("/team-photo")
     def get_team_pics():
@@ -854,14 +936,12 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         if "team" in request.args:
             try:
                 files_match = list(
-                    Path("photos").glob(
-                        f"{request.args.get("team", 0).strip()}*.*"
-                    )
+                    Path("photos").glob(f"{request.args.get("team", 0).strip()}*.*")
                 )
                 try:
                     index = int(request.args.get("index", 0))
                 except:
-                    index = 0 # if not int
+                    index = 0  # if not int
                 files_match = list(map(lambda p: p.absolute().as_posix(), files_match))
                 return (
                     send_file(files_match[min(index, len(files_match))])
@@ -871,20 +951,70 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Error: invalid request", 400
-    
+
     @app.get("/team-photo-indicies")
     def get_team_indicies():
         if "team" in request.args:
             try:
-                max_idx = len(list(
-                    Path("photos").glob(
-                        f"{request.args.get("team", 0).strip()}*.*"
+                max_idx = len(
+                    list(
+                        Path("photos").glob(f"{request.args.get("team", 0).strip()}*.*")
                     )
-                ))
+                )
                 return jsonify(list(range(max_idx)))
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Error: invalid request", 400
+
+    @app.get("/take-notes")
+    @login_required
+    def take_notes():
+        return render_template_style("take-notes.html")
+
+    @app.get("/get-notes")
+    @login_required
+    def get_notes():
+        if all(x in request.headers for x in ["name", "match", "team", "pre"]):
+            path = os.path.join(
+                "notes",
+                html.unescape(request.headers["team"]),
+                html.unescape(request.headers["pre"] + request.headers["match"]),
+                html.unescape(request.headers["name"]) + ".txt",
+            )
+            if os.path.exists(path):
+                with open(path, "r") as r:
+                    return r.read()
+            else:
+                return "File not found", 400
+        else:
+            return "Invalid Request", 400
+        
+    @app.get('/note-tables')
+    def get_note_tables():
+        if "team" in request.args:
+            team = request.args["team"]
+            tn_path = os.path.join("notes", team)
+            if not os.path.isdir(tn_path):
+                return {}
+
+            table = []
+            for mn in os.listdir(tn_path):
+                mn_path = os.path.join(tn_path, mn)
+                if not os.path.isdir(mn_path):
+                    continue
+                row = {'Match': mn}
+                for file in os.listdir(mn_path):
+                    if file.endswith('.txt'):
+                        si = os.path.splitext(file)[0]
+                        file_path = os.path.join(mn_path, file)
+
+                        with open(file_path, 'r', encoding='utf-8') as r:
+                            row[si] = r.read()
+
+                table.append(row)
+            return table
+        else:
+            return "Invalid Request", 400
 
     # OPEN (grafana needs this)
     @app.get("/next-3")
@@ -1006,64 +1136,66 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             rm_row_hash(request.json["lines"])
             return "", 200
         return "Invalid request", 400
-    
-    @app.get('/auton-scout')
+
+    @app.get("/auton-scout")
     @login_required
     def auton_scout():
         return render_template_style("auton-scouting.html")
-    
+
     @app.get("/teams-in-match")
     @login_required
     def teams_in_match():
         if "mkey" in request.args:
-            _match = request.args.get('mkey', "")
+            _match = request.args.get("mkey", "")
             if not processor.has_sched_data:
-                return jsonify({
-                    'k': "",
-                    'r': [""] * 3,
-                    'b': [""] * 3
-                })
+                return jsonify({"k": "", "r": [""] * 3, "b": [""] * 3})
             for mat in processor.tba_data_static.schedule:
-                if mat['k'] == _match:
-                    return jsonify({
-                        'k': mat['k'],
-                        'r': list(map(int, mat['r'])),
-                        'b': list(map(int, mat['b']))
-                    })
+                if mat["k"] == _match:
+                    return jsonify(
+                        {
+                            "k": mat["k"],
+                            "r": list(map(int, mat["r"])),
+                            "b": list(map(int, mat["b"])),
+                        }
+                    )
             return "Error, match not in data", 404
         return "Error: invalid request", 400
-    
-    @app.get('/current-event')
+
+    @app.get("/current-event")
     @login_required
     def get_current_event():
         if not processor.has_sched_data:
             return "None"
         return processor.event_key
-    
+
     @app.get("/matches-in-comp")
     @login_required
     def matches_in_comp():
         if not processor.has_sched_data:
             return jsonify([])
-        return jsonify(list(map(lambda m: m['k'], processor.tba_data_static.schedule)))
+        return jsonify(list(map(lambda m: m["k"], processor.tba_data_static.schedule)))
 
     @app.get("/events-from-team")
     @login_required
     def events_from_team():
-        app.logger.info(f"Get events from team {app.config["TEAM"]} for year {processor.year}")
-        return jsonify(apputils.get_tba_events(auth_key, processor.year, app.config["TEAM"]))
+        app.logger.info(
+            f"Get events from team {app.config["TEAM"]} for year {processor.year}"
+        )
+        return jsonify(
+            apputils.get_tba_events(auth_key, processor.year, app.config["TEAM"])
+        )
 
     @app.post("/load-event-data")
     @login_required
     @require_admin
     def load_event_data():
         if "event" in request.headers:
-            event = request.headers.get('event', "").strip()
+            event = request.headers.get("event", "").strip()
             if event and event != "":
                 try:
                     run_async_task(processor.clear_database())
                     processor.event_key = event
-                    with open("last_loaded_event_key.txt", 'w') as w:
+                    with open("last_loaded_event_key.txt", "w") as w:
                         w.write(event)
                     run_async_task(processor.load_event_data())
                     run_async_task(processor.perform_periodic_calls())
@@ -1071,9 +1203,8 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 except Exception as e:
                     return apputils.exception_format(e), 500
             return "Invalid event key", 400
-        return "Error: invalid request", 400 
-            
-    
+        return "Error: invalid request", 400
+
     @app.post("/dash-reset")
     @login_required
     @require_admin
@@ -1083,8 +1214,8 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
-        
-    @app.post('/clear-datain-spreadsheet')
+
+    @app.post("/clear-datain-spreadsheet")
     @login_required
     @require_admin
     def clear_datain():
@@ -1093,8 +1224,8 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
-        
-    @app.post('/clear-db')
+
+    @app.post("/clear-db")
     @login_required
     @require_admin
     def clear_db():
@@ -1116,25 +1247,58 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             content = r.read()
         with open(os.path.join("config", "schema.json"), "r") as r:
             schema = r.read()
-        return render_template_style("edit-config.html", yaml_content=content, schema=schema)
-    
-    @app.post('/save-file')
+        return render_template_style(
+            "edit-config.html", yaml_content=content, schema=schema
+        )
+
+    @app.post("/save-file")
     @login_required
     @require_admin
     @require_json
     def save_file():
-        data = html.unescape(request.json.get("code", ""))
-        path = html.unescape(request.json.get("path", ""))
-        app.logger.info(f"Overwriting file {path}")
-        try:
-            if (os.path.exists(path) and os.path.isfile(path)):
-                with open(path, 'w') as f:
+        if request.json and "code" in request.json and "path" in request.json:
+            data = html.unescape(request.json.get("code", ""))
+            path = html.unescape(request.json.get("path", ""))
+            app.logger.info(f"Overwriting file {path}")
+            try:
+                if os.path.exists(path) and os.path.isfile(path):
+                    with open(path, "w") as f:
+                        f.write(data)
+                    return jsonify({"ok": True, "message": "Saved"})
+                else:
+                    return jsonify({"ok": False, "message": "File does not exist"})
+            except Exception as e:
+                return jsonify(
+                    {"ok": False, "message": f"Error: {apputils.exception_format(e)}"}
+                )
+        else:
+            return "Invalid Request", 400
+
+    @app.post("/save-notes")
+    @login_required
+    @require_json
+    def save_notes():
+        if all(x in request.json for x in ["team", "data", "name", "match", "pre"]):
+            data = html.unescape(request.json.get("data", ""))
+            team = html.unescape(request.json.get("team", ""))
+            name = html.unescape(request.json.get("name", ""))
+            pre = html.unescape(request.json.get("pre", ""))
+            match = pre + html.unescape(request.json.get("match", ""))
+            app.logger.info(
+                f"Saving notes for {team} match {match} from scouter {name}"
+            )
+            path = os.path.join("notes", team, match, name + ".txt")
+            os.makedirs(os.path.join("notes", team, match), exist_ok=True)
+            try:
+                with open(path, "w") as f:
                     f.write(data)
                 return jsonify({"ok": True, "message": "Saved"})
-            else:
-                return jsonify({"ok": False, "message": "File does not exist"})
-        except Exception as e:
-            return jsonify({"ok": False, "message": f"Error: {apputils.exception_format(e)}"})
+            except Exception as e:
+                return jsonify(
+                    {"ok": False, "message": f"Error: {apputils.exception_format(e)}"}
+                )
+        else:
+            return "Invalid Request", 400
 
     # RESTRICTED (overwrites field-config = bad)
     @app.post("/save-yaml")
@@ -1172,7 +1336,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         """Returns the app configuration for the editor at /edit-app-conf to read"""
         with open(os.path.join(app.root_path, "config", "app-config.json"), "r") as r:
             return jsonify(json.load(r))
-        
+
     @app.post("/get-log")
     @login_required
     @require_admin
@@ -1181,18 +1345,22 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             return "Error: invalid request", 400
         logfile = request.headers.get("log", "")
         if os.path.exists(os.path.join("log", "gunicorn", os.path.basename(logfile))):
-            with open(os.path.join("log", "gunicorn", os.path.basename(logfile)), 'r') as r:
+            with open(
+                os.path.join("log", "gunicorn", os.path.basename(logfile)), "r"
+            ) as r:
                 # TODO: more secure transfer
                 return r.read(), 200
         else:
-            return f"File {os.path.join("log", "gunicorn", os.path.basename(logfile))} does not exist", 400
-        
+            return (
+                f"File {os.path.join("log", "gunicorn", os.path.basename(logfile))} does not exist",
+                400,
+            )
+
     @app.get("/read-log")
     @login_required
     @require_admin
     def read_log():
         return render_template_style("view-logs.html")
-            
 
     # RESTRICTED (obviously don't want to share this)
     @app.get("/tba-key")
@@ -1200,7 +1368,7 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
     @require_admin
     def get_tba_key():
         """returns the current TBA api key and whether or not it is good"""
-        return jsonify({"key": auth_key, "good": apputils.test_tba_key(auth_key)})
+        return jsonify({"key": auth_key, "webkey": tba_webhook_secret, "good": apputils.test_tba_key(auth_key)})
 
     @app.get("/test-notification")
     @login_required
@@ -1252,6 +1420,22 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         except Exception as e:
             return apputils.exception_format(e), 500
 
+    @app.post('/set-tba-whook-key')
+    @login_required
+    @require_admin
+    @require_json
+    def set_tba_whook_key():
+        nonlocal tba_webhook_secret
+        try:
+            if request.json and request.json["key"]:
+                tba_webhook_secret = request.json["key"].strip()
+                apputils.set_tba_whook_key(tba_webhook_secret)
+                return "", 200
+            else:
+                return "Invalid Request", 400
+        except Exception as e:
+            return apputils.exception_format(e), 500
+
     # RESTRICTED (overwrites un/pwd = bad)
     @app.post("/set-admin-creds")
     @login_required
@@ -1274,8 +1458,8 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Invalid Request", 400
-    
-    @app.post('/set-viewer-creds')
+
+    @app.post("/set-viewer-creds")
     @login_required
     @require_admin
     @require_json
@@ -1283,15 +1467,18 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         nonlocal viewer_login
         if request and request.json:
             try:
-                un = request.json.get('un', viewer_login["un"])
-                pwd = (apputils.line_str_hash(request.json["pwd"]) if "pwd" in request.json else viewer_login["pwd"])
+                un = request.json.get("un", viewer_login["un"])
+                pwd = (
+                    apputils.line_str_hash(request.json["pwd"])
+                    if "pwd" in request.json
+                    else viewer_login["pwd"]
+                )
                 apputils.change_un_pwd_viewer(app.config["SECRET_KEY"], un, pwd)
-                viewer_login = { "un": un, "pwd": pwd }
+                viewer_login = {"un": un, "pwd": pwd}
                 return "Password change successful", 200
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Invalid Request", 400
-
 
     @app.get("/calc-team-score")
     @login_required
@@ -1317,10 +1504,14 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
         return render_template_style(
             "picklist.html",
             initTeam=app.config["TEAM"],
-            teams=filter(
-                lambda x: x != int(app.config["TEAM"]),
-                sorted([int(x) for x in processor.tba_data_static.teams]),
-            ) if processor.has_sched_data else [],
+            teams=(
+                filter(
+                    lambda x: x != int(app.config["TEAM"]),
+                    sorted([int(x) for x in processor.tba_data_static.teams]),
+                )
+                if processor.has_sched_data
+                else []
+            ),
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
@@ -1340,14 +1531,21 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                     json.dump(
                         request.json, w, indent=4
                     )  # indent=4 auto-formats the json with \t = 4 spaces
-                app.config.from_file(os.path.join(app.root_path, "config", "app-config.json"), load=json.load)
-                processor.year = app.config["YEAR"].split("_")[0] if "_" in app.config["YEAR"] else app.config["YEAR"]
+                app.config.from_file(
+                    os.path.join(app.root_path, "config", "app-config.json"),
+                    load=json.load,
+                )
+                processor.year = (
+                    app.config["YEAR"].split("_")[0]
+                    if "_" in app.config["YEAR"]
+                    else app.config["YEAR"]
+                )
                 processor.period_min = app.config["TBA_FETCH_PERIOD_MIN"]
                 if processor.has_sched_data and apputils.data_in_exists():
                     try:
-                        run_async_task(processor.proccess_data(
-                            infile
-                        )) # updated processor, so this
+                        run_async_task(
+                            processor.proccess_data(infile)
+                        )  # updated processor, so this
                         app.logger.info("Finished processing data.")
                         reload_js()
                     except Exception as e:
@@ -1386,7 +1584,41 @@ def create_app(inital_process = True, skip_last_opr_fetching_for_testing_because
                 "Content-Disposition": f"attachment; filename={os.path.basename(file)}"
             },
         )
+    
+    @app.get("/download-folder")
+    @login_required
+    def download_folder():
+        if request.headers and "path" in request.headers:
+            path = html.unescape(request.headers.get("path"))
+            temp_dir = tempfile.gettempdir()
+            zip_name = os.path.basename(path) + ".zip"
+            zip_path = os.path.join(temp_dir, zip_name)
+            shutil.make_archive(zip_path.replace('.zip', ''), 'zip', path)
+            return send_file(zip_path, as_attachment=True)
+        else:
+            return "Invalid Request", 400
+        
+    @app.post('/upload-folder')
+    @login_required
+    @require_admin
+    def upload_folder():
+        if "data" in request.files and "folderPath" in request.headers:
+            file = request.files["data"]
+            if file.filename == "":
+                return "Error, no selected file", 400
+            filename = file.filename
+            temp_dir = tempfile.gettempdir()
+            zip_path = os.path.join(temp_dir, filename)
+            file.save(zip_path)
 
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as r:
+                    r.extractall(request.headers["folderPath"])
+            except zipfile.BadZipFile:
+                return "Invalid Zip file", 400
+            return "File uploaded successfully", 200
+        return "Invalid Request", 400
+    
     # RESTRICTED (edits input data = bad)
     @app.get("/test-mesh")
     @login_required

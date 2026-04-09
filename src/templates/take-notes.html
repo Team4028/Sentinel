@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/button.css')}}">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/form.css')}}">
+    <title>Take Notes</title>
+    <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1e1e1e;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        html,
+        body,
+        #editor {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+
+        #backBtn {
+            position: absolute;
+            top: 10px;
+            right: 80px;
+            z-index: 10;
+        }
+
+        #saveBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 50px;
+            right: 20px;
+            z-index: 10;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+            font-size: large;
+        }
+
+        #status:empty {
+            display: none;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            position: relative;
+            width: 100%;
+            padding: 10px 12px;
+            margin-top: 5px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            border-color: color-mix(in srgb, var(--accent), white 20%);
+            box-shadow: 0 0 5px rgba(91, 155, 213, 0.5);
+            outline: none;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--accent);
+            color: var(--text);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        input[type="submit"]:hover {
+            opacity: 0.8;
+        }
+
+        #name-bd {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+        }
+
+        #name {
+            position: fixed;
+            z-index: 11;
+            width: 25%;
+            height: 25%;
+            left: 50%;
+            top: 50%;
+            background: #222;
+            border-radius: 10px;
+            color: white;
+            transform: translate(-50%, -50%);
+        }
+
+        #name input {
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        #top-bar {
+            width: 100%;
+            background: color-mix(in srgb, var(--accent) 50%, transparent);
+            height: 5%;
+            color: var(--text);
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #top-bar span {
+            color: var(--text);
+        }
+    </style>
+</head>
+
+<body>
+    <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
+    <button class="sbutton" id="backBtn" onclick="window.goBack();" title="Ctrl+Backspace">Back</button>
+    <button class="sbutton" id="saveBtn" title="Ctrl+S">Save</button>
+    <div id="top-bar">
+        <div>Name: <span id="namespan"></span></div>
+        <div>Team: <span id="teamspan"></span></div>
+        <div>Match: <span id="matchspan"></span></div>
+        <div>Prescouting: <span id="prespan"></span></div>
+    </div>
+    <div id="status"></div>
+    <div id="editor"></div>
+    <div id="name-bd" hidden></div>
+    <div id="name" hidden>
+        <h2>Notes for...</h2>
+        <input type="text" id="name-input" autocomplete="off" placeholder="Enter your name...">
+        <input type="number" id="team-input" min="1" step="1" autocomplete="off" placeholder="Enter team number..." />
+        <input type="number" id="match-input" min="1" step="1" autocomplete="off" placeholder="Enter match number...">
+        <label style="display: flex; gap: 10px; align-items: center; justify-content: center; text-align: center;">
+            <input class="cinput" type="checkbox" id="is-pre" autocomplete="off"><span> Pre scouting?</span></label>
+        <input type="submit" id="name-sub" title="Submit">
+    </div>
+    <!-- oh yes i did -->
+    <!-- loads in monaco (basically vscode web)  -->
+    <script src="{{url_for('static', filename='monaco-editor/0.44.0/min/vs/loader.js')}}"></script>
+    <script>
+        // configuer monaco
+        require.config({ paths: { vs: "{{url_for('static', filename='monaco-editor/0.44.0/min/vs')}}" } });
+        const nameInput = document.getElementById("name-input");
+        const teamInput = document.getElementById("team-input");
+        const matchInput = document.getElementById("match-input");
+        const preInput = document.getElementById("is-pre");
+        const nameSpan = document.getElementById("namespan");
+        const teamSpan = document.getElementById("teamspan");
+        const matchSpan = document.getElementById("matchspan");
+        const preSpan = document.getElementById("prespan");
+        const nameCard = document.getElementById("name");
+        const nameBD = document.getElementById("name-bd");
+        let { scouterName, isPre } = getNameFromLocalStorage();
+        let teamNumber = "";
+        let matchNumber = "";
+        require(['vs/editor/editor.main'], function () {
+
+            window.editor = monaco.editor.create(document.getElementById('editor'), {
+                value: "",
+                theme: 'vs-dark',
+                language: "plaintext",
+                tabSize: 4,
+                insertSpaces: true,
+                detectIndentation: false,
+                automaticLayout: true
+            });
+
+            window.editor.onDidChangeModelContent(() => {
+                const current = window.editor.getValue();
+                dirty = current !== lastSaved;
+                saveBtn.innerHTML = dirty ? "Save &#9679" : "Save"; // add a dot if unsaved
+            });
+        });
+
+        let lastSaved = "";
+        // dirty = unsaved changes (its a git term)
+        let dirty = false;
+
+        const saveBtn = document.getElementById('saveBtn');
+        const statusDiv = document.getElementById('status');
+
+        window.addEventListener("keydown", ev => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") {
+                ev.preventDefault();
+                saveFile();
+            } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace" && document.activeElement.id !== "editor" && document.activeElement.tagName.toLowerCase() !== "input") {
+                ev.preventDefault();
+                window.goBack();
+            } else if (ev.key === "Enter" && [nameInput, teamInput, matchInput].includes(document.activeElement)) {
+                submitNameTeamMatch();
+            }
+        });
+
+        saveBtn.addEventListener('click', () => {
+            saveFile();
+        });
+
+        teamInput.addEventListener("input", () => {
+            if (parseInt(teamInput.value) < 1) {
+                teamInput.value = '1';
+            }
+
+            if (parseFloat(teamInput.value) % 1 !== 0) {
+                teamInput.value = new String(Math.trunc(parseFloat(teamInput.value)));
+            }
+        });
+
+        matchInput.addEventListener("input", () => {
+            if (parseInt(matchInput.value) < 1) {
+                matchInput.value = '1';
+            }
+
+            if (parseFloat(matchInput.value) % 1 !== 0) {
+                matchInput.value = new String(Math.trunc(parseFloat(matchInput.value)));
+            }
+        });
+
+        function submitNameTeamMatch() {
+            scouterName = nameInput.value;
+            nameSpan.innerText = scouterName;
+            teamNumber = teamInput.value;
+            teamSpan.innerText = teamNumber;
+            matchNumber = matchInput.value;
+            matchSpan.innerText = matchNumber;
+            isPre = preInput.checked;
+            preSpan.innerText = isPre ? "Yes" : "No";
+            writeNameToLocalStorage();
+            nameCard.hidden = true;
+            nameBD.hidden = true;
+            getNotes();
+        }
+
+        function getNameFromLocalStorage() {
+            return {
+                scouterName: localStorage.getItem("name") ?? "",
+                isPre: localStorage.getItem("pre") ?? false
+            }
+        }
+
+        function writeNameToLocalStorage() {
+            localStorage.setItem("name", scouterName);
+            localStorage.setItem("pre", isPre);
+        }
+
+        document.getElementById("name-sub").addEventListener('click', () => {
+            submitNameTeamMatch();
+        });
+
+        document.getElementById("top-bar").addEventListener("click", e => {
+
+            nameCard.hidden = false;
+            nameBD.hidden = false;
+
+            if (scouterName !== "") {
+                nameInput.value = scouterName;
+                if (teamNumber !== "") {
+                    if (matchNumber !== "") matchInput.select();
+                    matchInput.focus();
+                } else
+                    teamInput.focus();
+            } else {
+                nameInput.focus();
+            }
+            e.preventDefault();
+        });
+
+        preInput.checked = isPre;
+
+        if (scouterName !== "") {
+            nameInput.value = scouterName;
+            teamInput.focus();
+        } else {
+            nameInput.focus();
+        }
+
+        nameCard.hidden = false;
+        nameBD.hidden = false;
+
+        async function getNotes() {
+            const res = await fetch("{{url_for('get_notes')}}", {
+                method: "GET",
+                headers: {
+                    "team": teamNumber,
+                    "match": matchNumber,
+                    "name": scouterName,
+                    "pre": isPre ? "Pre&#32;" : "" // use &#32; because trailing ' ' gets trimmed by header
+                }
+            });
+
+            if (res.ok) {
+                statusDiv.innerText = "Loaded";
+                statusDiv.style.color = "green";
+                lastSaved = await res.text();
+                window.editor.setValue(lastSaved);
+                saveBtn.innerHTML = "Save";
+                dirty = false;
+                setTimeout(() => statusDiv.innerText = "", 2000);
+            } else {
+                const t = await res.text();
+                if (t === "File not found") {
+                    statusDiv.innerText = "New note";
+                    statusDiv.style.color = "white";
+                    setTimeout(() => statusDiv.innerText = "", 2000);
+                } else {
+                    statusDiv.innerText = "Error: " + t;
+                    statusDiv.style.color = "red";
+                }
+                window.editor.setValue("");
+                lastSaved = "";
+                dirty = false;
+                saveBtn.innerHTML = "Save";
+            }
+        }
+
+        async function saveFile() {
+            const code = window.editor.getValue();
+            if (scouterName === "" || teamNumber === "" || matchNumber === "") {
+                alert("Error, name or team number or match number unset");
+                return;
+            }
+            try {
+                const res = await fetch("{{url_for('save_notes')}}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        "data": code,
+                        "name": scouterName,
+                        "team": teamNumber,
+                        "match": matchNumber,
+                        "pre": (isPre ? "Pre " : "")
+                    })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    statusDiv.innerText = "Saved";
+                    statusDiv.style.color = "green";
+                    lastSaved = code;
+                    saveBtn.innerHTML = "Save";
+                    dirty = false;
+                    setTimeout(() => statusDiv.innerText = "", 2000); // clear after 2 seconds
+                } else {
+                    statusDiv.innerText = "Error: " + data.message;
+                    statusDiv.style.color = "red";
+                }
+            } catch (err) {
+                statusDiv.innerText = "Network error";
+                statusDiv.style.color = "red";
+            }
+        }
+    </script>
+    <script src="{{url_for('static', filename='js/register-sw.js')}}"
+        onload="registerServiceWorker('/service_worker.js')"></script>
+</body>
+
+</html>

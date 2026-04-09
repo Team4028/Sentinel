@@ -587,7 +587,7 @@ class Processor:
         try:
             logger.info("Loading TBA data...")
             self.tba_data_dyn = apputils.load_tba_data_dynamic(
-                self.event_key, self.tba_key, self.tba_data_static.teams
+                self.event_key, self.tba_key, self.config_data, self.tba_data_static.teams
             )
             Event.current_handle_index_progress = 0.33
             logger.info("Loading Statbotics EPAs...")
@@ -735,7 +735,7 @@ class Processor:
             self.__teams.items()
         ):  # _teams is a dict with team: TeamStruct (ex. {422: TeamData()})
             # bind each team to the dict serialization of its cooresponding struct
-            df.append({"Team": k} | v.output_dict(self.config_data) | get_coprs_safe(int(team)))
+            df.append({"Team": k} | v.output_dict(self.config_data) | get_coprs_safe(int(k)))
 
         if len(df) <= 0:
             logger.warning("No team fields")
@@ -748,12 +748,16 @@ class Processor:
             fields_to_write.remove("Team")
             for team in df:
                 for field in fields_to_write:
-                    conn.execute(
-                        f"""
-                        INSERT OR REPLACE INTO teams_fields (team_key, field_name, field_value) VALUES (?, ?, ?)
-                    """,
-                        (team["Team"], field, str(team[field])),
-                    )
+                    try:
+                        conn.execute(
+                            f"""
+                            INSERT OR REPLACE INTO teams_fields (team_key, field_name, field_value) VALUES (?, ?, ?)
+                        """,
+                            (team["Team"], field, str(team[field])),
+                        )
+                    except KeyError as ke:
+                        logger.info(f"TEAM ERROR: {team}")
+                        raise ke from None
 
         Event.current_handle_index_progress = 1.0
 

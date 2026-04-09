@@ -5,6 +5,17 @@ function stimulateSW(worker) {
     });
 }
 
+navigator.serviceWorker.addEventListener("message", async (message) => {
+    if (message.data?.type === "COPY_CLIP") {
+        try {
+            await navigator.clipboard.writeText(message.data.text);
+            console.log("Copied from SW!");
+        } catch (err) {
+            console.error("Failed to copy message: ", err);
+        }
+    }
+});
+
 function registerServiceWorker(serviceWorkerUrl) {
     let swRegistration = null;
     if ('serviceWorker' in navigator && 'PushManager' in window) {

@@ -14,13 +14,18 @@ class JobStatus extends HTMLElement {
                 left: 10px;
                 width: 250px;
                 padding: 5px;
+                border-radius: 5px;
                 border: 1px solid #333;
                 background: #222;
                 color: #fff;
                 z-index: 9999;
             }
+            .jobs:empty {
+                background: none;
+                border: none;
+            }
             </style>
-            <div id='j*b-status'></div>
+            <div id='j*b-status' class='jobs'></div>
         `;
 
         setInterval(this.getUpdateEventStatuses.bind(this), 1000);
@@ -31,10 +36,10 @@ class JobStatus extends HTMLElement {
         const container = this.kage.getElementById("j*b-status");
         container.innerHTML = "";
         for (const [name, status] of Object.entries(res)) {
-            const wrapper = this.kage.createElement("div");
+            const wrapper = document.createElement("div");
             wrapper.style.marginBottom = "6px";
 
-            const label = this.kage.createElement("div");
+            const label = document.createElement("div");
             label.innerText = `${
                 Object.keys(status).includes("error") ? "🔴" : (
                 status["status"] === "done" ? "🟢" : (
@@ -44,7 +49,7 @@ class JobStatus extends HTMLElement {
                 ))}${name} (${(status["prog"] * 100).toFixed(2)}%)`;
             label.style.marginBottom = "2px";
 
-            const mini = this.kage.createElement("h4");
+            const mini = document.createElement("h4");
             mini.style.color = "#666";
             mini.style.padding = 0;
             mini.style.margin = 0;
@@ -55,14 +60,14 @@ class JobStatus extends HTMLElement {
             } else
                 mini.innerText = status["step"];
 
-            const barOuter = this.kage.createElement("div");
+            const barOuter = document.createElement("div");
             barOuter.style.background = "#555";
             barOuter.style.width = "100%";
             barOuter.style.height = "16px";
             barOuter.style.borderRadius = "4px";
             barOuter.style.overflow = "hidden";
 
-            const barInner = this.kage.createElement("div");
+            const barInner = document.createElement("div");
             barInner.style.background = "#4caf50";
             barInner.style.width = `${status["prog"] * 100}%`;
             barInner.style.height = "100%";

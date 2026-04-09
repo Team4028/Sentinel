@@ -198,6 +198,10 @@
             TBA API Key
             <input type="text" class="no-white-border" id="tbakey">
         </label>
+        <label title="TBA HMAC key for webhooks">
+            TBA Webhook Key
+            <input type="text" id="webkey">
+        </label>
         <label title="TBA Key cooresponding to the current loaded event" style="text-align: center;">
             Event Key: <h2 id="eventKey"></h2>
         </label>
@@ -308,6 +312,7 @@
     <job-status></job-status>
     <script>
         const tbakey = document.getElementById("tbakey");
+        const webkey = document.getElementById("webkey");
         const acolor = document.getElementById("acola");
         const tcolor = document.getElementById("tcolor");
         const year = document.getElementById("game-year");
@@ -522,6 +527,7 @@
             if (!tbares.ok) return;
             const tbajson = await tbares.json();
             tbakey.value = tbajson["key"];
+            webkey.value = tbajson["webkey"];
             tbakey.style.borderColor = tbajson["good"] ? "#0a0" : "#a00";
         }
 
@@ -620,12 +626,10 @@
                 body: JSON.stringify({ key: tbakey.value })
             });
 
-            clearInterval(loader);
-            setTitleSuffix("");
-
+            
             if (!tbares.ok) {
                 const rtxt = await tbares.text();
-                if (rtxt == "Bad TBA key") {
+                if (rtxt === "Bad TBA key") {
                     tbakey.style.borderColor = "#a00";
                     return;
                 } else {
@@ -635,6 +639,21 @@
                 return;
             } else {
                 tbakey.style.borderColor = "#0a0";
+            }
+            
+            statusDiv.innerText = "Setting Webhook key...";
+            const webres = await fetch("{{url_for('set_tba_whook_key')}}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ key: webkey.value })
+            });
+            
+            if (!webres.ok) {
+                const rtext = await webres.text();
+                statusDiv.style.color = "#a00";
+                statusDiv.innerHTML = `Update webhook key: ${rtext}`;
             }
 
             const json = {
@@ -661,6 +680,9 @@
                 },
                 body: JSON.stringify(json)
             });
+
+            clearInterval(loader);
+            setTitleSuffix("");
 
             if (res.ok) {
                 statusDiv.style.color = "#0a0";

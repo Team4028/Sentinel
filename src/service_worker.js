@@ -11,16 +11,30 @@ function checkNotifications() {
             'Content-Type': 'application/json',
             'X-Cid': cid
         }
-    }).then(res => {
-        if (res.ok && res.status === 200) // do nothing if 204
-            res.json().then(json => {
-                console.log(`SEND ${JSON.stringify(json)}`);
-                if ("title" in json) {
-                    const title = json["title"];
-                    delete json.title;
-                    self.registration.showNotification(title, json);
+    }).then(async res => {
+        if (res.ok && res.status === 200) { // do nothing if 204
+            const json = await res.json();
+            console.log(`SEND ${JSON.stringify(json)}`);
+            if ("title" in json) {
+                const title = json["title"];
+                if (title === "TBA Webhook verification") {
+                    const body = json["body"] ?? "";
+                    const cls = await clients.matchAll({type: 'window'});
+                    for (const client of cls) {
+                        client.postMessage({
+                            type: "COPY_CLIP",
+                            text: body
+                        });
+                    }
+                    self.registration.showNotification("Clipboard", {
+                        body: `Copied text ${body} to clipboard`,
+                        icon: json["icon"] ?? ""
+                    });
                 }
-            }).catch(() => { });
+                delete json.title;
+                self.registration.showNotification(title, json);
+            }
+        }
     }).catch((e) => { console.log(`Error: ${e}`) });
 }
 

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html style="height: 100%;">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Team Comparison</title>
+    <style>
+
+        :root {
+            --text: {{text}};
+            --accent: {{accent}};
+        }
+
+        body {
+            width: 100%;
+            margin: 0;
+            height: 100%;
+            background-color: #222;
+            box-sizing: border-box;
+        }
+
+        .team-cont-cont {
+            justify-content: space-evenly;
+            display: flex;
+            height: 20%;
+            aspect-ratio: 5 / 1;
+            width: 100%;
+            margin-bottom: 10px;
+            gap: 20px;
+        }
+
+        .ifr-cont {
+            justify-content: space-evenly;
+            display: flex;
+            width: 100%;
+            height: 75%;
+        }
+
+        .team-cont {
+            border-radius: 12px;
+            background-color: #333;
+            position: relative;
+            border: 1px solid #252525;
+            color: #ccc;
+            width: 20%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .team-label {
+            user-select: none;
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .team-spawner {
+            border-radius: 12px;
+            background-color: #333;
+            border: 1px solid #252525;
+            color: #ccc;
+            display: flex;
+            flex-direction: column;
+            min-width: 40%;
+            justify-content: baseline;
+            align-items: center;
+            text-align: center;
+            height: 100%;
+        }
+
+        .team-spawner-inner {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            display: block;
+            padding: 10px 12px;
+            margin-top: 5px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: color-mix(in srgb, var(--accent), white 20%);
+            box-shadow: 0 0 5px rgba(91, 155, 213, 0.5);
+            outline: none;
+        }
+
+        select {
+            display: block;
+            pointer-events: auto;
+            background: var(--panel);
+            color: var(--text);
+            height: 0px;
+            transition: height 0.2s ease;
+            border: none;
+            outline: none;
+            scrollbar-width: none;
+        }
+
+        .team-spawner:has(input:focus) select {
+            height: 100px;
+            scrollbar-width: auto;
+        }
+
+        .team-div {
+            height: 100px;
+            width: 100px;
+            border-radius: 10px;
+            border: 5px solid var(--accent);
+            background-color: transparent;
+            color: #ccc;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            cursor: move;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="team-cont-cont">
+        <div class="team-cont" id="team1">
+            <label class="team-label">T1</label>
+        </div>
+        <div class="team-cont" id="team2">
+            <label class="team-label">T2</label>
+        </div>
+        <div class="team-cont" id="team3">
+            <label class="team-label">T3</label>
+        </div>
+        <div class="team-spawner">
+            <input type="text" placeholder="Team..." id="team-search">
+            <select id="teamslist" size="6">
+                {% for team in teams %}
+                <option>{{team}}</option>
+                {% endfor %}
+            </select>
+            <div class="team-spawner-inner"></div>
+        </div>
+    </div>
+    <div class="ifr-cont">
+        <iframe style="width: 33%; height: 100%; display: inline-block; margin: 0;" frameborder="0" id="team-ifr-1"></iframe>
+        <iframe style="width: 33%; height: 100%; display: inline-block; margin: 0;" frameborder="0" id="team-ifr-2"></iframe>
+        <iframe style="width: 33%; height: 100%; display: inline-block; margin: 0;" frameborder="0" id="team-ifr-3"></iframe>
+    </div>
+    <script>
+        const dashes = JSON.parse(`{{dashes | safe}}`);
+        const ifr1 = document.getElementById("team-ifr-1");
+        const ifr2 = document.getElementById("team-ifr-2");
+        const ifr3 = document.getElementById("team-ifr-3");
+        const search = document.getElementById("team-search");
+        const select = document.getElementById("teamslist");
+        const spawn = document.querySelector(".team-spawner-inner");
+        const team1 = document.getElementById("team1");
+        const team2 = document.getElementById("team2");
+        const team3 = document.getElementById("team3");
+        let lastt1, lastt2, lastt3;
+        let draggingDiv = null;
+        let lastParent = null;
+
+        search.addEventListener("input", () => {
+            const q = search.value.toLowerCase();
+            for (const opt of select.options) {
+                opt.hidden = !opt.innerText.toLowerCase().startsWith(q);
+            }
+        });
+
+        [...select.children].forEach(c => {
+            c.addEventListener("mousedown", e => {
+                const d = document.createElement("div");
+                d.classList.add("team-div");
+                d.draggable = true;
+                const span = document.createElement("span");
+                span.innerText = c.innerText;
+                d.appendChild(span);
+                spawn.appendChild(d);
+                c.remove();
+        });});
+
+        [...document.querySelectorAll(".team-cont")].concat(spawn.parentElement).forEach(tc => {
+            tc.addEventListener("dragover", e => {
+                e.preventDefault();
+                if (!draggingDiv) return;
+                const list = [...tc.querySelectorAll(".team-div")].filter(d => !d.classList.contains("dragging"));
+                tc.addEventListener("dragend", e => {
+                    if (!lastParent) return;
+                    for (const team of list) {
+                        team.remove();
+                        lastParent.appendChild(team);
+                    }
+                    setIframeSRCs();
+                }, {once: true});
+                if (tc === spawn.parentElement)
+                    spawn.appendChild(draggingDiv);
+                else tc.appendChild(draggingDiv);
+            });
+        });
+
+        document.addEventListener("dragstart", (e) => {
+            if (e.target.tagName !== "DIV") return;
+            draggingDiv = e.target;
+            lastParent = e.target.parentElement;
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", "");
+            draggingDiv.classList.add("dragging");
+        });
+        
+        document.addEventListener("dragend", () => {
+            if (!draggingDiv) return;
+            draggingDiv.classList.remove("dragging");
+            draggingDiv = null;
+            lastParent = null;
+        });
+
+        function setIframeSRCs() {
+            let team1team;
+            if (team1team = team1.querySelector(".team-div")) {
+                if (!lastt1 || lastt1 !== team1team) {
+                    ifr1.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=${team1team.querySelector("span").innerText}&kiosk&refresh=30s`;
+                    lastt1 = team1team;
+                }
+            }
+            let team2team;
+            if (team2team = team2.querySelector(".team-div")) {
+                if (!lastt2 || lastt2 !== team2team) {
+                    ifr2.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=${team2team.querySelector("span").innerText}&kiosk&refresh=30s`;
+                    lastt2 = team2team;
+                }
+            }
+            let team3team;
+            if (team3team = team3.querySelector(".team-div")) {
+                if (!lastt3 || lastt3 !== team3team) {
+                    ifr3.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=${team3team.querySelector("span").innerText}&kiosk&refresh=30s`;
+                    lastt3 = team3team;
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

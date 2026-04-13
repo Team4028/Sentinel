@@ -1,7 +1,7 @@
 {
     "ACCENT_COLOR": "#8307b0",
     "TEXT_COLOR": "#ffffff",
-    "GRAFANA_URL": "http://localhost:3005",
+    "GRAFANA_URL": "http://localhost:3000",
     "TBA_FETCH_PERIOD_MIN": 10,
     "YEAR": "2026_subjective",
     "TEAM": "4028",

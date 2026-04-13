@@ -162,9 +162,13 @@ def create_app(
     # Load Auth Keys
     # =======================================================
 
-    admin_login, viewer_login, app.config["SECRET_KEY"], auth_key, tba_webhook_secret = (
-        apputils.read_secrets()
-    )
+    (
+        admin_login,
+        viewer_login,
+        app.config["SECRET_KEY"],
+        auth_key,
+        tba_webhook_secret,
+    ) = apputils.read_secrets()
 
     # =======================================================
     # Parse field config and setup processor
@@ -916,9 +920,16 @@ def create_app(
         if (
             not request.headers
             or "X-TBA-HMAC" not in request.headers
-            or request.headers.get("X-TBA-HMAC") != hmac.new(tba_webhook_secret.encode('utf-8'), json.dumps(request.json, ensure_ascii=True).encode('utf-8'), hashlib.sha256).hexdigest()
+            or request.headers.get("X-TBA-HMAC")
+            != hmac.new(
+                tba_webhook_secret.encode("utf-8"),
+                json.dumps(request.json, ensure_ascii=True).encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest()
         ):
-            app.logger.warning(f"Invalid webhook: key = {request.headers.get('X-TBA-HMAC') if request.headers and 'X-TBA-HMAC' in request.headers else "None"}")
+            app.logger.warning(
+                f"Invalid webhook: key = {request.headers.get('X-TBA-HMAC') if request.headers and 'X-TBA-HMAC' in request.headers else "None"}"
+            )
             return "", 401
         try:
             handle_tba_webhook(request.json)
@@ -988,8 +999,8 @@ def create_app(
                 return "File not found", 400
         else:
             return "Invalid Request", 400
-        
-    @app.get('/note-tables')
+
+    @app.get("/note-tables")
     def get_note_tables():
         if "team" in request.args:
             team = request.args["team"]
@@ -1002,13 +1013,13 @@ def create_app(
                 mn_path = os.path.join(tn_path, mn)
                 if not os.path.isdir(mn_path):
                     continue
-                row = {'Match': mn}
+                row = {"Match": mn}
                 for file in os.listdir(mn_path):
-                    if file.endswith('.txt'):
+                    if file.endswith(".txt"):
                         si = os.path.splitext(file)[0]
                         file_path = os.path.join(mn_path, file)
 
-                        with open(file_path, 'r', encoding='utf-8') as r:
+                        with open(file_path, "r", encoding="utf-8") as r:
                             row[si] = r.read()
 
                 table.append(row)
@@ -1368,7 +1379,13 @@ def create_app(
     @require_admin
     def get_tba_key():
         """returns the current TBA api key and whether or not it is good"""
-        return jsonify({"key": auth_key, "webkey": tba_webhook_secret, "good": apputils.test_tba_key(auth_key)})
+        return jsonify(
+            {
+                "key": auth_key,
+                "webkey": tba_webhook_secret,
+                "good": apputils.test_tba_key(auth_key),
+            }
+        )
 
     @app.get("/test-notification")
     @login_required
@@ -1420,7 +1437,7 @@ def create_app(
         except Exception as e:
             return apputils.exception_format(e), 500
 
-    @app.post('/set-tba-whook-key')
+    @app.post("/set-tba-whook-key")
     @login_required
     @require_admin
     @require_json
@@ -1497,6 +1514,19 @@ def create_app(
             if int(team) in processor.tba_data_static.teams:
                 sum += processor.get_team_pred_score(team)
         return jsonify({"score": round(sum)})
+
+    @app.get("/multi-team-view")
+    @login_required
+    def multi_view():
+        return render_template_style(
+            "multi-team-view.html",
+            teams=(sorted([int(x) for x in processor.tba_data_static.teams])
+                if processor.has_sched_data
+                else []
+            ),
+            dashes=json.dumps(DASHBOARD_UIDS),
+            grafana_base=app.config["GRAFANA_URL"] + "/d/",
+        )
 
     @app.get("/picklist")
     @login_required
@@ -1584,7 +1614,7 @@ def create_app(
                 "Content-Disposition": f"attachment; filename={os.path.basename(file)}"
             },
         )
-    
+
     @app.get("/download-folder")
     @login_required
     def download_folder():
@@ -1593,12 +1623,12 @@ def create_app(
             temp_dir = tempfile.gettempdir()
             zip_name = os.path.basename(path) + ".zip"
             zip_path = os.path.join(temp_dir, zip_name)
-            shutil.make_archive(zip_path.replace('.zip', ''), 'zip', path)
+            shutil.make_archive(zip_path.replace(".zip", ""), "zip", path)
             return send_file(zip_path, as_attachment=True)
         else:
             return "Invalid Request", 400
-        
-    @app.post('/upload-folder')
+
+    @app.post("/upload-folder")
     @login_required
     @require_admin
     def upload_folder():
@@ -1612,13 +1642,13 @@ def create_app(
             file.save(zip_path)
 
             try:
-                with zipfile.ZipFile(zip_path, 'r') as r:
+                with zipfile.ZipFile(zip_path, "r") as r:
                     r.extractall(request.headers["folderPath"])
             except zipfile.BadZipFile:
                 return "Invalid Zip file", 400
             return "File uploaded successfully", 200
         return "Invalid Request", 400
-    
+
     # RESTRICTED (edits input data = bad)
     @app.get("/test-mesh")
     @login_required

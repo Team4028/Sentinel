@@ -1,4 +1,5 @@
 import hashlib
+import re
 import time
 import zipfile
 from flask import (
@@ -448,7 +449,12 @@ def create_app(
     def save_photo(filestorage, team: str):
         """saves the given filestorage to PHOTO_STORAGE/{team}.ext where ext is the extension of filestorage"""
         ext = os.path.splitext(filestorage.filename)[1].lower()  # . + type (ex: .png)
-        file_save = os.path.join("photos", team + ext)
+        pattern = re.compile(rf'^{re.escape(team)}-\d+.*$')
+        files_there = []
+        for path in Path('photos').glob('*'):
+            if path.is_file() and pattern.match(path.name):
+                files_there.append(path)
+        file_save = os.path.join("photos", f"{team}-{len(files_there)}{ext}")
         filestorage.save(file_save)
 
     def save_auto(filestorage, match: str):

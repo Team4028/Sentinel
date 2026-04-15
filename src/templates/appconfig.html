@@ -255,8 +255,8 @@
         <h3>Set New Username and Password</h3>
         <div id="adminviewersw">
             <div id="setslider"></div>
-            <span id="setadmin">Admin</span>
             <span id="setviewer">Viewer</span>
+            <span id="setadmin">Admin</span>
         </div>
         <label>
             Username
@@ -270,7 +270,7 @@
                 onclick="document.getElementById('new-pwd').setAttribute('type', document.getElementById('new-pwd').getAttribute('type') == 'text' ? 'password' : 'text')">
             <input type="password" id="new-pwd">
         </label>
-        <button class="sbutton" onclick="setCred()" title="Ctrl+P">Set</button>
+        <button class="sbutton" onclick="setCred()" title="Ctrl+P">Add or Overwrite</button>
         <br><br>
         <button class="sbutton" onclick="confirmDialouge.confirmModal('This will <i>PERMANENTLY</i> delete all Grafana formatting changed since app deployment.', resetDash)">Reset Dashboard</button>
         <button class="sbutton" id="delete-button">Delete File</button>
@@ -310,6 +310,7 @@
         <button class="sbutton" onclick="window.goBack();" title="Ctrl+Backspace">Back</button>
     </div>
     <job-status></job-status>
+    <script src="{{url_for('static', filename='js/sha256.js')}}"></script>
     <script>
         const tbakey = document.getElementById("tbakey");
         const webkey = document.getElementById("webkey");
@@ -351,7 +352,7 @@
             })
         }
 
-        let selectedCredSet = "admin";
+        let selectedCredSet = "viewer";
         const creds = ["admin", "viewer"];
 
         function loaderSlideOutAnim(card) {
@@ -534,19 +535,11 @@
         async function setCred() {
             const json = {
                 "un": newUN.value,
-                "pwd": newPWD.value
+                "pwd": await window.sha256(newPWD.value),
+                "isadmin": selectedCredSet === "admin"
             }
 
-            let url = "";
-
-            switch (selectedCredSet) {
-                case "admin":
-                    url = "{{url_for('set_admin_creds')}}";
-                    break;
-                case "viewer":
-                    url = "{{url_for('set_viewer_creds')}}";
-                    break;
-            }
+            let url = "{{url_for('set_creds')}}";
 
             const res = await fetch(url, {
                 method: "POST",
@@ -709,10 +702,10 @@
             if (creds.includes(selectedCredSet)) {
                 switch (selectedCredSet) {
                     case "admin":
-                        setslider.style.left = "0%";
+                        setslider.style.left = "50%";
                         break;
                     case "viewer":
-                        setslider.style.left = "50%";
+                        setslider.style.left = "0%";
                         break;
                 }
             }

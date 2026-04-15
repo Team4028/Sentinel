@@ -32,7 +32,7 @@ class JobStatus extends HTMLElement {
     }
 
     async getUpdateEventStatuses() {
-        const res = await (await fetch("/jobs")).json();
+        const res = await (await fetch("/jobs", {credentials: 'include'})).json();
         const container = this.kage.getElementById("j*b-status");
         container.innerHTML = "";
         for (const [name, status] of Object.entries(res)) {

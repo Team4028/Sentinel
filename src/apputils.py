@@ -23,47 +23,6 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
-
-def generate_admin() -> tuple[str, str, str]:
-    """Generates admin credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt"""
-    os.makedirs("secrets", exist_ok=True)  # ensure secrets directory exists
-    un = input("Enter username: ")
-    pwd = line_str_hash(input("Enter password: "))  # hash pw into sha256
-    sec = secrets.token_hex(32)  # generate random code for secret
-    with open("./secrets/admin.txt", "w") as f:
-        f.write(un + "\n" + pwd + "\n" + sec)  # save
-    return (un, pwd, sec)
-
-
-def generate_default_admin() -> tuple[str, str, str]:
-    """Generates default admin credentials so as not to rely on input()"""
-    os.makedirs("secrets", exist_ok=True)
-    pwd = line_str_hash("admin")
-    sec = secrets.token_hex(32)
-    with open("./secrets/admin.txt", "w") as f:
-        f.write("admin" + "\n" + pwd + "\n" + sec)
-    return ("admin", pwd, sec)
-
-
-def generate_viewer() -> tuple[str, str]:
-    """Generates viewer credentials for the inputted username and password, as well as a random flask secret key, and saves them to secrets/admin.txt"""
-    os.makedirs("secrets", exist_ok=True)  # ensure secrets directory exists
-    un = input("Enter username: ")
-    pwd = line_str_hash(input("Enter password: "))  # hash pw into sha256
-    with open("./secrets/viewer.txt", "w") as f:
-        f.write(un + "\n" + pwd)  # save
-    return (un, pwd)
-
-
-def generate_default_viewer() -> tuple[str, str]:
-    """Generates default viewer credentials so as not to rely on input()"""
-    os.makedirs("secrets", exist_ok=True)
-    pwd = line_str_hash("smith")
-    with open("./secrets/viewer.txt", "w") as f:
-        f.write("john" + "\n" + pwd)
-    return ("john", pwd)
-
-
 def generate_ssl_sign():
     """useless, just use reverse-proxy with nginx for https"""
     domains = ["sentinel.beaksquad.dev", "localhost"]
@@ -552,23 +511,12 @@ def is_iterable(x):
 
 def read_secrets():
     """Reads the different secrets of the repo: admin creds, flask secret key, and tba auth key in that order"""
-    admin_login = {}
-    viewer_login = {}
 
     if os.path.exists("./secrets/admin.txt"):
         with open("./secrets/admin.txt", "r") as r:
-            admin_login["un"] = r.readline().strip()
-            admin_login["pwd"] = r.readline().strip()
             key = r.readline().strip()
     else:
-        admin_login["un"], admin_login["pwd"], key = generate_default_admin()
-
-    if os.path.exists("./secrets/viewer.txt"):
-        with open("./secrets/viewer.txt", "r") as r:
-            viewer_login["un"] = r.readline().strip()
-            viewer_login["pwd"] = r.readline().strip()
-    else:
-        viewer_login["un"], viewer_login["pwd"] = generate_default_viewer()
+        key = secrets.token_hex(32)
 
     if os.path.exists("./secrets/tba.txt"):
         with open("./secrets/tba.txt", "r") as f:
@@ -577,7 +525,7 @@ def read_secrets():
     else:
         auth_key, tba_hmac = "", ""
 
-    return (admin_login, viewer_login, key, auth_key, tba_hmac)
+    return (key, auth_key, tba_hmac)
 
 
 def set_auth_key(key: str) -> None:

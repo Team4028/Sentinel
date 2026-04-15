@@ -159,7 +159,6 @@
     <div id="name-bd" hidden></div>
     <div id="name" hidden>
         <h2>Notes for...</h2>
-        <input type="text" id="name-input" autocomplete="off" placeholder="Enter your name...">
         <input type="number" id="team-input" min="1" step="1" autocomplete="off" placeholder="Enter team number..." />
         <input type="number" id="match-input" min="1" step="1" autocomplete="off" placeholder="Enter match number...">
         <label style="display: flex; gap: 10px; align-items: center; justify-content: center; text-align: center;">
@@ -172,7 +171,6 @@
     <script>
         // configuer monaco
         require.config({ paths: { vs: "{{url_for('static', filename='monaco-editor/0.44.0/min/vs')}}" } });
-        const nameInput = document.getElementById("name-input");
         const teamInput = document.getElementById("team-input");
         const matchInput = document.getElementById("match-input");
         const preInput = document.getElementById("is-pre");
@@ -182,7 +180,8 @@
         const preSpan = document.getElementById("prespan");
         const nameCard = document.getElementById("name");
         const nameBD = document.getElementById("name-bd");
-        let { scouterName, isPre } = getNameFromLocalStorage();
+        let scouterName = "{{loggedin_name}}";
+        let isPre = getPreFromLocalStorage();
         let teamNumber = "";
         let matchNumber = "";
         require(['vs/editor/editor.main'], function () {
@@ -218,8 +217,8 @@
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Backspace" && document.activeElement.id !== "editor" && document.activeElement.tagName.toLowerCase() !== "input") {
                 ev.preventDefault();
                 window.goBack();
-            } else if (ev.key === "Enter" && [nameInput, teamInput, matchInput].includes(document.activeElement)) {
-                submitNameTeamMatch();
+            } else if (ev.key === "Enter" && [teamInput, matchInput].includes(document.activeElement)) {
+                submitTeamMatch();
             }
         });
 
@@ -247,8 +246,7 @@
             }
         });
 
-        function submitNameTeamMatch() {
-            scouterName = nameInput.value;
+        function submitTeamMatch() {
             nameSpan.innerText = scouterName;
             teamNumber = teamInput.value;
             teamSpan.innerText = teamNumber;
@@ -262,20 +260,16 @@
             getNotes();
         }
 
-        function getNameFromLocalStorage() {
-            return {
-                scouterName: localStorage.getItem("name") ?? "",
-                isPre: localStorage.getItem("pre") ?? false
-            }
+        function getPreFromLocalStorage() {
+            return localStorage.getItem("pre") ?? false
         }
 
         function writeNameToLocalStorage() {
-            localStorage.setItem("name", scouterName);
             localStorage.setItem("pre", isPre);
         }
 
         document.getElementById("name-sub").addEventListener('click', () => {
-            submitNameTeamMatch();
+            submitTeamMatch();
         });
 
         document.getElementById("top-bar").addEventListener("click", e => {
@@ -283,27 +277,17 @@
             nameCard.hidden = false;
             nameBD.hidden = false;
 
-            if (scouterName !== "") {
-                nameInput.value = scouterName;
-                if (teamNumber !== "") {
-                    if (matchNumber !== "") matchInput.select();
-                    matchInput.focus();
-                } else
-                    teamInput.focus();
-            } else {
-                nameInput.focus();
-            }
+            if (teamNumber !== "") {
+                if (matchNumber !== "") matchInput.select();
+                matchInput.focus();
+            } else
+                teamInput.focus();
             e.preventDefault();
         });
 
         preInput.checked = isPre;
 
-        if (scouterName !== "") {
-            nameInput.value = scouterName;
-            teamInput.focus();
-        } else {
-            nameInput.focus();
-        }
+        teamInput.focus();
 
         nameCard.hidden = false;
         nameBD.hidden = false;

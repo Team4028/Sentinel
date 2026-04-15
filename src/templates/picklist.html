@@ -327,6 +327,16 @@
             certainIndexList();
         }));
 
+        async function submitPicklist() {
+            const res = await fetch("{{'save_picklist'}}", {
+                method: "POST",
+                headers: {
+                    "name": "{{loggedin_name}}"
+                },
+                body: Object.fromEntries(lists.map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)]))
+            });
+        }
+
         function serializeToLocalStorage() {
             const teams = Object.fromEntries(lists.map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)]));
             localStorage.setItem("Picklist", JSON.stringify(teams));

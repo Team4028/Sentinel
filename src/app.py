@@ -21,26 +21,20 @@ try:  # janky import stuff: running src/app.py and running scouting_app.py via g
     import lib.mesh as mesh
     from lib.data_config import lex_config
     import apputils
+    import auth
     from auth import (
-        BigBrother,
-        Winston,
-        LoginForm,
-        require_admin,
-        init_loginm_app,
         require_json,
+        require_admin
     )
 except ModuleNotFoundError:
     from src.lib.data_main import Processor, Event
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
     import src.apputils as apputils
+    import src.auth as auth
     from src.auth import (
-        BigBrother,
-        Winston,
-        LoginForm,
-        require_admin,
-        init_loginm_app,
         require_json,
+        require_admin
     )
 import csv
 import os
@@ -91,8 +85,6 @@ def create_app(
     POSS_YEARS = [
         f.stem.split("-", 2)[-1] for f in Path("./config").glob("field-config-*.yaml")
     ]
-    admin_login = {}
-    viewer_login = {}
     config_file = os.path.join("config", f"field-config-{app.config["YEAR"]}.yaml")
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = False
@@ -164,12 +156,12 @@ def create_app(
     # =======================================================
 
     (
-        admin_login,
-        viewer_login,
         app.config["SECRET_KEY"],
         auth_key,
         tba_webhook_secret,
     ) = apputils.read_secrets()
+
+    auth.generate_login_db("admin", apputils.line_str_hash("admin"))
 
     # =======================================================
     # Parse field config and setup processor
@@ -196,7 +188,7 @@ def create_app(
     # =======================================================
 
     # set up the login manager
-    init_loginm_app(app)
+    auth.init_loginm_app(app)
 
     def compile_scouting_dashboard(url: str):
         """Uses jinja templating to create dashboard jsons for provisioning that cast all of the number fields to numbers"""
@@ -473,7 +465,7 @@ def create_app(
             parser.add_argument("expr", nargs=argparse.REMAINDER)
             argv = shlex.split(message)
             args = parser.parse_args(argv)
-            if args.pwd == admin_login["pwd"]:
+            if args.pwd.strip() == SUPERUSER_CODE:
                 cmd, *rest = args.expr
                 rest = "".join(rest)
                 match (cmd):
@@ -573,29 +565,41 @@ def create_app(
     @app.route("/login", methods=["GET", "POST"])
     def login():
         """Sends login page and validates login un/pw"""
-        form = LoginForm()
+        form = auth.LoginForm()
         if form.validate_on_submit():
             username = form.username.data
             password = form.password.data.strip()
-            if username == admin_login["un"] and password == admin_login["pwd"]:
-                login_user(BigBrother())
-                return "Login Successful", 200
-            elif username == viewer_login["un"] and password == viewer_login["pwd"]:
-                login_user(Winston())
+            if user := auth.get_user_from_db_unpw(username, password):
+                login_user(user)
                 return "Login Successful", 200
             else:
                 return "Invalid Credentials", 401
         return render_template_style("login.html", form=form)
+    
+    @app.post("/create-login")
+    @login_required
+    @require_admin
+    @require_json
+    def create_login():
+        try:
+            if all(x in request.json for x in ["un", "pwd", "isadmin"]):
+                username, password, is_admin = request.json["un"], request.json["pwd"], request.json["isadmin"]
+                auth.add_user_to_db(username, password, is_admin)
+                return "Success", 200
+            else:
+                return "Invalid Request", 400
+        except Exception as e:
+            return f"Error: {apputils.exception_format(e)}", 500
 
     @app.post("/login-ovr")
     @require_json
     def login_override():
         if request.json and "key" in request.json:
             if request.json["key"] == SUPERUSER_CODE:
-                login_user(BigBrother())
+                login_user(auth.override_get_admin())
                 return "Login Override Successful", 200
             else:
-                return "Invalid credentials", 401
+                return "Invalid Credentials", 401
         return "No key", 401
 
     @app.get("/explore")
@@ -717,6 +721,7 @@ def create_app(
             return "Invalid Request", 400
 
     @app.get("/jobs")
+    @login_required
     def jobs():
         return jsonify(Event.get_event_progress())
 
@@ -726,7 +731,8 @@ def create_app(
             return jsonify(
                 {
                     "logged_in": True,
-                    "username": current_user.id,
+                    "id": current_user.id,
+                    "username": current_user.un,
                     "admin": current_user.is_admin,
                 }
             )
@@ -986,7 +992,7 @@ def create_app(
     @app.get("/take-notes")
     @login_required
     def take_notes():
-        return render_template_style("take-notes.html")
+        return render_template_style("take-notes.html", loggedin_name=current_user.un)
 
     @app.get("/get-notes")
     @login_required
@@ -1147,7 +1153,7 @@ def create_app(
             and mesh.get_is_meshed()
         ):
             mesh.send_command(
-                f"rm {request.json["mn"]},{request.json["si"]}", admin_login["pwd"]
+                f"rm {request.json["mn"]},{request.json["si"]}", SUPERUSER_CODE
             )
         if request.json and request.json["lines"]:
             rm_row_hash(request.json["lines"])
@@ -1460,45 +1466,19 @@ def create_app(
             return apputils.exception_format(e), 500
 
     # RESTRICTED (overwrites un/pwd = bad)
-    @app.post("/set-admin-creds")
+    @app.post("/set-creds")
     @login_required
     @require_admin
     @require_json
-    def set_admin_creds():
-        """resets the admin username and password to json["un"] and json["pwd"]"""
-        nonlocal admin_login
-        if request and request.json:
+    def set_creds():
+        """ add or overwrite a login """
+        if all([x in request.json for x in ["un", "pwd", "isadmin"]]):
             try:
-                un = request.json.get("un", admin_login["un"])
-                pwd = (
-                    apputils.line_str_hash(request.json["pwd"])
-                    if "pwd" in request.json
-                    else admin_login["pwd"]
-                )
-                apputils.change_un_pwd_admin(app.config["SECRET_KEY"], un, pwd)
-                admin_login = {"un": un, "pwd": pwd}
-                return "Password change successful", 200
-            except Exception as e:
-                return apputils.exception_format(e), 500
-        return "Invalid Request", 400
-
-    @app.post("/set-viewer-creds")
-    @login_required
-    @require_admin
-    @require_json
-    def set_viewer_creds():
-        nonlocal viewer_login
-        if request and request.json:
-            try:
-                un = request.json.get("un", viewer_login["un"])
-                pwd = (
-                    apputils.line_str_hash(request.json["pwd"])
-                    if "pwd" in request.json
-                    else viewer_login["pwd"]
-                )
-                apputils.change_un_pwd_viewer(app.config["SECRET_KEY"], un, pwd)
-                viewer_login = {"un": un, "pwd": pwd}
-                return "Password change successful", 200
+                un = request.json["un"].strip()
+                pwd = request.json["pwd"].strip()
+                is_admin = request.json["isadmin"]
+                auth.add_user_to_db(un, pwd, is_admin)
+                return "Success", 200
             except Exception as e:
                 return apputils.exception_format(e), 500
         return "Invalid Request", 400
@@ -1548,9 +1528,22 @@ def create_app(
                 if processor.has_sched_data
                 else []
             ),
+            loggedin_name=current_user.un,
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
+    
+    @app.post("/save-picklist")
+    @login_required
+    def save_picklist():
+        if request and request.headers and 'name' in request.headers:
+            pickname = request.headers['name']
+            pickpath = os.path.join("picklists", pickname + ".json")
+            with open(pickpath, 'w') as w:
+                json.dump(request.json, w)
+            return "Success", 200
+        else:
+            return "Invalid Request", 400
 
     # RESTRICTED (overwrites app config = bad)
     @app.post("/save-app-config")
@@ -1559,37 +1552,35 @@ def create_app(
     @require_json
     def save_app_config():
         """Consumes an app configuration json, saves it, and applies it"""
-        if request and request.json:
-            try:
-                with open(
-                    os.path.join(app.root_path, "config", "app-config.json"), "w"
-                ) as w:
-                    json.dump(
-                        request.json, w, indent=4
-                    )  # indent=4 auto-formats the json with \t = 4 spaces
-                app.config.from_file(
-                    os.path.join(app.root_path, "config", "app-config.json"),
-                    load=json.load,
-                )
-                processor.year = (
-                    app.config["YEAR"].split("_")[0]
-                    if "_" in app.config["YEAR"]
-                    else app.config["YEAR"]
-                )
-                processor.period_min = app.config["TBA_FETCH_PERIOD_MIN"]
-                if processor.has_sched_data and apputils.data_in_exists():
-                    try:
-                        run_async_task(
-                            processor.proccess_data(infile)
-                        )  # updated processor, so this
-                        app.logger.info("Finished processing data.")
-                        reload_js()
-                    except Exception as e:
-                        app.logger.error(apputils.exception_format(e))
-                return "", 200
-            except Exception as e:
-                return apputils.exception_format(e), 500
-        return "Invalid Request", 400
+        try:
+            with open(
+                os.path.join(app.root_path, "config", "app-config.json"), "w"
+            ) as w:
+                json.dump(
+                    request.json, w, indent=4
+                )  # indent=4 auto-formats the json with \t = 4 spaces
+            app.config.from_file(
+                os.path.join(app.root_path, "config", "app-config.json"),
+                load=json.load,
+            )
+            processor.year = (
+                app.config["YEAR"].split("_")[0]
+                if "_" in app.config["YEAR"]
+                else app.config["YEAR"]
+            )
+            processor.period_min = app.config["TBA_FETCH_PERIOD_MIN"]
+            if processor.has_sched_data and apputils.data_in_exists():
+                try:
+                    run_async_task(
+                        processor.proccess_data(infile)
+                    )  # updated processor, so this
+                    app.logger.info("Finished processing data.")
+                    reload_js()
+                except Exception as e:
+                    app.logger.error(apputils.exception_format(e))
+            return "", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
 
     # RESTRICTED (save bandwidth)
     @app.get("/download/<file>")

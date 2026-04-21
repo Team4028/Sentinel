@@ -488,23 +488,39 @@ def create_app(
     def handle_exception(e):
         """Dampens the app's explosion"""
         app.logger.exception(f"Unhandled Exception: {apputils.exception_format(e)}")
-        return f"Internal server error: {apputils.exception_format(e)}", 500
+        if request.method == "GET":
+            return render_template_style("error.html", head="500: Internal server error",
+                                     msg=f"Internal server error in page LOC<br><span style='color: red'>{html.escape(apputils.exception_format(e))}</span>")
+        else:
+            return f"Internal server error: {apputils.exception_format(e)}", 500
 
     @app.errorhandler(401)
     def handle_401(e):
         app.logger.warning(f"Tried to access page without login: {e.description}")
-        return f"Error: unauthorized", 401
+        if request.method == "GET":
+            return render_template_style("error.html", head="401: Unauthorized",
+                                     msg="Error: LOC is unauthorized")
+        else:
+            return "Error: unauthorized", 401
 
     @app.errorhandler(403)
     def handle_403(e):
         app.logger.warning(f"Tried to access restricted page: {e.description}")
-        return f"Error: restricted", 403
+        if request.method == "GET":
+            return render_template_style("error.html", head="403: Restricted",
+                                     msg=f"Error: LOC is restricted for user '{"anonymous" if isinstance(current_user, AnonymousUserMixin) else current_user.un}'")
+        else:
+            return "Error: restricted", 403
 
     @app.errorhandler(404)
     def handle_404(e):
         """Custom 404 handler"""
         app.logger.warning(f"Tried to access nonexistent page: {e}")
-        return render_template_style("404.html")
+        if request.method == "GET":
+            return render_template_style("error.html", head="404: Page not found",
+                                     msg="Error: the path LOC is not defined for this server. If it should, please submit an issue at https://github.com/Team4028/Sentinel/issues")
+        else:
+            return "Error: page not found", 404
 
     # RESTRICTED (can pop the entire queue by spamming the endpoint)
     @app.route("/notifyq")
@@ -1451,15 +1467,14 @@ def create_app(
                 "dataout"
                 if (
                     "output.csv" in file
-                    or file == "other-metrics.json"
-                    or file == "sentinel.db"
+                    or file in ["other-metrics.json", "sentinel.db"]
                 )
                 else "datain"
             ),
             file,
         )  # get dir based on name
         if not os.path.exists(file):
-            return "File not found.", 403
+            return "File not found.", 404
         return Response(
             apputils.stream(file),
             mimetype=("text/json" if ".json" in file else "text/csv"),

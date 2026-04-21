@@ -8,7 +8,7 @@
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{url_for('static', filename='css/button.css')}}">
-    <title>404: Page not found</title>
+    <title>{{head}}</title>
     <style>
         :root {
             --accent: {{accent}};
@@ -44,17 +44,26 @@
             opacity: 0.8;
         }
     </style>
+    <!-- use this because otherwise if someone logged in clicked a link like https://sentinelurl/<script>fetch('/do-bad-things', { credentials: 'include' });</script> LOC gets replaced with the script and then the browser sends an authed request -->
+    <script>
+        window.escapeHtml = function(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
 </head>
 
 <body
-    onload="document.querySelector('p').innerText = document.querySelector('p').innerText.replace('LOC', window.location.pathname)">
+    onload="document.querySelector('p').innerHTML = document.querySelector('p').innerHTML.replace('LOC', window.escapeHtml(window.location.pathname))">
     <div style="display: flex; justify-content: center; align-items: center; gap: 2%;"> <!-- milk -->
         <img src="{{ url_for('static', filename='favicon.ico') }}">
-        <h1>404: Page not found</h1>
+        <h1>{{head}}</h1>
     </div>
-    <p style="text-align: center;">Error: the path LOC is not defined for this server. If it should, please submit an
-        issue at
-        https://github.com/Team4028/Sentinel/issues</p>
+    <p style="text-align: center;">{{msg | safe}}</p>
     <button class="sbutton" onclick="window.location.href='{{url_for('main')}}'" title="Ctrl+Backspace">Return Home</button>
 
     <script>

@@ -151,7 +151,7 @@
                   "oneClick": true,
                   "targetBlank": true,
                   "title": "Team",
-                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                  "url": "http://localhost:3000/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
                 }
               ],
               "name": "Element 1",
@@ -350,9 +350,9 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '340'",
+          "queryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_1' AND field_name = 'Vibe Lemons'",
           "queryType": "table",
-          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_1'",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_1' AND field_name = 'Vibe Lemons'",
           "refId": "A",
           "timeColumns": []
         },
@@ -626,7 +626,7 @@
                   "oneClick": true,
                   "targetBlank": true,
                   "title": "Team",
-                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                  "url": "http://localhost:3000/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
                 }
               ],
               "name": "Element 1",
@@ -825,9 +825,9 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '2641'",
+          "queryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_1' AND field_name = 'Vibe Lemons'",
           "queryType": "table",
-          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_1'",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_1' AND field_name = 'Vibe Lemons'",
           "refId": "A",
           "timeColumns": []
         },
@@ -1509,7 +1509,7 @@
                   "oneClick": true,
                   "targetBlank": true,
                   "title": "Team",
-                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                  "url": "http://localhost:3000/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
                 }
               ],
               "name": "Element 1",
@@ -1708,9 +1708,9 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '3504'",
+          "queryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_2' AND field_name = 'Vibe Lemons'",
           "queryType": "table",
-          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_2'",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_2' AND field_name = 'Vibe Lemons'",
           "refId": "A",
           "timeColumns": []
         },
@@ -1904,7 +1904,7 @@
                   "oneClick": true,
                   "targetBlank": true,
                   "title": "Team",
-                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                  "url": "http://localhost:3000/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
                 }
               ],
               "name": "Element 1",
@@ -2103,9 +2103,9 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '3990'",
+          "queryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_2' AND field_name = 'Vibe Lemons'",
           "queryType": "table",
-          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_2'",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_2' AND field_name = 'Vibe Lemons'",
           "refId": "A",
           "timeColumns": []
         },
@@ -2707,7 +2707,7 @@
                   "oneClick": true,
                   "targetBlank": true,
                   "title": "Team",
-                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                  "url": "http://localhost:3000/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
                 }
               ],
               "name": "Element 1",
@@ -2906,9 +2906,9 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '3015'",
+          "queryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_3' AND field_name = 'Vibe Lemons'",
           "queryType": "table",
-          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_3'",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Red_3' AND field_name = 'Vibe Lemons'",
           "refId": "A",
           "timeColumns": []
         },
@@ -3102,7 +3102,7 @@
                   "oneClick": true,
                   "targetBlank": true,
                   "title": "Team",
-                  "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
+                  "url": "http://localhost:3000/d/ad962jv/team-view?var-Team=${__data.fields.Team}"
                 }
               ],
               "name": "Element 1",
@@ -3301,9 +3301,9 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '4028'",
+          "queryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_3' AND field_name = 'Vibe Lemons'",
           "queryType": "table",
-          "rawQueryText": "SELECT REPLACE(match_key, '2026paca_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_3'",
+          "rawQueryText": "SELECT REPLACE(match_key, '2026ohmv_', '') AS match_key, field_value, false AS highlight FROM matches_fields\nWHERE team_key = '$Current_Match_Blue_3' AND field_name = 'Vibe Lemons'",
           "refId": "A",
           "timeColumns": []
         },
@@ -4477,5 +4477,5 @@
   "timezone": "browser",
   "title": "Prematch",
   "uid": "advk8k7",
-  "version": 101
+  "version": 107
 }

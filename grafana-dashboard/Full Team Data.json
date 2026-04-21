@@ -46,7 +46,7 @@
             {
               "targetBlank": true,
               "title": "Team",
-              "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?&var-Team=${__data.fields.Team}"
+              "url": "http://localhost:3000/d/ad962jv/team-view?&var-Team=${__data.fields.Team}"
             }
           ],
           "mappings": [],
@@ -218,6 +218,34 @@
               {
                 "destinationType": "number",
                 "targetField": "Hopper Capacity Variance"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Vibe Lemons"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Infeed Break"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Average Defensive Rating"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Vibe Lemons"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Max Defensive Rating"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Vibe Lemons"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "Filtered Defensive Rating"
               }
             ],
             "fields": {}

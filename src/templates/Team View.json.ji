@@ -1052,7 +1052,7 @@
                                 "destinationType": "string",
                                 "targetField": "Team"
                             },
-                            {% for header, type in td_headers %}{
+                            {% for header, type in team_headers %}{
                                 "destinationType": "{{type}}",
                                 "targetField": "{{header}}"
                             }{% if not loop.last %},

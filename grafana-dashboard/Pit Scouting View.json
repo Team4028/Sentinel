@@ -46,7 +46,7 @@
             {
               "targetBlank": true,
               "title": "Team",
-              "url": "http://grafana.beaksquad.dev/d/ad962jv/team-view?&var-Team=${__data.fields.tn}"
+              "url": "http://localhost:3000/d/ad962jv/team-view?&var-Team=${__data.fields.tn}"
             }
           ],
           "mappings": [],

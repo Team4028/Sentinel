@@ -47,7 +47,6 @@ import shutil
 from jinja2 import Environment, FileSystemLoader
 import asyncio
 
-
 def create_app(
     inital_process=True, skip_last_opr_fetching_for_testing_because_its_slow=False
 ):  # cursed but whatever
@@ -195,21 +194,16 @@ def create_app(
         for path in Path("./src/templates").glob("*.ji"):
             app.logger.info(f"Compiling {path}...")
             tmpl = env.get_template(path.relative_to(".").as_posix())
-            fname = path.name[:-3]  # remove .ji
             # make acronym from title
-            abbrs = [
-                (title, "".join(w[0].lower() for w in title.split()))
-                for title in processor.config_data["dash-panel"][fname].keys()
-            ]
             template_vars = {
                 "sentinel_url": url,
                 "grafana_url": app.config["GRAFANA_URL"],
                 "event_prefix": processor.event_key + "_",
             }
-            for abbr in abbrs:
+            for k, v in processor.config_data["dash-panel"].items():
                 template_vars |= {
-                    abbr[1]
-                    + "_headers": processor.config_data["dash-panel"][fname][abbr[0]]
+                    k.lower()
+                    + "_headers": v
                 }
             os.makedirs("./grafana-dashboard", exist_ok=True)
             out_path = (
@@ -261,13 +255,7 @@ def create_app(
             )
 
     DASHBOARD_UIDS = {}
-    for dash in [
-        "Prematch.json",
-        "Full Team Data.json",
-        "Statbotics Viz.json",
-        "Team View.json",
-        "Pit Scouting View.json",
-    ]:  # TODO: make this a grep
+    for dash in list(map(lambda p: p.stem, Path('src/templates').relative_to('.').glob('*.ji'))):
         if not os.path.exists(
             f"/var/lib/grafana/dashboards/{dash}"
             if is_docker
@@ -477,7 +465,6 @@ def create_app(
         else:
             lines = [message]
             append_lines_nofile(lines)
-            reload_js()  # TODO: is this call redundant?
 
     def mesh_listen():
         """Binds `handle_mesh_line` to the meshtastic port (listens for meshages)"""
@@ -785,6 +772,11 @@ def create_app(
         if not processor.has_sched_data:
             return "No event data", 200
         return "Sentinel is watching", 200
+    
+    @app.post('/restart')
+    def restart():
+        # docker is set to restart: unless-stopped, and so exiting the PID 1 process will restart the container
+        os._exit(1)
 
     # OPEN (immutable passthrough for other-metrics = fine)
     @app.get("/percent")
@@ -842,13 +834,6 @@ def create_app(
                 return "Saved!", 200
         except Exception as e:
             return apputils.exception_format(e), 500
-
-    # OPEN (immutable passthrough, literally a yaml schema)
-    @app.get("/schema.json")
-    def send_schema():
-        """Passthrough for the field-config.yaml schema, because I want to pretend it works with monaco"""
-        f = os.path.join("config", "schema.json")
-        return send_file(f)
 
     # RESTRICTED (not as bad, but still requires decent processing power)
     @app.post("/reproc")
@@ -1222,7 +1207,6 @@ def create_app(
         return render_template_style("appconfig.html", years=POSS_YEARS)
 
     # RESTRICTED (don't want to share app config because it has secrets)
-    # TODO: make POST probably
     @app.get("/get-config")
     def get_app_config():
         """Returns the app configuration for the editor at /edit-app-conf to read"""
@@ -1276,12 +1260,10 @@ def create_app(
         return "Sent", 200
 
     # RESTRICTED (may as well, not used by grafana)
-    @app.post("/test-tba-key/", defaults={"key": ""})
-    @app.post("/test-tba-key/<path:key>")
-    def test_tba_key( # TODO: this needs encryption (not pass in url)
-        key,
-    ):  # necessary because fetching client-side runs into sad caching server-side
+    @app.post("/test-tba-key")
+    def test_tba_key():
         """tests whether or not the given TBA api key is valid, returning a string 'true' for good and 'false' for bad"""
+        key = request.headers["key"]
         if apputils.test_tba_key(key):
             return "true", 200
         return "false", 200
@@ -1459,12 +1441,10 @@ def create_app(
         except Exception as e:
             return apputils.exception_format(e), 500
 
-    # RESTRICTED (save bandwidth)
-    @app.get("/download/<file>")
-    def dload(file): # TODO: migrate from /<file> arch.
+    @app.get("/download")
+    def dload():
         """Sends a stream using the `stream` helper for the requested file to download it"""
-        if not file:
-            return "File not found.", 403
+        file = request.headers["file"]
         file = os.path.basename(file)  # no .. touchy
         file = os.path.join(
             (

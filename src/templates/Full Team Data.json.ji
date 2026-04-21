@@ -143,7 +143,7 @@
           "id": "convertFieldType",
           "options": {
             "conversions": [
-              {% for header, type in td_headers %}{
+              {% for header, type in team_headers %}{
                 "destinationType": "{{type}}",
                 "targetField": "{{header}}"
               }{% if not loop.last %},

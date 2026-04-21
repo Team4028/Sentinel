@@ -28,14 +28,13 @@ SVD_AUGS = ["variance-score", "stability"]
 # more human readable names for the yaml filters
 FANCY_FIL = {"avg": "Average", "max": "Max", "fil": "Filtered"}
 
-
-class GrafanaDataPreset(Enum):
-
-    def get_svd_headers(svd) -> list[str]:
+def get_svd_headers(svd) -> list[str]:
         x = [svd["name"]]
         if "variance-score" in svd:
             x.append(svd["name"] + " Variance")
         return x
+
+class GrafanaDataPreset(Enum):
 
     MATCH = lambda data: zip(
         [x["name"] for x in data["match-fields"]],
@@ -52,7 +51,7 @@ class GrafanaDataPreset(Enum):
         ["number" for _ in l]
     ))
     + (list(zip(
-        l := [_ for svd in data["subjective-svd-fields"] for _ in GrafanaDataPreset.get_svd_headers(svd)], # walrus to avoid reparse list
+        l := [_ for svd in data["subjective-svd-fields"] for _ in get_svd_headers(svd)], # walrus to avoid reparse list
         ["number" for _ in l]
     )) if "subjective-svd-fields" in data else list())
     + list(
@@ -89,17 +88,6 @@ class GrafanaDataPreset(Enum):
     NONE = lambda _: []
 
 
-GRAFANA_DATA_PANELS = { # TODO: make this procedural or configurable somehow
-    "Team View.json": {
-        "Team Data": GrafanaDataPreset.TEAM,
-    },
-    "Full Team Data.json": {"Team Data": GrafanaDataPreset.TEAM},
-    "Pit Scouting View.json": {},
-    "Prematch.json": {},
-    "Statbotics Viz.json": {}
-}
-
-
 def lex_config(year: str):
     """reads and restructures the YAML for use by the Processor"""
     data = read_config(year)
@@ -119,10 +107,8 @@ def lex_config(year: str):
         "pre-tests": [],
     }
     if data:
-        for k, v in GRAFANA_DATA_PANELS.items():
-            config["dash-panel"][k] = {}
-            for ki, vi in v.items():  # (i for inner)
-                config["dash-panel"][k][ki] = vi(data)
+        for val in filter(lambda x: not x[0].startswith("_"), GrafanaDataPreset.__dict__.items()):
+            config["dash-panel"][val[0]] = val[1](data)
         config["tn"] = data["team-header-name"]
         config["mn"] = data["match-header-name"]
         config["si"] = data["si-header-name"]

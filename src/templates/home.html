@@ -797,7 +797,8 @@
             progressBar.style.width = 0;
             progressContainer.style.display = "block";
             const xhr = new XMLHttpRequest();
-            xhr.open('GET', `{{url_for('dload', file='')}}${file}`, true);
+            xhr.open('GET', `{{url_for('dload')}}`, true);
+            xhr.setRequestHeader("file", file);
             xhr.responseType = "blob";
 
             xhr.onloadstart = () => {

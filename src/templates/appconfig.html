@@ -482,8 +482,11 @@
         getCurrentEvent();
 
         async function tbaKeyCheckHealth() {
-            const res = await fetch(`{{url_for('main')}}test-tba-key/${tbakey.value.trim()}`, {
+            const res = await fetch(`{{url_for('test_tba_key')}}`, {
                 method: "POST",
+                headers: {
+                    "key": `${tbakey.value.trim()}`
+                }
             });
 
             return res.ok && await res.text() == "true"

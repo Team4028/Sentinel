@@ -132,17 +132,19 @@ team-fields:
     derive: $IB
     avg:
   - name: Defensive Rating
-    derive: $DF[$D = true]
+    derive: $DF[$D = 1]
     avg:
     max:
     fil:
   - name: Matches Playing Defense
-    derive: "@len$DF[$D = true]"
+    derive: "@len$DF[$D = 1]"
 match-fields:
   - name: Vibe Lemons
     derive: $VL
   - name: Infeed Broke
     derive: $IB
+  - name: Defensive Rating
+    derive: $DF[$D = 1]
 copr-keys:
   - Hub Auto Fuel Count
   - Hub Teleop Fuel Count

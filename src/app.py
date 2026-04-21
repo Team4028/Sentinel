@@ -12,7 +12,13 @@ from flask import (
     url_for,
     redirect,
 )
-from flask_login import login_user, login_required, logout_user, current_user, AnonymousUserMixin
+from flask_login import (
+    login_user,
+    login_required,
+    logout_user,
+    current_user,
+    AnonymousUserMixin,
+)
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 
@@ -47,6 +53,7 @@ import shutil
 from jinja2 import Environment, FileSystemLoader
 import asyncio
 
+
 def create_app(
     inital_process=True, skip_last_opr_fetching_for_testing_because_its_slow=False
 ):  # cursed but whatever
@@ -72,14 +79,14 @@ def create_app(
         origins=["https://team4028.github.io", "http://localhost:5173"],  # testing
     )
     # load app configs from json file
-    app.config.from_file("config/app-config.json", load=json.load)
-    app.logger.info(f"Key: {SUPERUSER_CODE}")
+    app.config.from_file(os.path.join("config", "app-config.json"), load=json.load)
     app.get = wrap_flask_routing(app.get)
     app.post = wrap_flask_routing(app.post)
     app.route = wrap_flask_routing(app.route)
     # match the x in field-config-x.yaml to get the different configs
     POSS_YEARS = [
-        f.stem.split("-", 2)[-1] for f in Path("./config").glob("field-config-*.yaml")
+        f.stem.split("-", 2)[-1]
+        for f in Path("config").relative_to(".").glob("field-config-*.yaml")
     ]
     config_file = os.path.join("config", f"field-config-{app.config["YEAR"]}.yaml")
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -115,7 +122,11 @@ def create_app(
         """Renders the input template with the given context and also the accent and text colors of the app"""
         return render_template(
             template,
-            uid=("anonymous" if isinstance(current_user, AnonymousUserMixin) else current_user.id),
+            uid=(
+                "anonymous"
+                if isinstance(current_user, AnonymousUserMixin)
+                else current_user.id
+            ),
             accent=app.config["ACCENT_COLOR"],
             text=app.config["TEXT_COLOR"],
             **context,
@@ -191,7 +202,7 @@ def create_app(
         """Uses jinja templating to create dashboard jsons for provisioning that cast all of the number fields to numbers"""
         app.logger.info("Compiling dashboards...")
         env = Environment(loader=FileSystemLoader("."))
-        for path in Path("./src/templates").glob("*.ji"):
+        for path in Path("src/templates").relative_to(".").glob("*.ji"):
             app.logger.info(f"Compiling {path}...")
             tmpl = env.get_template(path.relative_to(".").as_posix())
             # make acronym from title
@@ -201,15 +212,12 @@ def create_app(
                 "event_prefix": processor.event_key + "_",
             }
             for k, v in processor.config_data["dash-panel"].items():
-                template_vars |= {
-                    k.lower()
-                    + "_headers": v
-                }
-            os.makedirs("./grafana-dashboard", exist_ok=True)
-            out_path = (
-                "./grafana-dashboard/"
-                + path.relative_to(".").as_posix().rsplit(".", 2)[0].rsplit("/")[-1]
-                + ".json"
+                template_vars |= {k.lower() + "_headers": v}
+            os.makedirs("grafana-dashboard", exist_ok=True)
+            out_path = os.path.join(
+                "grafana-dashboard",
+                path.relative_to(".").as_posix().rsplit(".", 2)[0].rsplit("/")[-1]
+                + ".json",
             )
             Path(out_path).write_text(tmpl.render(template_vars))
             if os.name == "posix":
@@ -255,18 +263,20 @@ def create_app(
             )
 
     DASHBOARD_UIDS = {}
-    for dash in list(map(lambda p: p.stem, Path('src/templates').relative_to('.').glob('*.ji'))):
+    for dash in list(
+        map(lambda p: p.stem, Path("src/templates").relative_to(".").glob("*.ji"))
+    ):
         if not os.path.exists(
             f"/var/lib/grafana/dashboards/{dash}"
             if is_docker
-            else f"./grafana-dashboard/{dash}"
+            else os.path.join("grafana-dashboard", f"{dash}")
         ):
             compile_scouting_dashboard("http://localhost:5000")
         with open(
             (
                 f"/var/lib/grafana/dashboards/{dash}"
                 if is_docker
-                else f"./grafana-dashboard/{dash}"
+                else os.path.join("grafana-dashboard", f"{dash}")
             ),
             "r",
         ) as r:
@@ -427,9 +437,9 @@ def create_app(
     def save_photo(filestorage, team: str):
         """saves the given filestorage to PHOTO_STORAGE/{team}.ext where ext is the extension of filestorage"""
         ext = os.path.splitext(filestorage.filename)[1].lower()  # . + type (ex: .png)
-        pattern = re.compile(rf'^{re.escape(team)}-\d+.*$')
+        pattern = re.compile(rf"^{re.escape(team)}-\d+.*$")
         files_there = []
-        for path in Path('photos').glob('*'):
+        for path in Path("photos").glob("*"):
             if path.is_file() and pattern.match(path.name):
                 files_there.append(path)
         file_save = os.path.join("photos", f"{team}-{len(files_there)}{ext}")
@@ -489,8 +499,11 @@ def create_app(
         """Dampens the app's explosion"""
         app.logger.exception(f"Unhandled Exception: {apputils.exception_format(e)}")
         if request.method == "GET":
-            return render_template_style("error.html", head="500: Internal server error",
-                                     msg=f"Internal server error in page LOC<br><span style='color: red'>{html.escape(apputils.exception_format(e))}</span>")
+            return render_template_style(
+                "error.html",
+                head="500: Internal server error",
+                msg=f"Internal server error in page LOC<br><span style='color: red'>{html.escape(apputils.exception_format(e))}</span>",
+            )
         else:
             return f"Internal server error: {apputils.exception_format(e)}", 500
 
@@ -498,8 +511,9 @@ def create_app(
     def handle_401(e):
         app.logger.warning(f"Tried to access page without login: {e.description}")
         if request.method == "GET":
-            return render_template_style("error.html", head="401: Unauthorized",
-                                     msg="Error: LOC is unauthorized")
+            return render_template_style(
+                "error.html", head="401: Unauthorized", msg="Error: LOC is unauthorized"
+            )
         else:
             return "Error: unauthorized", 401
 
@@ -507,8 +521,11 @@ def create_app(
     def handle_403(e):
         app.logger.warning(f"Tried to access restricted page: {e.description}")
         if request.method == "GET":
-            return render_template_style("error.html", head="403: Restricted",
-                                     msg=f"Error: LOC is restricted for user '{"anonymous" if isinstance(current_user, AnonymousUserMixin) else current_user.un}'")
+            return render_template_style(
+                "error.html",
+                head="403: Restricted",
+                msg=f"Error: LOC is restricted for user '{"anonymous" if isinstance(current_user, AnonymousUserMixin) else current_user.un}'",
+            )
         else:
             return "Error: restricted", 403
 
@@ -517,8 +534,11 @@ def create_app(
         """Custom 404 handler"""
         app.logger.warning(f"Tried to access nonexistent page: {e}")
         if request.method == "GET":
-            return render_template_style("error.html", head="404: Page not found",
-                                     msg="Error: the path LOC is not defined for this server. If it should, please submit an issue at https://github.com/Team4028/Sentinel/issues")
+            return render_template_style(
+                "error.html",
+                head="404: Page not found",
+                msg="Error: the path LOC is not defined for this server. If it should, please submit an issue at https://github.com/Team4028/Sentinel/issues",
+            )
         else:
             return "Error: page not found", 404
 
@@ -570,17 +590,21 @@ def create_app(
             else:
                 return "Invalid Credentials", 401
         return render_template_style("login.html", form=form)
-    
+
     @app.post("/create-login")
     def create_login():
         try:
-            username, password, is_admin = request.json["un"], request.json["pwd"], request.json["isadmin"]
+            username, password, is_admin = (
+                request.json["un"],
+                request.json["pwd"],
+                request.json["isadmin"],
+            )
             auth.add_user_to_db(username, password, is_admin)
             return "Success", 200
         except Exception as e:
             return f"Error: {apputils.exception_format(e)}", 500
-        
-    @app.post('/get-user-display')
+
+    @app.post("/get-user-display")
     def get_user_display():
         return auth.display_user(request.headers["id"])
 
@@ -727,9 +751,7 @@ def create_app(
     def save_pit():
         try:
             csv_file = os.path.join("dataout", "output.csv" + "-pit-scouting.csv")
-            need_write = (
-                not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
-            )
+            need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
             with open(
                 os.path.join("dataout", "output.csv" + "-pit-scouting.csv"),
                 mode="a",
@@ -747,9 +769,7 @@ def create_app(
     def save_auto_simple():
         try:
             csv_file = os.path.join("dataout", "output.csv" + "-auton-scouting.csv")
-            need_write = (
-                not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
-            )
+            need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
             js: dict = request.json
             was_pre = js.pop("wasPre") if "wasPre" in js else False
             if os.path.exists(csv_file):
@@ -788,8 +808,8 @@ def create_app(
         if not processor.has_sched_data:
             return "No event data", 200
         return "Sentinel is watching", 200
-    
-    @app.post('/restart')
+
+    @app.post("/restart")
     def restart():
         # docker is set to restart: unless-stopped, and so exiting the PID 1 process will restart the container
         os._exit(1)
@@ -818,10 +838,7 @@ def create_app(
     def upload_other_files():
         try:
             d_file = request.files["data"]
-            if (
-                d_file.filename != ""
-                and request.headers.get("name", "").strip() != ""
-            ):
+            if d_file.filename != "" and request.headers.get("name", "").strip() != "":
                 d_file.save(os.path.join("dataout", request.headers.get("name")))
             return "", 200
         except Exception as e:
@@ -1057,10 +1074,7 @@ def create_app(
     @app.post("/delete-lines")
     def delete_lines():
         """For restrict append level 1: deletes the already applied append cooresponding to the input json's `lines` field using `rm_row_hash`"""
-        if (
-            request.headers.get("sending", "false") == "true"
-            and mesh.get_is_meshed()
-        ):
+        if request.headers.get("sending", "false") == "true" and mesh.get_is_meshed():
             mesh.send_command(
                 f"rm {request.json["mn"]},{request.json["si"]}", SUPERUSER_CODE
             )
@@ -1186,9 +1200,7 @@ def create_app(
         name = current_user.id
         pre = html.unescape(request.json.get("pre", ""))
         match = pre + html.unescape(request.json.get("match", ""))
-        app.logger.info(
-            f"Saving notes for {team} match {match} from scouter {name}"
-        )
+        app.logger.info(f"Saving notes for {team} match {match} from scouter {name}")
         path = os.path.join("notes", team, match, name + ".txt")
         os.makedirs(os.path.join("notes", team, match), exist_ok=True)
         try:
@@ -1311,7 +1323,7 @@ def create_app(
     # RESTRICTED (overwrites un/pwd = bad)
     @app.post("/set-creds")
     def set_creds():
-        """ add or overwrite a login """
+        """add or overwrite a login"""
         try:
             un = request.json["un"].strip()
             pwd = request.json["pwd"].strip()
@@ -1339,14 +1351,15 @@ def create_app(
     def multi_view():
         return render_template_style(
             "multi-team-view.html",
-            teams=(sorted([int(x) for x in processor.tba_data_static.teams])
+            teams=(
+                sorted([int(x) for x in processor.tba_data_static.teams])
                 if processor.has_sched_data
                 else []
             ),
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
-    
+
     @app.get("/view-picklist")
     def view_picklist():
         return render_template_style(
@@ -1356,38 +1369,68 @@ def create_app(
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
-    
+
     @app.get("/get-picklist")
     def get_picklist():
         jsfiles = list(Path("picklists").glob(f"{request.headers["name"]}.json"))
         if len(jsfiles) > 0:
             jsfile = jsfiles[0]
-            with open(jsfile, 'r') as r:
+            with open(jsfile, "r") as r:
                 return jsonify(json.load(r))
         else:
             return "File not found", 400
-    
+
     @app.post("/update-like")
     def update_like():
         if os.path.exists(os.path.join("picklists", f"{request.headers["list"]}.json")):
-            with open(os.path.join("picklists", f"{request.headers["list"]}.json"), 'r') as r:
+            with open(
+                os.path.join("picklists", f"{request.headers["list"]}.json"), "r"
+            ) as r:
                 js = json.load(r)
-                if request.headers["pick"] in js and any([x["team"] == request.headers["team"] for x in js[request.headers["pick"]]]):
-                    jsteam = [x for x in js[request.headers["pick"]] if x["team"] == request.headers["team"]][0]
+                if request.headers["pick"] in js and any(
+                    [
+                        x["team"] == request.headers["team"]
+                        for x in js[request.headers["pick"]]
+                    ]
+                ):
+                    jsteam = [
+                        x
+                        for x in js[request.headers["pick"]]
+                        if x["team"] == request.headers["team"]
+                    ][0]
                     match (request.headers["like"]):
                         case "like":
-                            jsteam["like"].append(current_user.id) if current_user.id not in jsteam["like"] else ()
-                            jsteam["dlike"] = [x for x in jsteam["dlike"] if x != current_user.id]
+                            (
+                                jsteam["like"].append(current_user.id)
+                                if current_user.id not in jsteam["like"]
+                                else ()
+                            )
+                            jsteam["dlike"] = [
+                                x for x in jsteam["dlike"] if x != current_user.id
+                            ]
                         case "dlike":
-                            jsteam["like"] = [x for x in jsteam["like"] if x != current_user.id]
-                            jsteam["dlike"].append(current_user.id) if current_user.id not in jsteam["dlike"] else ()
+                            jsteam["like"] = [
+                                x for x in jsteam["like"] if x != current_user.id
+                            ]
+                            (
+                                jsteam["dlike"].append(current_user.id)
+                                if current_user.id not in jsteam["dlike"]
+                                else ()
+                            )
                         case _:
-                            jsteam["like"] = [x for x in jsteam["like"] if x != current_user.id]
-                            jsteam["dlike"] = [x for x in jsteam["dlike"] if x != current_user.id]
-            with open(os.path.join("picklists", f"{request.headers["list"]}.json"), 'w') as w:
+                            jsteam["like"] = [
+                                x for x in jsteam["like"] if x != current_user.id
+                            ]
+                            jsteam["dlike"] = [
+                                x for x in jsteam["dlike"] if x != current_user.id
+                            ]
+            with open(
+                os.path.join("picklists", f"{request.headers["list"]}.json"), "w"
+            ) as w:
                 json.dump(js, w, indent=4)
             return "", 200
-        else: return "File not found", 400
+        else:
+            return "File not found", 400
 
     @app.get("/picklist")
     def picklist():
@@ -1405,22 +1448,18 @@ def create_app(
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
-    
+
     @app.post("/save-picklist")
-    def save_picklist(): # TODO: don't overwrite likes/comments
+    def save_picklist():  # TODO: don't overwrite likes/comments
         pickname = current_user.id
         pickpath = os.path.join("picklists", pickname + ".json")
         js = request.json
         for _list in js.keys():
             teams_new = []
             for team in js[_list]:
-                teams_new.append({
-                    "team": team,
-                    "like": [],
-                    "dlike": []
-                })
+                teams_new.append({"team": team, "like": [], "dlike": []})
             js[_list] = teams_new
-        with open(pickpath, 'w') as w:
+        with open(pickpath, "w") as w:
             json.dump(request.json, w, indent=4)
         return "Success", 200
 

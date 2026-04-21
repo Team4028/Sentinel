@@ -52,7 +52,7 @@ def generate_ssl_sign():
         .sign(key, hashes.SHA256())
     )
 
-    with open("./secrets/sentinel-key.pem", "wb") as w:
+    with open(os.path.join("secrets", "sentinel-key.pem"), "wb") as w:
         w.write(
             key.private_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -61,7 +61,7 @@ def generate_ssl_sign():
             )
         )
 
-    with open("./secrets/certinel.pem", "wb") as w:
+    with open(os.path.join("secrets", "certinel.pem"), "wb") as w:
         w.write(cert.public_bytes(serialization.Encoding.PEM))
 
 
@@ -94,7 +94,7 @@ def tba_health() -> bool:
 
 
 def yaml_check_schema_raise_errors(yamldata):
-    with open("./config/schema.json", "r") as f:
+    with open(os.path.join("config", "schema.json"), "r") as f:
         schema = json.load(f)
     validator = Draft7Validator(schema)
     errors = sorted(validator.iter_errors(yamldata), key=lambda e: e.path)
@@ -512,14 +512,14 @@ def is_iterable(x):
 def read_secrets():
     """Reads the different secrets of the repo: admin creds, flask secret key, and tba auth key in that order"""
 
-    if os.path.exists("./secrets/admin.txt"):
-        with open("./secrets/admin.txt", "r") as r:
+    if os.path.exists(os.path.join("secrets", "admin.txt")):
+        with open(os.path.join("secrets", "admin.txt"), "r") as r:
             key = r.readline().strip()
     else:
         key = secrets.token_hex(32)
 
-    if os.path.exists("./secrets/tba.txt"):
-        with open("./secrets/tba.txt", "r") as f:
+    if os.path.exists(os.path.join("secrets", "tba.txt")):
+        with open(os.path.join("secrets", "tba.txt"), "r") as f:
             auth_key = f.readline().strip()
             tba_hmac = f.readline().strip()
     else:
@@ -531,22 +531,22 @@ def read_secrets():
 def set_auth_key(key: str) -> None:
     """sets the tba key to `key`"""
     hmac_old = ""
-    if os.path.exists("./secrets/tba.txt"):
-        with open("./secrets/tba.txt", 'r') as r:
+    if os.path.exists(os.path.join("secrets", "tba.txt")):
+        with open(os.path.join("secrets", "tba.txt"), 'r') as r:
             lines = r.readlines()
             if len(lines) > 1:
                 hmac_old = lines[1].strip()
-    with open("./secrets/tba.txt", "w") as w:
+    with open(os.path.join("secrets", "tba.txt"), "w") as w:
         w.write(f"{key}\n{hmac_old}")
 
 def set_tba_whook_key(hmac: str) -> None:
     key_old = ""
-    if os.path.exists("./secrets/tba.txt"):
-        with open("./secrets/tba.txt", 'r') as r:
+    if os.path.exists(os.path.join("secrets", "tba.txt")):
+        with open(os.path.join("secrets", "tba.txt"), 'r') as r:
             lines = r.readlines()
             if len(lines) > 0:
                 key_old = lines[0].strip()
-    with open("./secrets/tba.txt", 'w') as w:
+    with open(os.path.join("secrets", "tba.txt"), 'w') as w:
         w.write(f"{key_old}\n{hmac}")
 
 
@@ -559,15 +559,15 @@ def data_in_exists() -> bool:
 
 def change_un_pwd_admin(current_secret_key: str, newun: str, newpwd: str) -> None:
     """updates the username and password"""
-    os.makedirs("./secrets", exist_ok=True)
-    with open("./secrets/admin.txt", "w") as f:
+    os.makedirs("secrets", exist_ok=True)
+    with open(os.path.join("secrets", "admin.txt"), "w") as f:
         f.write("\n".join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
 
 
 def change_un_pwd_viewer(current_secret_key: str, newun: str, newpwd: str) -> None:
     """updates the username and password"""
-    os.makedirs("./secrets", exist_ok=True)
-    with open("./secrets/viewer.txt", "w") as f:
+    os.makedirs("secrets", exist_ok=True)
+    with open(os.path.join("secrets", "viewer.txt"), "w") as f:
         f.write("\n".join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
 
 

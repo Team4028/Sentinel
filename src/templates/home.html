@@ -216,6 +216,7 @@
     style="background-size: cover; background-position: center; background-image: url({{url_for('static', filename='4028.jpeg')}});">
     <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
     <script src="{{url_for('static', filename='js/job-status.js')}}"></script>
+    <script src="{{url_for('static', filename='js/user-disp.js')}}"></script>
     <div class="overlay">
     </div>
     <div class="upload-box" id="the-box">
@@ -345,6 +346,7 @@
         <div id="status"></div>
         <job-status></job-status>
     </div>
+    <user-disp id="{{uid}}" style="position: absolute; left: 10px; top: 10px;"></user-disp>
     <script src="{{url_for('static', filename='js/sha256.js')}}"></script>
     <script>
         let isSending = false;

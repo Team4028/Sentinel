@@ -53,6 +53,7 @@ def display_user(id: str):
                 border-radius: 50%;
                 text-align: center;
                 font-size: 20px;
+                line-height: 24px;
             }}
 
             .name {{

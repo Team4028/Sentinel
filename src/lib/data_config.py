@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import yaml
 from enum import Enum
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 def read_config(year: str):
     """Reads the configuration YAML file into memory"""
     try:
-        with open(f"config/field-config-{year}.yaml") as f:
+        with open(os.path.join("config", f"field-config-{year}.yaml"), 'r') as f:
             data = yaml.safe_load(f)
         return data
     except FileNotFoundError:

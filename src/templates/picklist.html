@@ -10,7 +10,7 @@
         :root {
             --bg: #111217;
             --panel: #161b22;
-            --text: {{text}};
+            --text: #fff;
             --muted: #8b949e;
             --green: #2ea043;
             --green-bg: #033a16;
@@ -174,7 +174,7 @@
         <ul id="queuelist">
         </ul>
         <h2 id="score"></h2>
-        <li id="initTeam"><span class='line-text'>{{initTeam}}</li>
+        <li id="initTeam"><span class='line-text'>{{initTeam}}</span></li>
         <div id="pick1" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
             <label for="pick1list">Pick 1</label>
             <ul id="pick1list">
@@ -273,7 +273,7 @@
         document.getElementById('initTeam').onclick = function (e) {
             if (e.target === this) {
                 const ifr = document.createElement("iframe");
-                ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=4028&kiosk&refresh=30s`;
+                ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team={{initTeam}}&kiosk&refresh=30s`;
                 ifr.width = "300px";
                 ifr.height = "300px";
                 ifr.frameBorder = "0";
@@ -304,7 +304,7 @@
             li.onclick = function (e) {
                 if (e.target === this) {
                     const ifr = document.createElement("iframe");
-                    ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=4028&kiosk&refresh=30s`;
+                    ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=${e.target.text}&kiosk&refresh=30s`;
                     ifr.width = "300px";
                     ifr.height = "300px";
                     ifr.frameBorder = "0";
@@ -328,12 +328,12 @@
         }));
 
         async function submitPicklist() {
-            const res = await fetch("{{'save_picklist'}}", {
+            const res = await fetch("{{url_for('save_picklist')}}", {
                 method: "POST",
                 headers: {
-                    "name": "{{loggedin_name}}"
+                    "Content-Type": "application/json",
                 },
-                body: Object.fromEntries(lists.map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)]))
+                body: JSON.stringify(Object.fromEntries(lists.filter(l => l !== listElement).map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)])))
             });
         }
 
@@ -380,7 +380,7 @@
                     li.onclick = function (e) {
                         if (e.target === this) {
                             const ifr = document.createElement("iframe");
-                            ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=4028&kiosk&refresh=30s`;
+                            ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=${team}&kiosk&refresh=30s`;
                             ifr.width = "300px";
                             ifr.height = "300px";
                             ifr.frameBorder = "0";

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+    <title>Picklist View</title>
+    <style>
+        :root {
+            --bg: #111217;
+            --panel: #161b22;
+            --text: {{text}};
+            --muted: #8b949e;
+            --accent: {{accent}};
+            --border: #30363d;
+        }
+
+        body {
+            font-family: monospace;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        a {
+            cursor: pointer;
+        }
+
+        h1,
+        h2 {
+            font-weight: 600;
+        }
+
+        input {
+            width: 75%;
+            padding: 8px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+        }
+
+        input::placeholder {
+            color: var(--muted);
+        }
+
+        button {
+            padding: 8px 12px;
+            margin-left: 8px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin: 6px;
+            padding: 6px 10px;
+            background: color-mix(in srgb, var(--accent) 60%, black);
+            border-left: 4px solid var(--accent);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.15s ease;
+            transition: max-height 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        span {
+            pointer-events: none;
+        }
+
+        li:hover {
+            background: color-mix(in srgb, var(--accent) 80%, black);
+            transform: translateX(2px);
+        }
+
+        .empty {
+            color: var(--muted);
+        }
+
+        .line-text {
+            display: inline-block;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 1.5rem;
+            margin-left: 5px;
+            pointer-events: all;
+            height: fit-content;
+            width: fit-content;
+            text-decoration: underline;
+        }
+
+        ul {
+            min-height: 40px;
+        }
+
+        .comments {
+            gap: 10px;
+            width: 100%;
+        }
+
+        .comment {
+            border-radius: 10px;
+            border: 1px solid #444;
+            width: 100%;
+            background-color: color-mix(in srgb, #222 40%, transparent);
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .comment p {
+            background-color: color-mix(in srgb, black 40%, transparent);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .picklist-sel {
+            color: #e0e0e0;
+            text-align: center;
+            font-size: large;
+            margin-top: 0.3rem;
+            padding: 0.5rem;
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="display: inline-block;">Picklist:</h1><select id="scouterName" class="picklist-sel">
+        {% for name in names %}
+        <option {% if loop.first %}selected{% endif %}>{{name}}</option>
+        {% endfor %}
+    </select>
+    <h2 id="score"></h2>
+    <li id="initTeam"><span class='line-text'>{{initTeam}}</span></li>
+    <div id="pick1" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
+        <label>Pick 1</label>
+        <ul id="pick1list">
+        </ul>
+    </div>
+    <br>
+    <div id="pick2" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
+        <label>Pick 2</label>
+        <ul id="pick2list">
+        </ul>
+    </div>
+    <br>
+    <div id="pick3" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
+        <label>Pick 3</label>
+        <ul id="pick3list">
+        </ul>
+    </div>
+    <script src="{{url_for('static', filename='js/user-disp.js')}}"></script>
+    <script>
+        const lists = [document.getElementById("pick1list"), document.getElementById("pick2list"), document.getElementById("pick3list")];
+        const h2 = document.getElementById("score");
+        const dashes = JSON.parse(`{{dashes | safe}}`);
+        const select = document.getElementById("scouterName");
+        let lastPicks = null;
+        let ilike = "none";
+
+        document.getElementById('initTeam').onclick = function (e) {
+            const ifr = document.createElement("iframe");
+            ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team={{initTeam}}&kiosk&refresh=30s`;
+            ifr.width = "50%";
+            ifr.height = "50%";
+            ifr.frameBorder = "0";
+            ifr.style.position = "fixed";
+            ifr.style.top = e.clientY.toString() + "px";
+            ifr.style.left = e.clientX.toString() + "px";
+            ifr.addEventListener("mouseleave", () => ifr.remove());
+            document.body.appendChild(ifr);
+        };
+
+        Array.prototype.equals = function (array) {
+            if (!array) return false;
+            if (array === this) return true;
+            if (this.length != array.length)
+                return false;
+
+            for (var i = 0, l = this.length; i < l; i++) {
+                if (this[i] instanceof Array && array[i] instanceof Array) {
+                    if (!this[i].equals(array[i]))
+                        return false;
+                }
+                else if (this[i] != array[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function certainIndexList() {
+            for (const ul of document.querySelectorAll("ul"))
+                for (const li_remains of ul.querySelectorAll("li")) {
+                    li_remains.querySelector("span").innerText = `${Array.from(ul.querySelectorAll("li")).indexOf(li_remains) + 1}: `;
+                }
+        }
+
+        function calculatePredictedScore() {
+            let picks = [];
+            for (const listi of lists)
+                if (listi.children.length > 0)
+                    picks.push(listi.children[0].querySelector(".line-text").innerText);
+
+            for (var i = 0; i < picks.length; i++)
+                picks[i] = `pick${i + 1}=${picks[i]}`;
+            if (picks.equals(lastPicks)) {
+                return;
+            } else lastPicks = picks;
+            fetch(`/calc-team-score?${picks.join("&")}`, {
+                method: "GET",
+                credentials: "include"
+            }).then(res => {
+                if (res.ok)
+                    res.json().then(j => {
+                        h2.innerText = "Score: " + j["score"];
+                    });
+            }).catch((err) => {
+                console.error(`Error calculating predicted score: ${err}`);
+            });
+        }
+
+        select.addEventListener("change", async () => await loadPicklist(select.value));
+
+        async function updateLike(name, li) {
+            const res = await fetch("{{url_for('update_like')}}", {
+                method: "POST",
+                headers: {
+                    "list": name,
+                    "pick": li.parentElement.id,
+                    "team": li.querySelector(".line-text").innerText,
+                    "like": ilike,
+                }
+            });
+
+            if (res.ok) {
+                [...li.querySelector(".fa-thumbs-o-up, .fa-thumbs-up").parentElement.querySelectorAll("user-disp#{{uid}}")].forEach(f => f.remove());
+                [...li.querySelector(".fa-thumbs-o-down, .fa-thumbs-down").parentElement.querySelectorAll("user-disp#{{uid}}")].forEach(f => f.remove());
+                switch (ilike) {
+                    case "like":
+                        li.querySelector(".fa-thumbs-o-up, .fa-thumbs-up").insertAdjacentHTML("afterend", `<user-disp id="{{uid}}"></user-disp>`);
+                        break;
+                    case "dlike":
+                        li.querySelector(".fa-thumbs-o-down, .fa-thumbs-down").insertAdjacentHTML("afterend", `<user-disp id="{{uid}}"></user-disp>`);
+                        break;
+                }
+            }
+        }
+
+        async function loadPicklist(name) {
+            const res = await fetch('{{url_for("get_picklist")}}', {
+                method: "GET",
+                credentials: 'include',
+                headers: {
+                    "name": name
+                }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                for (const ul of lists) {
+                    ul.replaceChildren();
+                    if (data[ul.id]) for (const team of data[ul.id]) {
+                        const rm = [...document.querySelectorAll("li")].find(li => li.querySelector(".line-text").innerText === team);
+                        if (rm) rm.remove();
+                        const li = document.createElement("li");
+                        li.innerHTML = `
+                            <div style="display: flex; width: 100%;"><span style="font-size: 1.5rem;"></span><span class='line-text'>${team["team"]}</span><span id='team-${team["team"]}-likes' style="font-size: 2rem; font-family: FontAwesome; margin-left: auto"><i class="fa fa-thumbs-o-up" style="pointer-events: all"></i>&nbsp;&nbsp;<br><i class="fa fa-thumbs-o-down" style="pointer-events: all"></i></span></div>
+                            <h2 style="text-align: center;">Comments</h2><hr style="width: 100%"></hr>
+                        `;
+                        const comments = document.createElement("div");
+                        comments.classList.add("comments");
+                        // <h2 style="text-align: center;"></h2>
+                        if (team["comments"]) for (const comment of team["comments"]) {
+                            const commentdiv = document.createElement("div");
+                            commentdiv.style.position = "relative";
+                            commentdiv.innerHTML = `
+                                <user-disp id="${comment["name"]}" style="display: inline-block; position: relative; left: 50%; transform: translateX(-50%);"></user-disp>
+                                <hr style="width: 100%">
+                                <p>${comment["body"]}</p>
+                            `;
+                            commentdiv.classList.add("comment");
+                            comments.appendChild(commentdiv);
+                        }
+                        li.querySelector(".line-text").onclick = function (e) {
+                            if (e.target === this) {
+                                const ifr = document.createElement("iframe");
+                                ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=${team["team"]}&kiosk&refresh=30s`;
+                                ifr.width = "50%";
+                                ifr.height = "50%";
+                                ifr.frameBorder = "0";
+                                ifr.style.position = "fixed";
+                                ifr.style.top = e.clientY.toString() + "px";
+                                ifr.style.left = e.clientX.toString() + "px";
+                                ifr.addEventListener("mouseleave", () => ifr.remove());
+                                document.body.appendChild(ifr);
+                            }
+                        };
+                        li.appendChild(comments);
+                        ul.appendChild(li);
+                        certainIndexList();
+                        li.style.maxHeight = li.querySelector(`#team-${team["team"]}-likes`).getBoundingClientRect().height + 'px';
+                        li.addEventListener('click', function (e) {
+                            console.log(e.target.tagname);
+                            if (e.target.tagName !== "SPAN" && e.target.tagName !== "I") {
+                                if (li.classList.contains("open")) {
+                                    li.style.maxHeight = li.querySelector(`#team-${team["team"]}-likes`).getBoundingClientRect().height + 'px';
+                                    li.classList.remove("open");
+                                } else {
+                                    li.style.maxHeight = (window.innerHeight / 1.5) + "px";
+                                    li.classList.add("open");
+                                }
+                            }
+                        });
+                        const likeButton = li.querySelector(".fa-thumbs-o-up, .fa-thumbs-up");
+                        const dlikeButton = li.querySelector(".fa-thumbs-o-down, .fa-thumbs-down");
+                        if (team["like"]) for (const like of team["like"]) {
+                            likeButton.insertAdjacentHTML("afterend", `<user-disp id="${like}"></user-disp>`);
+                            if (like === "{{uid}}") {
+                                likeButton.classList.replace("fa-thumbs-o-up", "fa-thumbs-up");
+                            }
+                        }
+                        if (team["dlike"]) for (const dlike of team["dlike"]) {
+                            dlikeButton.insertAdjacentHTML("afterend", `<user-disp id="${dlike}"></user-disp>`);
+                            if (dlike === "{{uid}}") {
+                                dlikeButton.classList.replace("fa-thumbs-o-down", "fa-thumbs-down");
+                            }
+                        }
+
+                        likeButton.addEventListener("click", () => {
+                            const nowLike = likeButton.classList.contains("fa-thumbs-o-up");
+                            if (nowLike) {
+                                likeButton.classList.replace("fa-thumbs-o-up", "fa-thumbs-up");
+                                dlikeButton.classList.replace("fa-thumbs-down", "fa-thumbs-o-down");
+                                ilike = "like";
+                            }
+                            else {
+                                likeButton.classList.replace("fa-thumbs-up", "fa-thumbs-o-up");
+                                ilike = "none";
+                            }
+
+                            updateLike(name, li);
+                        });
+                        dlikeButton.addEventListener("click", () => {
+                            const nowDlike = dlikeButton.classList.contains("fa-thumbs-o-down");
+                            if (nowDlike) {
+                                dlikeButton.classList.replace("fa-thumbs-o-down", "fa-thumbs-down");
+                                likeButton.classList.replace("fa-thumbs-up", "fa-thumbs-o-up");
+                                ilike = "dlike";
+                            }
+                            else {
+                                dlikeButton.classList.replace("fa-thumbs-down", "fa-thumbs-o-down");
+                                ilike = "none";
+                            }
+                            updateLike(name, li);
+                        });
+                    }
+                }
+                calculatePredictedScore();
+            } else {
+                throw new Error(await res.text());
+            }
+        }
+
+        loadPicklist(select.value);
+    </script>
+</body>
+
+</html>

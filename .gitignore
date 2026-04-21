@@ -8,6 +8,7 @@ storage
 photos
 autos
 notes
+picklists
 dockerout
 *.zip
 teststuff.py

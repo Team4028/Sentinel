@@ -12,7 +12,7 @@ from flask import (
     url_for,
     redirect,
 )
-from flask_login import login_user, login_required, logout_user, current_user
+from flask_login import login_user, login_required, logout_user, current_user, AnonymousUserMixin
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 
@@ -21,21 +21,15 @@ try:  # janky import stuff: running src/app.py and running scouting_app.py via g
     import lib.mesh as mesh
     from lib.data_config import lex_config
     import apputils
+    from endpoint_schemas import wrap_flask_routing
     import auth
-    from auth import (
-        require_json,
-        require_admin
-    )
 except ModuleNotFoundError:
     from src.lib.data_main import Processor, Event
     import src.lib.mesh as mesh
     from src.lib.data_config import lex_config
     import src.apputils as apputils
+    from src.endpoint_schemas import wrap_flask_routing
     import src.auth as auth
-    from src.auth import (
-        require_json,
-        require_admin
-    )
 import csv
 import os
 import json
@@ -81,6 +75,9 @@ def create_app(
     # load app configs from json file
     app.config.from_file("config/app-config.json", load=json.load)
     app.logger.info(f"Key: {SUPERUSER_CODE}")
+    app.get = wrap_flask_routing(app.get)
+    app.post = wrap_flask_routing(app.post)
+    app.route = wrap_flask_routing(app.route)
     # match the x in field-config-x.yaml to get the different configs
     POSS_YEARS = [
         f.stem.split("-", 2)[-1] for f in Path("./config").glob("field-config-*.yaml")
@@ -119,6 +116,7 @@ def create_app(
         """Renders the input template with the given context and also the accent and text colors of the app"""
         return render_template(
             template,
+            uid=("anonymous" if isinstance(current_user, AnonymousUserMixin) else current_user.id),
             accent=app.config["ACCENT_COLOR"],
             text=app.config["TEXT_COLOR"],
             **context,
@@ -145,6 +143,7 @@ def create_app(
         os.makedirs("photos", exist_ok=True)
         os.makedirs("notes", exist_ok=True)
         os.makedirs("autos", exist_ok=True)
+        os.makedirs("picklists", exist_ok=True)
         os.makedirs(
             "secrets", exist_ok=True
         )  # make sure secrets exists because we will soon open some files
@@ -168,7 +167,6 @@ def create_app(
     # =======================================================
     processor = Processor(
         skip_last_opr_fetching_for_testing_because_its_slow,
-        app.config["TBA_FETCH_PERIOD_MIN"],
         auth_key,
         (
             app.config["YEAR"].split("_")[0]
@@ -523,14 +521,9 @@ def create_app(
 
     # RESTRICTED (can pop the entire queue by spamming the endpoint)
     @app.route("/notifyq")
-    @login_required
-    @require_admin
     def notify_q():
         """pop the queue of notifications for frontend to consume and notify the user"""
-        if not ("X-Cid" in request.headers) or request.headers.get("X-Cid") == None:
-            cid = None
-        else:
-            cid = request.headers.get("X-Cid")
+        cid = request.headers.get("X-Cid")
         if cid == "null":
             cid = None
         for n in reversed(notification_queue):
@@ -545,7 +538,6 @@ def create_app(
 
     # RESTRICTED
     @app.get("/")
-    @login_required
     def main():
         """Renders homepage html template, passes the public key to the client to bind the service worker"""
         csv_data = []
@@ -577,34 +569,27 @@ def create_app(
         return render_template_style("login.html", form=form)
     
     @app.post("/create-login")
-    @login_required
-    @require_admin
-    @require_json
     def create_login():
         try:
-            if all(x in request.json for x in ["un", "pwd", "isadmin"]):
-                username, password, is_admin = request.json["un"], request.json["pwd"], request.json["isadmin"]
-                auth.add_user_to_db(username, password, is_admin)
-                return "Success", 200
-            else:
-                return "Invalid Request", 400
+            username, password, is_admin = request.json["un"], request.json["pwd"], request.json["isadmin"]
+            auth.add_user_to_db(username, password, is_admin)
+            return "Success", 200
         except Exception as e:
             return f"Error: {apputils.exception_format(e)}", 500
+        
+    @app.post('/get-user-display')
+    def get_user_display():
+        return auth.display_user(request.headers["id"])
 
     @app.post("/login-ovr")
-    @require_json
     def login_override():
-        if request.json and "key" in request.json:
-            if request.json["key"] == SUPERUSER_CODE:
-                login_user(auth.override_get_admin())
-                return "Login Override Successful", 200
-            else:
-                return "Invalid Credentials", 401
-        return "No key", 401
+        if request.json["key"] == SUPERUSER_CODE:
+            login_user(auth.override_get_admin())
+            return "Login Override Successful", 200
+        else:
+            return "Invalid Credentials", 401
 
     @app.get("/explore")
-    @login_required
-    @require_admin
     def explore():
         def build_tree(path):
             tree = []
@@ -633,95 +618,72 @@ def create_app(
         return render_template_style("file-explorer.html", tree=build_tree("."))
 
     @app.get("/edit-file")
-    @login_required
-    @require_admin
     def edit_file():
-        if request.args and "filepath" in request.args:
-            filepath = request.args.get("filepath").strip()
-            filepath = html.unescape(filepath)
-            if os.path.exists(filepath) and os.path.isfile(filepath):
-                with open(filepath, "r", encoding="utf-8") as r:
-                    content = r.read()
-                return render_template_style(
-                    "edit-file.html",
-                    file_path=filepath,
-                    file_name=os.path.basename(filepath),
-                    file_content=content,
-                )
-            else:
-                return "Error, path does not exist", 400
+        filepath = request.args.get("filepath").strip()
+        filepath = html.unescape(filepath)
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            with open(filepath, "r", encoding="utf-8") as r:
+                content = r.read()
+            return render_template_style(
+                "edit-file.html",
+                file_path=filepath,
+                file_name=os.path.basename(filepath),
+                file_content=content,
+            )
         else:
-            return "Invalid Request", 400
+            return "Error, path does not exist", 400
 
     @app.get("/view-file")
-    @login_required
-    @require_admin
     def view_file():
-        if request.args and "filepath" in request.args:
-            filepath = request.args.get("filepath").strip()
-            filepath = html.unescape(filepath)
-            if os.path.exists(filepath) and os.path.isfile(filepath):
-                return send_file(Path(filepath).resolve())
-            else:
-                return "Error, path does not exist", 400
+        filepath = request.args.get("filepath").strip()
+        filepath = html.unescape(filepath)
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            return send_file(Path(filepath).resolve())
         else:
-            return "Invalid Request", 400
+            return "Error, path does not exist", 400
 
     @app.post("/rename-file")
-    @login_required
-    @require_admin
-    @require_json
     def rename_file():
-        if request.json and "old" in request.json and "new" in request.json:
-            oldf = request.json["old"].strip()
-            if not is_docker:
-                app.logger.warning(
-                    f"Tried to rename file {oldf}, only allowed in virtual container."
-                )
-                return "Not allowed in local testing", 401
-            newf = request.json["new"].strip()
-            newf = Path(oldf).with_name(newf).as_posix()
-            if os.path.exists(oldf) and (os.path.isfile(oldf) or os.path.isdir(oldf)):
-                os.rename(oldf, newf)
-                return "Success", 200
-            else:
-                return "Error, path does not exist", 400
+        oldf = request.json["old"].strip()
+        if not is_docker:
+            app.logger.warning(
+                f"Tried to rename file {oldf}, only allowed in virtual container."
+            )
+            return "Not allowed in local testing", 401
+        newf = request.json["new"].strip()
+        newf = Path(oldf).with_name(newf).as_posix()
+        if os.path.exists(oldf) and (os.path.isfile(oldf) or os.path.isdir(oldf)):
+            os.rename(oldf, newf)
+            return "Success", 200
         else:
-            return "Invalid Request", 400
+            return "Error, path does not exist", 400
 
     @app.post("/delete-file")
-    @login_required
-    @require_admin
-    @require_json
     def delete_file():
-        if request.json and "filepath" in request.json:
-            filepath = request.json["filepath"].strip()
-            if "resolve" in request.json:
-                match (filepath):
-                    case "data_in.csv":
-                        filepath = os.path.join("datain", filepath)
-                    case _:
-                        filepath = os.path.join("dataout", filepath)
-            if not is_docker:
-                app.logger.warning(
-                    f"Tried to delete file {filepath}, only allowed in virtual container."
-                )
-                return "Not allowed in local testing", 401
-            if os.path.exists(filepath) and (
-                os.path.isfile(filepath) or os.path.isdir(filepath)
-            ):
-                if os.path.isfile(filepath):
-                    os.remove(filepath)
-                elif os.path.isdir(filepath):
-                    os.removedirs(filepath)
-                return "Success", 200
-            else:
-                return "Error, path does not exist", 400
+        filepath = request.json["filepath"].strip()
+        if "resolve" in request.json:
+            match (filepath):
+                case "data_in.csv":
+                    filepath = os.path.join("datain", filepath)
+                case _:
+                    filepath = os.path.join("dataout", filepath)
+        if not is_docker:
+            app.logger.warning(
+                f"Tried to delete file {filepath}, only allowed in virtual container."
+            )
+            return "Not allowed in local testing", 401
+        if os.path.exists(filepath) and (
+            os.path.isfile(filepath) or os.path.isdir(filepath)
+        ):
+            if os.path.isfile(filepath):
+                os.remove(filepath)
+            elif os.path.isdir(filepath):
+                os.removedirs(filepath)
+            return "Success", 200
         else:
-            return "Invalid Request", 400
+            return "Error, path does not exist", 400
 
     @app.get("/jobs")
-    @login_required
     def jobs():
         return jsonify(Event.get_event_progress())
 
@@ -740,7 +702,6 @@ def create_app(
 
     # PARTIALLY OPEN (just need to be logged in so basically closed, but technically no admin is necessary)
     @app.get("/logout")
-    @login_required
     def logout():
         logout_user()
         return redirect(url_for("login"))
@@ -752,7 +713,6 @@ def create_app(
         return send_file("service_worker.js")
 
     @app.get("/pit")
-    @login_required
     def pit_scout():
         return render_template_style("pit-scouting.html")
 
@@ -761,68 +721,59 @@ def create_app(
         return render_template_style("auton-scouting-simple.html")
 
     @app.post("/submit-pit")
-    @login_required
-    @require_json
     def save_pit():
-        if request and request.json:
-            try:
-                csv_file = os.path.join("dataout", "output.csv" + "-pit-scouting.csv")
-                need_write = (
-                    not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
-                )
-                with open(
-                    os.path.join("dataout", "output.csv" + "-pit-scouting.csv"),
-                    mode="a",
-                    newline="",
-                ) as f:
-                    writer = csv.DictWriter(f, fieldnames=request.json.keys())
-                    if need_write:
-                        writer.writeheader()
-                    writer.writerow(request.json)
-                return "Success", 200
-            except Exception as e:
-                return apputils.exception_format(e), 500
-        return "Error: invalid request", 400
+        try:
+            csv_file = os.path.join("dataout", "output.csv" + "-pit-scouting.csv")
+            need_write = (
+                not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
+            )
+            with open(
+                os.path.join("dataout", "output.csv" + "-pit-scouting.csv"),
+                mode="a",
+                newline="",
+            ) as f:
+                writer = csv.DictWriter(f, fieldnames=request.json.keys())
+                if need_write:
+                    writer.writeheader()
+                writer.writerow(request.json)
+            return "Success", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
 
     @app.post("/submit-auto-simple")
-    @require_json
     def save_auto_simple():
-        if request and request.json:
-            try:
-                csv_file = os.path.join("dataout", "output.csv" + "-auton-scouting.csv")
-                need_write = (
-                    not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
-                )
-                js: dict = request.json
-                was_pre = js.pop("wasPre") if "wasPre" in js else False
-                if os.path.exists(csv_file):
-                    with open(csv_file, mode="r", newline="") as r:
-                        matches_scouted = len(
-                            list(
-                                filter(
-                                    lambda s: (f"{js["tn"]}" in s.strip())
-                                    and ((not was_pre) ^ ("Pre" in s.strip())),
-                                    r.readlines(),
-                                )
+        try:
+            csv_file = os.path.join("dataout", "output.csv" + "-auton-scouting.csv")
+            need_write = (
+                not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
+            )
+            js: dict = request.json
+            was_pre = js.pop("wasPre") if "wasPre" in js else False
+            if os.path.exists(csv_file):
+                with open(csv_file, mode="r", newline="") as r:
+                    matches_scouted = len(
+                        list(
+                            filter(
+                                lambda s: (f"{js["tn"]}" in s.strip())
+                                and ((not was_pre) ^ ("Pre" in s.strip())),
+                                r.readlines(),
                             )
                         )
-                else:
-                    matches_scouted = 0
-                js = {"Match": f"{"Pre " if was_pre else ""}{matches_scouted + 1}"} | js
-                with open(csv_file, mode="a", newline="") as f:
-                    writer = csv.DictWriter(f, fieldnames=js.keys())
-                    if need_write:
-                        writer.writeheader()
-                    writer.writerow(js)
-                return "Success", 200
-            except Exception as e:
-                return apputils.exception_format(e), 500
-        return "Error: invalid request", 400
+                    )
+            else:
+                matches_scouted = 0
+            js = {"Match": f"{"Pre " if was_pre else ""}{matches_scouted + 1}"} | js
+            with open(csv_file, mode="a", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=js.keys())
+                if need_write:
+                    writer.writeheader()
+                writer.writerow(js)
+            return "Success", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
 
     # RESTRICTED (can edit things and delete data = restrict)
     @app.get("/changes")
-    @login_required
-    @require_admin
     def changes():
         """Renders page listing changes to apply for restrict append level 2"""
         return render_template_style("change.html", append_queue=process_queue)
@@ -843,8 +794,6 @@ def create_app(
 
     # RESTRICTED (completely wipes out input data = bad)
     @app.post("/upload")
-    @login_required
-    @require_admin
     def upload_file():
         """Overrides the current input data with an uploaded file from the frontend and reprocesses the data"""
         try:
@@ -858,50 +807,39 @@ def create_app(
             return apputils.exception_format(e), 500
 
     @app.post("/upload-alt")
-    @login_required
-    @require_admin
     def upload_other_files():
         try:
-            if "data" in request.files and "name" in request.headers:
-                d_file = request.files["data"]
-                if (
-                    d_file.filename != ""
-                    and request.headers.get("name", "").strip() != ""
-                ):
-                    d_file.save(os.path.join("dataout", request.headers.get("name")))
+            d_file = request.files["data"]
+            if (
+                d_file.filename != ""
+                and request.headers.get("name", "").strip() != ""
+            ):
+                d_file.save(os.path.join("dataout", request.headers.get("name")))
             return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
 
     @app.post("/upload-auto")
-    @login_required
     def upload_auto():
         try:
-            if ("photo" in request.files) and (
-                match := request.headers.get("mkey")
-            ) != None:
-                photo = request.files["photo"]
-                if photo.filename != "":
-                    save_auto(photo, match)
-                    return "Saved!", 200
-            return "Error: invalid request", 400
+            match = request.headers.get("mkey")
+            photo = request.files["photo"]
+            if photo.filename != "":
+                save_auto(photo, match)
+                return "Saved!", 200
         except Exception as e:
             return apputils.exception_format(e), 500
 
     # RESTRICTED (uploads files = writes to server directory = bad)
     @app.post("/upload-photo")
-    @login_required
     def upload_photo():
         """Save a photo for the cooresponding team"""
         try:
-            if ("photo" in request.files) and (
-                team := request.headers.get("team")
-            ) != None:
-                photo = request.files["photo"]
-                if photo.filename != "":
-                    save_photo(photo, team)
-                    return "Saved!", 200
-            return "Error: invalid request", 400
+            team = request.headers.get("team")
+            photo = request.files["photo"]
+            if photo.filename != "":
+                save_photo(photo, team)
+                return "Saved!", 200
         except Exception as e:
             return apputils.exception_format(e), 500
 
@@ -914,8 +852,6 @@ def create_app(
 
     # RESTRICTED (not as bad, but still requires decent processing power)
     @app.post("/reproc")
-    @login_required
-    @require_admin
     def reprocess():
         """Reprocesses the data with no additional inputs; for testing or manual csv changes"""
         try:
@@ -925,14 +861,9 @@ def create_app(
             return apputils.exception_format(e), 500
 
     @app.post("/tba-webhook")
-    @require_json
     def consume_tba_webhook():
-        if "message_type" not in request.json:
-            return "Invalid Request", 400
         if (
-            not request.headers
-            or "X-TBA-HMAC" not in request.headers
-            or request.headers.get("X-TBA-HMAC")
+            request.headers.get("X-TBA-HMAC")
             != hmac.new(
                 tba_webhook_secret.encode("utf-8"),
                 json.dumps(request.json, ensure_ascii=True).encode("utf-8"),
@@ -990,62 +921,52 @@ def create_app(
         return "Error: invalid request", 400
 
     @app.get("/take-notes")
-    @login_required
     def take_notes():
-        return render_template_style("take-notes.html", loggedin_name=current_user.un)
+        return render_template_style("take-notes.html")
 
     @app.get("/get-notes")
-    @login_required
     def get_notes():
-        if all(x in request.headers for x in ["name", "match", "team", "pre"]):
-            path = os.path.join(
-                "notes",
-                html.unescape(request.headers["team"]),
-                html.unescape(request.headers["pre"] + request.headers["match"]),
-                html.unescape(request.headers["name"]) + ".txt",
-            )
-            if os.path.exists(path):
-                with open(path, "r") as r:
-                    return r.read()
-            else:
-                return "File not found", 400
+        path = os.path.join(
+            "notes",
+            html.unescape(request.headers["team"]),
+            html.unescape(request.headers["pre"] + request.headers["match"]),
+            html.unescape(current_user.id) + ".txt",
+        )
+        if os.path.exists(path):
+            with open(path, "r") as r:
+                return r.read()
         else:
-            return "Invalid Request", 400
+            return "File not found", 400
 
     @app.get("/note-tables")
     def get_note_tables():
-        if "team" in request.args:
-            team = request.args["team"]
-            tn_path = os.path.join("notes", team)
-            if not os.path.isdir(tn_path):
-                return {}
+        team = request.args["team"]
+        tn_path = os.path.join("notes", team)
+        if not os.path.isdir(tn_path):
+            return {}
 
-            table = []
-            for mn in os.listdir(tn_path):
-                mn_path = os.path.join(tn_path, mn)
-                if not os.path.isdir(mn_path):
-                    continue
-                row = {"Match": mn}
-                for file in os.listdir(mn_path):
-                    if file.endswith(".txt"):
-                        si = os.path.splitext(file)[0]
-                        file_path = os.path.join(mn_path, file)
+        table = []
+        for mn in os.listdir(tn_path):
+            mn_path = os.path.join(tn_path, mn)
+            if not os.path.isdir(mn_path):
+                continue
+            row = {"Match": mn}
+            for file in os.listdir(mn_path):
+                if file.endswith(".txt"):
+                    si = os.path.splitext(file)[0]
+                    file_path = os.path.join(mn_path, file)
 
-                        with open(file_path, "r", encoding="utf-8") as r:
-                            row[si] = r.read()
+                    with open(file_path, "r", encoding="utf-8") as r:
+                        row[si] = r.read()
 
-                table.append(row)
-            return table
-        else:
-            return "Invalid Request", 400
+            table.append(row)
+        return table
 
     # OPEN (grafana needs this)
     @app.get("/next-3")
     def n3():
         """Returns the next app.config["NEXT_N_MATCHES_NUMBER"] (currently 3, hence the name) matches after `?mkey` that contain `?team`<br>
         where `?x` is the url parameter named `x`"""
-        if not request.args["mkey"]:
-            return "", 400  # bad request
         curr_match = request.args["mkey"]
         foundit = False  # whether it has found the curr_match yet
         next_3 = []
@@ -1074,8 +995,6 @@ def create_app(
 
     # RESTRICTED (edits input data = bad)
     @app.post("/append")
-    @login_required
-    @require_admin
     def append_lines():
         """Appends a series of csv lines to the input data based off of the file sent via request.files.<br>
         Complies with the restrict append level."""
@@ -1083,7 +1002,6 @@ def create_app(
             if (
                 request.headers.get("sending", "false") == "false"
                 and app.config["RESTRICT_APPEND_LEVEL"] == 2
-                and "data" in request.files
             ):
                 d_file = request.files["data"]
                 # \/ readlines returns a buffer (so use decode) and also use "MN" (which doesn't change from year to year bc theres always matches), to filter out in case its a header
@@ -1114,8 +1032,6 @@ def create_app(
 
     # RESTRICTED (edits input data = bad)
     @app.post("/apply-change/<int:idx>")
-    @login_required
-    @require_admin
     def apply_change(idx):
         """For restrict append level 2: applies the `idx`'th queued append"""
         if idx != None:
@@ -1129,8 +1045,6 @@ def create_app(
 
     # RESTRICTED (can delete queued data = bad)
     @app.post("/delete-change/<int:idx>")
-    @login_required
-    @require_admin
     def delete_change(idx):
         """For restrict append level 2: drops the `idx`'th queued append"""
         if idx != None:
@@ -1140,66 +1054,51 @@ def create_app(
 
     # RESTRICTED (can delete input data = bad)
     @app.post("/delete-lines")
-    @login_required
-    @require_admin
-    @require_json
     def delete_lines():
         """For restrict append level 1: deletes the already applied append cooresponding to the input json's `lines` field using `rm_row_hash`"""
         if (
-            "sending" in request.headers
-            and request.headers.get("sending", "false") == "true"
-            and "si" in request.json
-            and "mn" in request.json
+            request.headers.get("sending", "false") == "true"
             and mesh.get_is_meshed()
         ):
             mesh.send_command(
                 f"rm {request.json["mn"]},{request.json["si"]}", SUPERUSER_CODE
             )
-        if request.json and request.json["lines"]:
-            rm_row_hash(request.json["lines"])
-            return "", 200
-        return "Invalid request", 400
+        rm_row_hash(request.json["lines"])
+        return "", 200
 
     @app.get("/auton-scout")
-    @login_required
     def auton_scout():
         return render_template_style("auton-scouting.html")
 
     @app.get("/teams-in-match")
-    @login_required
     def teams_in_match():
-        if "mkey" in request.args:
-            _match = request.args.get("mkey", "")
-            if not processor.has_sched_data:
-                return jsonify({"k": "", "r": [""] * 3, "b": [""] * 3})
-            for mat in processor.tba_data_static.schedule:
-                if mat["k"] == _match:
-                    return jsonify(
-                        {
-                            "k": mat["k"],
-                            "r": list(map(int, mat["r"])),
-                            "b": list(map(int, mat["b"])),
-                        }
-                    )
-            return "Error, match not in data", 404
-        return "Error: invalid request", 400
+        _match = request.args.get("mkey", "")
+        if not processor.has_sched_data:
+            return jsonify({"k": "", "r": [""] * 3, "b": [""] * 3})
+        for mat in processor.tba_data_static.schedule:
+            if mat["k"] == _match:
+                return jsonify(
+                    {
+                        "k": mat["k"],
+                        "r": list(map(int, mat["r"])),
+                        "b": list(map(int, mat["b"])),
+                    }
+                )
+        return "Error, match not in data", 404
 
     @app.get("/current-event")
-    @login_required
     def get_current_event():
         if not processor.has_sched_data:
             return "None"
         return processor.event_key
 
     @app.get("/matches-in-comp")
-    @login_required
     def matches_in_comp():
         if not processor.has_sched_data:
             return jsonify([])
         return jsonify(list(map(lambda m: m["k"], processor.tba_data_static.schedule)))
 
     @app.get("/events-from-team")
-    @login_required
     def events_from_team():
         app.logger.info(
             f"Get events from team {app.config["TEAM"]} for year {processor.year}"
@@ -1209,28 +1108,22 @@ def create_app(
         )
 
     @app.post("/load-event-data")
-    @login_required
-    @require_admin
     def load_event_data():
-        if "event" in request.headers:
-            event = request.headers.get("event", "").strip()
-            if event and event != "":
-                try:
-                    run_async_task(processor.clear_database())
-                    processor.event_key = event
-                    with open("last_loaded_event_key.txt", "w") as w:
-                        w.write(event)
-                    run_async_task(processor.load_event_data())
-                    run_async_task(processor.perform_periodic_calls())
-                    return "", 200
-                except Exception as e:
-                    return apputils.exception_format(e), 500
-            return "Invalid event key", 400
-        return "Error: invalid request", 400
+        event = request.headers.get("event", "").strip()
+        if event and event != "":
+            try:
+                run_async_task(processor.clear_database())
+                processor.event_key = event
+                with open("last_loaded_event_key.txt", "w") as w:
+                    w.write(event)
+                run_async_task(processor.load_event_data())
+                run_async_task(processor.perform_periodic_calls())
+                return "", 200
+            except Exception as e:
+                return apputils.exception_format(e), 500
+        return "Invalid event key", 400
 
     @app.post("/dash-reset")
-    @login_required
-    @require_admin
     def reset_dash():
         try:
             compile_scouting_dashboard(request.host_url)
@@ -1239,8 +1132,6 @@ def create_app(
             return apputils.exception_format(e), 500
 
     @app.post("/clear-datain-spreadsheet")
-    @login_required
-    @require_admin
     def clear_datain():
         try:
             os.remove(infile)
@@ -1249,8 +1140,6 @@ def create_app(
             return apputils.exception_format(e), 500
 
     @app.post("/clear-db")
-    @login_required
-    @require_admin
     def clear_db():
         try:
             processor.clear_database()
@@ -1260,8 +1149,6 @@ def create_app(
 
     # RESTRICTED (can edit field-config = bad (technically not but still))
     @app.get("/edit-yaml")
-    @login_required
-    @require_admin
     def edit_yaml():
         """Renders the editing template for web editing the field-config.yaml file"""
         with open(
@@ -1275,59 +1162,45 @@ def create_app(
         )
 
     @app.post("/save-file")
-    @login_required
-    @require_admin
-    @require_json
     def save_file():
-        if request.json and "code" in request.json and "path" in request.json:
-            data = html.unescape(request.json.get("code", ""))
-            path = html.unescape(request.json.get("path", ""))
-            app.logger.info(f"Overwriting file {path}")
-            try:
-                if os.path.exists(path) and os.path.isfile(path):
-                    with open(path, "w") as f:
-                        f.write(data)
-                    return jsonify({"ok": True, "message": "Saved"})
-                else:
-                    return jsonify({"ok": False, "message": "File does not exist"})
-            except Exception as e:
-                return jsonify(
-                    {"ok": False, "message": f"Error: {apputils.exception_format(e)}"}
-                )
-        else:
-            return "Invalid Request", 400
-
-    @app.post("/save-notes")
-    @login_required
-    @require_json
-    def save_notes():
-        if all(x in request.json for x in ["team", "data", "name", "match", "pre"]):
-            data = html.unescape(request.json.get("data", ""))
-            team = html.unescape(request.json.get("team", ""))
-            name = html.unescape(request.json.get("name", ""))
-            pre = html.unescape(request.json.get("pre", ""))
-            match = pre + html.unescape(request.json.get("match", ""))
-            app.logger.info(
-                f"Saving notes for {team} match {match} from scouter {name}"
-            )
-            path = os.path.join("notes", team, match, name + ".txt")
-            os.makedirs(os.path.join("notes", team, match), exist_ok=True)
-            try:
+        data = html.unescape(request.json.get("code", ""))
+        path = html.unescape(request.json.get("path", ""))
+        app.logger.info(f"Overwriting file {path}")
+        try:
+            if os.path.exists(path) and os.path.isfile(path):
                 with open(path, "w") as f:
                     f.write(data)
                 return jsonify({"ok": True, "message": "Saved"})
-            except Exception as e:
-                return jsonify(
-                    {"ok": False, "message": f"Error: {apputils.exception_format(e)}"}
-                )
-        else:
-            return "Invalid Request", 400
+            else:
+                return jsonify({"ok": False, "message": "File does not exist"})
+        except Exception as e:
+            return jsonify(
+                {"ok": False, "message": f"Error: {apputils.exception_format(e)}"}
+            )
+
+    @app.post("/save-notes")
+    def save_notes():
+        data = html.unescape(request.json.get("data", ""))
+        team = html.unescape(request.json.get("team", ""))
+        name = current_user.id
+        pre = html.unescape(request.json.get("pre", ""))
+        match = pre + html.unescape(request.json.get("match", ""))
+        app.logger.info(
+            f"Saving notes for {team} match {match} from scouter {name}"
+        )
+        path = os.path.join("notes", team, match, name + ".txt")
+        os.makedirs(os.path.join("notes", team, match), exist_ok=True)
+        try:
+            with open(path, "w") as f:
+                f.write(data)
+            return jsonify({"ok": True, "message": "Saved"})
+        except Exception as e:
+            return jsonify(
+                {"ok": False, "message": f"Error: {apputils.exception_format(e)}"}
+            )
 
     # RESTRICTED (overwrites field-config = bad)
     @app.post("/save-yaml")
-    @login_required
-    @require_admin
-    @require_json
     def save_yaml():
         """A file consumer that saves the field-config.yaml file during web editing"""
         data = html.unescape(request.json.get("code", ""))
@@ -1344,8 +1217,6 @@ def create_app(
 
     # RESTRICTED (technically doesn't write to app config but still bad)
     @app.get("/edit-app-conf")
-    @login_required
-    @require_admin
     def edit_app_conf_page():
         """Returns a template for editing the app configuration"""
         return render_template_style("appconfig.html", years=POSS_YEARS)
@@ -1353,19 +1224,13 @@ def create_app(
     # RESTRICTED (don't want to share app config because it has secrets)
     # TODO: make POST probably
     @app.get("/get-config")
-    @login_required
-    @require_admin
     def get_app_config():
         """Returns the app configuration for the editor at /edit-app-conf to read"""
         with open(os.path.join(app.root_path, "config", "app-config.json"), "r") as r:
             return jsonify(json.load(r))
 
     @app.post("/get-log")
-    @login_required
-    @require_admin
     def get_log():
-        if not request.headers or "log" not in request.headers:
-            return "Error: invalid request", 400
         logfile = request.headers.get("log", "")
         if os.path.exists(os.path.join("log", "gunicorn", os.path.basename(logfile))):
             with open(
@@ -1380,15 +1245,11 @@ def create_app(
             )
 
     @app.get("/read-log")
-    @login_required
-    @require_admin
     def read_log():
         return render_template_style("view-logs.html")
 
     # RESTRICTED (obviously don't want to share this)
     @app.get("/tba-key")
-    @login_required
-    @require_admin
     def get_tba_key():
         """returns the current TBA api key and whether or not it is good"""
         return jsonify(
@@ -1400,8 +1261,6 @@ def create_app(
         )
 
     @app.get("/test-notification")
-    @login_required
-    @require_admin
     def test_notification():
         notification_queue.append(
             (
@@ -1419,9 +1278,7 @@ def create_app(
     # RESTRICTED (may as well, not used by grafana)
     @app.post("/test-tba-key/", defaults={"key": ""})
     @app.post("/test-tba-key/<path:key>")
-    @login_required
-    @require_admin
-    def test_tba_key(
+    def test_tba_key( # TODO: this needs encryption (not pass in url)
         key,
     ):  # necessary because fetching client-side runs into sad caching server-side
         """tests whether or not the given TBA api key is valid, returning a string 'true' for good and 'false' for bad"""
@@ -1430,69 +1287,48 @@ def create_app(
         return "false", 200
 
     @app.post("/set-tba-key")
-    @login_required
-    @require_admin
-    @require_json
     def set_tba_key():
         """verifies the inputted api key sent via json["key"], applies it and writes it to tba.txt, and reprocesses data"""
         nonlocal auth_key
         try:
-            if request.json and request.json["key"]:
-                auth_key = request.json["key"].strip()
-                if not apputils.test_tba_key(auth_key):  # health check
-                    return "Bad TBA key", 400
-                apputils.set_auth_key(auth_key)
-                processor.tba_key = auth_key
-                return "", 200
-            else:
-                return "Invalid Request", 400
+            auth_key = request.json["key"].strip()
+            if not apputils.test_tba_key(auth_key):  # health check
+                return "Bad TBA key", 400
+            apputils.set_auth_key(auth_key)
+            processor.tba_key = auth_key
+            return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
 
     @app.post("/set-tba-whook-key")
-    @login_required
-    @require_admin
-    @require_json
     def set_tba_whook_key():
         nonlocal tba_webhook_secret
         try:
-            if request.json and request.json["key"]:
-                tba_webhook_secret = request.json["key"].strip()
-                apputils.set_tba_whook_key(tba_webhook_secret)
-                return "", 200
-            else:
-                return "Invalid Request", 400
+            tba_webhook_secret = request.json["key"].strip()
+            apputils.set_tba_whook_key(tba_webhook_secret)
+            return "", 200
         except Exception as e:
             return apputils.exception_format(e), 500
 
     # RESTRICTED (overwrites un/pwd = bad)
     @app.post("/set-creds")
-    @login_required
-    @require_admin
-    @require_json
     def set_creds():
         """ add or overwrite a login """
-        if all([x in request.json for x in ["un", "pwd", "isadmin"]]):
-            try:
-                un = request.json["un"].strip()
-                pwd = request.json["pwd"].strip()
-                is_admin = request.json["isadmin"]
-                auth.add_user_to_db(un, pwd, is_admin)
-                return "Success", 200
-            except Exception as e:
-                return apputils.exception_format(e), 500
-        return "Invalid Request", 400
+        try:
+            un = request.json["un"].strip()
+            pwd = request.json["pwd"].strip()
+            is_admin = request.json["isadmin"]
+            auth.add_user_to_db(un, pwd, is_admin)
+            return "Success", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
 
     @app.get("/calc-team-score")
-    @login_required
     def calc_team_score():
         teams = [app.config["TEAM"]]
-        if "pick1" in request.args:
-            teams.append(request.args.get("pick1"))
-        if "pick2" in request.args:
-            teams.append(request.args.get("pick2"))
-        if "pick3" in request.args:
-            teams.append(request.args.get("pick3"))
+        teams.append(request.args.get("pick1"))
+        teams.append(request.args.get("pick2"))
+        teams.append(request.args.get("pick3"))
         sum = 0
         if not processor.has_sched_data:
             return jsonify({"score": 0})
@@ -1502,7 +1338,6 @@ def create_app(
         return jsonify({"score": round(sum)})
 
     @app.get("/multi-team-view")
-    @login_required
     def multi_view():
         return render_template_style(
             "multi-team-view.html",
@@ -1513,9 +1348,50 @@ def create_app(
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
+    
+    @app.get("/view-picklist")
+    def view_picklist():
+        return render_template_style(
+            "view-picklists.html",
+            names=list(map(lambda x: x.stem, Path("picklists").glob("*"))),
+            initTeam=app.config["TEAM"],
+            dashes=json.dumps(DASHBOARD_UIDS),
+            grafana_base=app.config["GRAFANA_URL"] + "/d/",
+        )
+    
+    @app.get("/get-picklist")
+    def get_picklist():
+        jsfiles = list(Path("picklists").glob(f"{request.headers["name"]}.json"))
+        if len(jsfiles) > 0:
+            jsfile = jsfiles[0]
+            with open(jsfile, 'r') as r:
+                return jsonify(json.load(r))
+        else:
+            return "File not found", 400
+    
+    @app.post("/update-like")
+    def update_like():
+        if os.path.exists(os.path.join("picklists", f"{request.headers["list"]}.json")):
+            with open(os.path.join("picklists", f"{request.headers["list"]}.json"), 'r') as r:
+                js = json.load(r)
+                if request.headers["pick"] in js and any([x["team"] == request.headers["team"] for x in js[request.headers["pick"]]]):
+                    jsteam = [x for x in js[request.headers["pick"]] if x["team"] == request.headers["team"]][0]
+                    match (request.headers["like"]):
+                        case "like":
+                            jsteam["like"].append(current_user.id) if current_user.id not in jsteam["like"] else ()
+                            jsteam["dlike"] = [x for x in jsteam["dlike"] if x != current_user.id]
+                        case "dlike":
+                            jsteam["like"] = [x for x in jsteam["like"] if x != current_user.id]
+                            jsteam["dlike"].append(current_user.id) if current_user.id not in jsteam["dlike"] else ()
+                        case _:
+                            jsteam["like"] = [x for x in jsteam["like"] if x != current_user.id]
+                            jsteam["dlike"] = [x for x in jsteam["dlike"] if x != current_user.id]
+            with open(os.path.join("picklists", f"{request.headers["list"]}.json"), 'w') as w:
+                json.dump(js, w, indent=4)
+            return "", 200
+        else: return "File not found", 400
 
     @app.get("/picklist")
-    @login_required
     def picklist():
         return render_template_style(
             "picklist.html",
@@ -1528,28 +1404,30 @@ def create_app(
                 if processor.has_sched_data
                 else []
             ),
-            loggedin_name=current_user.un,
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
     
     @app.post("/save-picklist")
-    @login_required
-    def save_picklist():
-        if request and request.headers and 'name' in request.headers:
-            pickname = request.headers['name']
-            pickpath = os.path.join("picklists", pickname + ".json")
-            with open(pickpath, 'w') as w:
-                json.dump(request.json, w)
-            return "Success", 200
-        else:
-            return "Invalid Request", 400
+    def save_picklist(): # TODO: don't overwrite likes/comments
+        pickname = current_user.id
+        pickpath = os.path.join("picklists", pickname + ".json")
+        js = request.json
+        for _list in js.keys():
+            teams_new = []
+            for team in js[_list]:
+                teams_new.append({
+                    "team": team,
+                    "like": [],
+                    "dlike": []
+                })
+            js[_list] = teams_new
+        with open(pickpath, 'w') as w:
+            json.dump(request.json, w, indent=4)
+        return "Success", 200
 
     # RESTRICTED (overwrites app config = bad)
     @app.post("/save-app-config")
-    @login_required
-    @require_admin
-    @require_json
     def save_app_config():
         """Consumes an app configuration json, saves it, and applies it"""
         try:
@@ -1568,7 +1446,6 @@ def create_app(
                 if "_" in app.config["YEAR"]
                 else app.config["YEAR"]
             )
-            processor.period_min = app.config["TBA_FETCH_PERIOD_MIN"]
             if processor.has_sched_data and apputils.data_in_exists():
                 try:
                     run_async_task(
@@ -1584,8 +1461,7 @@ def create_app(
 
     # RESTRICTED (save bandwidth)
     @app.get("/download/<file>")
-    @login_required
-    def dload(file):
+    def dload(file): # TODO: migrate from /<file> arch.
         """Sends a stream using the `stream` helper for the requested file to download it"""
         if not file:
             return "File not found.", 403
@@ -1613,43 +1489,33 @@ def create_app(
         )
 
     @app.get("/download-folder")
-    @login_required
     def download_folder():
-        if request.headers and "path" in request.headers:
-            path = html.unescape(request.headers.get("path"))
-            temp_dir = tempfile.gettempdir()
-            zip_name = os.path.basename(path) + ".zip"
-            zip_path = os.path.join(temp_dir, zip_name)
-            shutil.make_archive(zip_path.replace(".zip", ""), "zip", path)
-            return send_file(zip_path, as_attachment=True)
-        else:
-            return "Invalid Request", 400
+        path = html.unescape(request.headers.get("path"))
+        temp_dir = tempfile.gettempdir()
+        zip_name = os.path.basename(path) + ".zip"
+        zip_path = os.path.join(temp_dir, zip_name)
+        shutil.make_archive(zip_path.replace(".zip", ""), "zip", path)
+        return send_file(zip_path, as_attachment=True)
 
     @app.post("/upload-folder")
-    @login_required
-    @require_admin
     def upload_folder():
-        if "data" in request.files and "folderPath" in request.headers:
-            file = request.files["data"]
-            if file.filename == "":
-                return "Error, no selected file", 400
-            filename = file.filename
-            temp_dir = tempfile.gettempdir()
-            zip_path = os.path.join(temp_dir, filename)
-            file.save(zip_path)
+        file = request.files["data"]
+        if file.filename == "":
+            return "Error, no selected file", 400
+        filename = file.filename
+        temp_dir = tempfile.gettempdir()
+        zip_path = os.path.join(temp_dir, filename)
+        file.save(zip_path)
 
-            try:
-                with zipfile.ZipFile(zip_path, "r") as r:
-                    r.extractall(request.headers["folderPath"])
-            except zipfile.BadZipFile:
-                return "Invalid Zip file", 400
-            return "File uploaded successfully", 200
-        return "Invalid Request", 400
+        try:
+            with zipfile.ZipFile(zip_path, "r") as r:
+                r.extractall(request.headers["folderPath"])
+        except zipfile.BadZipFile:
+            return "Invalid Zip file", 400
+        return "File uploaded successfully", 200
 
     # RESTRICTED (edits input data = bad)
     @app.get("/test-mesh")
-    @login_required
-    @require_admin
     def test_mesh():
         """Debug endpoint to test the meshtastic listener without a mesh radio"""
         m = request.args.get("m")  # (m is the message)

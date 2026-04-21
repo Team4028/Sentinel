@@ -180,7 +180,7 @@
         const preSpan = document.getElementById("prespan");
         const nameCard = document.getElementById("name");
         const nameBD = document.getElementById("name-bd");
-        let scouterName = "{{loggedin_name}}";
+        let scouterName = "{{uid}}";
         let isPre = getPreFromLocalStorage();
         let teamNumber = "";
         let matchNumber = "";
@@ -298,7 +298,6 @@
                 headers: {
                     "team": teamNumber,
                     "match": matchNumber,
-                    "name": scouterName,
                     "pre": isPre ? "Pre&#32;" : "" // use &#32; because trailing ' ' gets trimmed by header
                 }
             });
@@ -342,7 +341,6 @@
                     },
                     body: JSON.stringify({
                         "data": code,
-                        "name": scouterName,
                         "team": teamNumber,
                         "match": matchNumber,
                         "pre": (isPre ? "Pre " : "")

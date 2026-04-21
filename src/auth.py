@@ -1,4 +1,5 @@
 import os
+import random
 import re
 
 from flask import Flask, abort, request
@@ -15,6 +16,58 @@ def text_slug(text: str):
     text = re.sub(r'[\s-]+', '-', text)
     return text.strip('-')
 
+ADMIN_COLOR = "#b000f0"
+
+USER_PALATTE = [
+    "#ff9500",
+    "#00d5ff",
+    "#00f0a0",
+    "#f03000",
+    "#f00098",
+    "#f0d000"
+]
+
+def display_user(id: str):
+    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM logins WHERE id=?", (id,))
+        rows = cursor.fetchall()
+        if len(rows) > 0: user = 人(*rows[0])
+        else: return f""
+    return f"""
+        <style>
+            .user-pill {{
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+
+                padding: 6px 12px;
+                border-radius: 999px;
+                background: #444;
+                font-size: 14px;
+            }}
+
+            .avatar {{
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                text-align: center;
+                font-size: 20px;
+            }}
+
+            .name {{
+                white-space: nowrap;
+            }}
+        </style>
+        <div class="user-pill">
+            <div class="avatar" style="background-color: {user.color};">{user.un[0].upper()}</div>
+            <span class="name">{user.un}</span>
+        </div>
+    """
+
+def generate_random_color(isadmin) -> str:
+    return  ADMIN_COLOR if isadmin else USER_PALATTE[random.randint(0, len(USER_PALATTE) - 1)]
+
 
 def require_admin(f):
     """Ensures that the user is logged into an admin account on the modifiee endpoint"""
@@ -29,23 +82,16 @@ def require_admin(f):
 
     return decorated
 
-def require_json(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not request.is_json:
-            return "Error, Content-Type must be application/json", 415
-        return f(*args, **kwargs)
-    return decorated
-
 
 class 人(UserMixin):
     """ A user """
-    def __init__(self, id, un, pwd, isadmin):
+    def __init__(self, id, un, pwd, isadmin, color):
         super().__init__()
         self.id = id
         self.un = un
         self.pwd = pwd
         self.is_admin = (True if isadmin == 1 else False)
+        self.color = color
 
 class LoginForm(FlaskForm):
     """Form used on the login page to log in"""
@@ -61,7 +107,7 @@ login_manager.login_view = "login"
 def get_user_from_db(uid) -> 人 | None:
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, un, pw, isadmin FROM logins WHERE id=?", (uid,))
+        cursor.execute("SELECT * FROM logins WHERE id=?", (uid,))
         rows = cursor.fetchall()
         if len(rows) > 0: return 人(*rows[0])
         else: return None
@@ -69,7 +115,7 @@ def get_user_from_db(uid) -> 人 | None:
 def override_get_admin():
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, un, pw, isadmin FROM logins WHERE isadmin=1")
+        cursor.execute("SELECT * FROM logins WHERE isadmin=1")
         rows = cursor.fetchall()
         if len(rows) > 0: return 人(*rows[0])
         else: return None
@@ -77,7 +123,7 @@ def override_get_admin():
 def get_user_from_db_unpw(un, pwd) -> 人 | None:
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, un, pw, isadmin FROM logins WHERE un=? AND pw=?", (un, pwd))
+        cursor.execute("SELECT * FROM logins WHERE un=? AND pw=?", (un, pwd))
         rows = cursor.fetchall()
         if len(rows) > 0: return 人(*rows[0])
         else: return None
@@ -90,11 +136,12 @@ def init_loginm_app(app: Flask) -> None:
 
 def add_user_to_db(username, password, is_admin=False):
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
-        conn.execute("INSERT OR REPLACE INTO logins (id, un, pw, isadmin) VALUES (?, ?, ?, ?)", (
+        conn.execute("INSERT OR REPLACE INTO logins (id, un, pw, isadmin, color) VALUES (?, ?, ?, ?, ?)", (
             text_slug(username),
             username,
             password,
-            is_admin
+            is_admin,
+            generate_random_color(is_admin)
         ))
 
 def get_password_is_admin(password):
@@ -123,7 +170,8 @@ def generate_login_db(un, pwd):
                 id TEXT PRIMARY KEY,
                 un TEXT,
                 pw TEXT,
-                isadmin INT
+                isadmin INT,
+                color TEXT
             );
         """)
 

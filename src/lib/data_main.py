@@ -247,18 +247,14 @@ class Processor:
 
     NUM_TABLES = 5
 
-    last_fetch_timestamp = 0
-
     def __init__(
         self,
         disable_last_opr,
-        period_min,
         tba_key,
         year,
         config_data,
     ) -> None:
         self.disable_last_opr = disable_last_opr
-        self.period_min = period_min
         self.tba_data_static = apputils.TBADataStatic()
         self.tba_data_dyn = apputils.TBADataDynamic()
         self.event_key = ""
@@ -291,7 +287,6 @@ class Processor:
             self.__write_statbotics_analytics,
             self.__write_statbotics_epa,
             self.__write_team_tba_data_file,
-            self.__reset_fetch_timestamp,
         ]
 
         self.__data_processing_routine += [
@@ -495,9 +490,6 @@ class Processor:
             )
             conn.commit()
 
-    def __reset_fetch_timestamp(self):
-        self.last_fetch_timestamp = time.time()
-
     def __read_static_tba_info(self):
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             # LOAD TEAMS + Last_OPR
@@ -507,6 +499,7 @@ class Processor:
             teams = []
             team_info = {}
             last_oprs = {}
+            oprs, epas = {}, {}
             fields = ["Team"] + self.sql_fields["teams"]
             for row in rows:
                 row_dict = dict(zip(fields, row))
@@ -522,12 +515,16 @@ class Processor:
                     "Website": row_dict["Website"],
                 }
                 last_oprs[row_dict["Team"]] = row_dict["Last_OPR"]
+                oprs[row_dict["Team"]] = row_dict["OPR"]
+                epas[row_dict["Team"]] = row_dict["EPA"]
 
             (
                 self.tba_data_static.teams,
                 self.tba_data_static.team_info,
                 self.tba_data_static.oprs,
-            ) = (teams, team_info, last_oprs)
+                self.tba_data_dyn.oprs,
+                self.__sb_epas
+            ) = (teams, team_info, last_oprs, oprs, epas)
 
             # LOAD SCHEDULE
             fields = ["MatchIdx", "Match"] + self.sql_fields["matches"]
@@ -1298,11 +1295,10 @@ class Processor:
         if not self.has_sched_data:
             return asyncio.sleep(0)
 
-        if ((time.time() - self.last_fetch_timestamp) / 60 >= self.period_min) or (
+        if (
             self.tba_data_static.teams == None or self.tba_data_static.schedule == None
         ):
             await self.__periodic_calls.fire(logger.info)
-            self.last_fetch_timestamp = time.time()
 
         if self.tba_data_static.teams == None or self.tba_data_static.schedule == None:
             raise Exception("Error: Missing TBA Key: Please add one in settings")

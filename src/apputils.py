@@ -23,6 +23,13 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
+def can_cast(x: Any, _type: type) -> bool:
+    try:
+        _type(x)
+        return True
+    except:
+        return False
+
 def generate_ssl_sign():
     """useless, just use reverse-proxy with nginx for https"""
     domains = ["sentinel.beaksquad.dev", "localhost"]

@@ -138,6 +138,7 @@ ENDPOINT_HEADERS = {
     "multi_view": EndpointSchema(access=EndpointAccess.LOGIN),
     "view_picklist": EndpointSchema(access=EndpointAccess.LOGIN),
     "get_picklist": EndpointSchema(access=EndpointAccess.LOGIN, headers=["name"]),
+    "make_comment": EndpointSchema(access=EndpointAccess.LOGIN),
     "update_like": EndpointSchema(access=EndpointAccess.LOGIN, headers=["list", "pick", "team", "like"]),
     "picklist": EndpointSchema(access=EndpointAccess.LOGIN),
     "save_picklist": EndpointSchema(access=EndpointAccess.LOGIN),

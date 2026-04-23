@@ -1,3 +1,4 @@
+from enum import Enum
 import hashlib
 import re
 import time
@@ -53,6 +54,11 @@ import shutil
 from jinja2 import Environment, FileSystemLoader
 import asyncio
 
+class Notification:
+    def __init__(self, data: dict, expire_time: float, clients: list[str]):
+        self.data = data
+        self.expire_time = expire_time
+        self.clients = clients
 
 def create_app(
     inital_process=True, skip_last_opr_fetching_for_testing_because_its_slow=False
@@ -66,6 +72,7 @@ def create_app(
     if not SUPERUSER_CODE or SUPERUSER_CODE == "":
         print("Error, su code not specified.")
         sys.exit(1)
+
 
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -92,7 +99,7 @@ def create_app(
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = False
 
-    notification_queue = []
+    notification_queue: list[Notification] = []
 
     def start_loop(loop: asyncio.AbstractEventLoop):
         app.logger.info("Starting app async thread")
@@ -302,7 +309,7 @@ def create_app(
 
     def send_generic_notification(data: dict):
         notification_queue.append(
-            (data | {"icon": "/static/favicon.ico"}, time.time() + 300, [])
+            Notification(data | { "icon": "/static/favicon.ico" }, time.time() + 300, [])
         )
 
     def send_change_notification(lines: str | None = None):
@@ -332,7 +339,7 @@ def create_app(
                 "line-hashes": json.dumps([apputils.line_str_hash(x) for x in lines])
             }
         notification_queue.append(
-            (data, time.time() + 300, [])
+            Notification(data, time.time() + 300, [])
         )  # gone is the toilsome webpush shenanigens (ik i spelled that wrong)
 
     def handle_tba_webhook(notification_json):
@@ -550,11 +557,11 @@ def create_app(
         if cid == "null":
             cid = None
         for n in reversed(notification_queue):
-            if n[1] <= time.time():
+            if n.expire_time <= time.time():
                 notification_queue.remove(n)
-            elif not (cid in n[2]) and cid != None:
-                n[2].append(cid)
-                return jsonify(n[0])
+            elif not (cid in n.clients) and cid != None:
+                n.clients.append(cid)
+                return jsonify(n.data)
         if cid == None:
             return "Error, invalid cid", 400
         return "No notifications in queue", 204  # 204 => no content
@@ -1336,13 +1343,14 @@ def create_app(
     @app.get("/calc-team-score")
     def calc_team_score():
         teams = [app.config["TEAM"]]
-        teams.append(request.args.get("pick1"))
-        teams.append(request.args.get("pick2"))
-        teams.append(request.args.get("pick3"))
+        teams.append(request.args.get("pick1", 0))
+        teams.append(request.args.get("pick2", 0))
+        teams.append(request.args.get("pick3", 0))
         sum = 0
         if not processor.has_sched_data:
             return jsonify({"score": 0})
         for team in teams:
+            if not apputils.can_cast(team, int): continue
             if int(team) in processor.tba_data_static.teams:
                 sum += processor.get_team_pred_score(team)
         return jsonify({"score": round(sum)})
@@ -1379,6 +1387,32 @@ def create_app(
                 return jsonify(json.load(r))
         else:
             return "File not found", 400
+
+    @app.post("/make-comment")
+    def make_comment():
+        if os.path.exists(os.path.join("picklists", f"{request.json["list"]}.json")):
+            with open(
+                os.path.join("picklists", f"{request.json["list"]}.json"), "r"
+            ) as r:
+                js = json.load(r)
+                if request.json["pick"] in js and any(
+                    x["team"] == request.json["team"]
+                    for x in js[request.json["pick"]]
+                ):
+                    jsteam = [
+                        x
+                        for x in js[request.json["pick"]]
+                        if x["team"] == request.json["team"]
+                    ][0]
+                    jsteam["comments"].append({
+                        "name": current_user.id,
+                        "body": request.json["msg"]
+                    })
+            with open(os.path.join("picklists", f"{request.json["list"]}.json"), 'w') as w:
+                json.dump(js, w, indent=4)
+            return "", 200
+        else:
+            return "File not found", 404
 
     @app.post("/update-like")
     def update_like():

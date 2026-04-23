@@ -117,6 +117,8 @@
         }
 
         .comments {
+            display: flex;
+            flex-direction: column;
             gap: 10px;
             width: 100%;
         }
@@ -145,6 +147,14 @@
             background: #181818;
             border: 1px solid #333;
             border-radius: 4px;
+        }
+
+        .commentAdderAdder {
+            background-color: color-mix(in srgb, #151515 60%, transparent);
+            color: #fff;
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
         }
     </style>
 </head>
@@ -247,6 +257,33 @@
 
         select.addEventListener("change", async () => await loadPicklist(select.value));
 
+        async function makeComment(name, li, cmt, addr) {
+            const res = await fetch("{{url_for('make_comment')}}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    list: name,
+                    pick: li.parentElement.id,
+                    team: li.querySelector(".line-text").innerText,
+                    msg: cmt
+                })
+            });
+
+            if (res.ok) {
+                const commentdiv = document.createElement("div");
+                commentdiv.style.position = "relative";
+                commentdiv.innerHTML = `
+                    <user-disp id="{{uid}}" style="display: inline-block; position: relative; left: 50%; transform: translateX(-50%);"></user-disp>
+                    <hr style="width: 100%">
+                    <p>${cmt}</p>
+                `;
+                commentdiv.classList.add("comment");
+                li.querySelector(".comments").insertBefore(commentdiv, addr);
+            }
+        }
+
         async function updateLike(name, li) {
             const res = await fetch("{{url_for('update_like')}}", {
                 method: "POST",
@@ -294,8 +331,23 @@
                             <h2 style="text-align: center;">Comments</h2><hr style="width: 100%"></hr>
                         `;
                         const comments = document.createElement("div");
+                        const commentAdder = document.createElement("div");
                         comments.classList.add("comments");
-                        // <h2 style="text-align: center;"></h2>
+                        commentAdder.classList.add("commentAdder");
+                        commentAdder.innerHTML = `
+                            <textarea class="commentAdderAdder" placeholder="Enter comment..."></textarea>
+                        `;
+                        commentAdder.addEventListener("keydown", async (e) => {
+                            if (e.ctrlKey && e.key === "Enter") {
+                                e.preventDefault();
+                                await makeComment(name, li, commentAdder.querySelector("textarea").value, commentAdder);
+                                commentAdder.querySelector("textarea").value = "";
+                                li.scrollTo({
+                                    top: li.scrollHeight,
+                                    behavior: "smooth"
+                                })
+                            }
+                        });
                         if (team["comments"]) for (const comment of team["comments"]) {
                             const commentdiv = document.createElement("div");
                             commentdiv.style.position = "relative";
@@ -307,6 +359,7 @@
                             commentdiv.classList.add("comment");
                             comments.appendChild(commentdiv);
                         }
+                        comments.appendChild(commentAdder);
                         li.querySelector(".line-text").onclick = function (e) {
                             if (e.target === this) {
                                 const ifr = document.createElement("iframe");
@@ -326,14 +379,15 @@
                         certainIndexList();
                         li.style.maxHeight = li.querySelector(`#team-${team["team"]}-likes`).getBoundingClientRect().height + 'px';
                         li.addEventListener('click', function (e) {
-                            console.log(e.target.tagname);
-                            if (e.target.tagName !== "SPAN" && e.target.tagName !== "I") {
+                            if (!["SPAN", "I", "TEXTAREA"].includes(e.target.tagName)) {
                                 if (li.classList.contains("open")) {
                                     li.style.maxHeight = li.querySelector(`#team-${team["team"]}-likes`).getBoundingClientRect().height + 'px';
                                     li.classList.remove("open");
+                                    li.style.overflowY = "hidden";
                                 } else {
                                     li.style.maxHeight = (window.innerHeight / 1.5) + "px";
                                     li.classList.add("open");
+                                    li.style.overflowY = "scroll";
                                 }
                             }
                         });
@@ -389,6 +443,8 @@
 
         loadPicklist(select.value);
     </script>
+    <script src="{{url_for('static', filename='js/register-sw.js')}}"
+        onload="registerServiceWorker('/service_worker.js')"></script>
 </body>
 
 </html>

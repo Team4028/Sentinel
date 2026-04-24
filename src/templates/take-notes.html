@@ -272,8 +272,8 @@
             submitTeamMatch();
         });
 
-        document.getElementById("top-bar").addEventListener("click", e => {
-
+        document.getElementById("top-bar").addEventListener("click", async e => {
+            await saveFile();
             nameCard.hidden = false;
             nameBD.hidden = false;
 
@@ -291,6 +291,13 @@
 
         nameCard.hidden = false;
         nameBD.hidden = false;
+
+        window.addEventListener("beforeunload", (e) => {
+            if (dirty) {
+                e.preventDefault();
+                e.returnValue = "";
+            }
+        });
 
         async function getNotes() {
             const res = await fetch("{{url_for('get_notes')}}", {

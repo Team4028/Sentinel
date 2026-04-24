@@ -75,6 +75,7 @@ ENDPOINT_HEADERS = {
     "notify_q": EndpointSchema(access=EndpointAccess.ADMIN, headers=["X-Cid"]),
     "main": EndpointSchema(access=EndpointAccess.LOGIN),
     "login": EndpointSchema(access=EndpointAccess.OPEN),
+    "create_account": EndpointSchema(access=EndpointAccess.OPEN),
     "create_login": EndpointSchema(access=EndpointAccess.ADMIN, json=["un", "pwd", "isadmin"]),
     "get_user_display": EndpointSchema(access=EndpointAccess.LOGIN, headers=["id"]),
     "login_override": EndpointSchema(access=EndpointAccess.OPEN, json=["key"]),

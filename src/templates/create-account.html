@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="{{url_for('static', filename='fonts/neuropolitical.css')}}" rel="stylesheet">
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Create Account</title>
+    <style>
+        :root {
+            --accent: {{accent}};
+            --text: {{text}};
+        }
+
+        * {
+            font-family: Arial, Helvetica, sans-serif;
+            box-sizing: border-box;
+            /* keeps the sizing from becoming unhappy */
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 128px;
+            font-family: 'Neuropolitical', sans-serif;
+        }
+
+        h2 {
+            color: white;
+            text-align: center;
+            font-size: 32px;
+            font-family: 'Neuropolitical', sans-serif;
+        }
+
+        body {
+            background-color: #222;
+            background-image: url("{{url_for('static', filename='login_bg.png')}}");
+            background-size: cover;
+        }
+
+        form {
+            max-width: 400px;
+            margin: 80px auto;
+            padding: 30px;
+            background-color: #333;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+        }
+
+        form label {
+            display: block;
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: #f9f9f9;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin-top: 5px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: color-mix(in srgb, var(--accent), white 20%);
+            box-shadow: 0 0 5px rgba(91, 155, 213, 0.5);
+            outline: none;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--accent);
+            color: var(--text);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        input[type="submit"]:hover {
+            opacity: 0.8;
+        }
+
+        #loginError {
+            text-align: center;
+            font-size: x-large;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>
+        <img src="{{url_for('static', filename='favicon.ico')}}" style="transform: translateY(25%);"> Sentinel
+    </h1>
+    <form method="post" id="loginForm" action="{{url_for('create_account')}}">
+        {{ form.hidden_tag() }}
+        <label>
+            Username
+            {{ form.username() }}
+        </label>
+        <label>
+            <!-- Use <input> instead of button because I copied it from appconfig.html which uses it because there is default css for <button> it wants to avoid -->
+            Password<input value="👁"
+                style="background: none; border: none; text-align: center; border-radius: 5px; width: 30px; height: 30px; color: white;"
+                type="button"
+                onclick="document.querySelector(`input[name='password']`).setAttribute('type', document.querySelector(`input[name='password']`).getAttribute('type') == 'text' ? 'password' : 'text')">
+            {{ form.password() }}
+        </label>
+        {{ form.submit() }}
+    </form>
+    <div id="loginError" style="color: #a00;"></div>
+    <script src="{{url_for('static', filename='js/sha256.js')}}"></script>
+    <script>
+        const alreadyLoggedIn = "{{already_logged_in}}" === "1";
+        const loginError = document.getElementById("loginError");
+
+        document.getElementById("loginForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+            const fData = new FormData(this);
+            fData.set('password', await window.sha256(fData.get('password'))); // sha client-side so communication is encrypted, otherwise intercepting a successful login would reveal pwd
+            const res = await fetch(this.action, { method: "POST", body: fData });
+            if (res.ok) {
+                if (!alreadyLoggedIn)
+                    window.location.href = "{{request.args.get('next', '/')}}";
+                else {
+                    loginError.style.color = "#0a0";
+                    loginError.textContent = "Account Created Successfully";
+                    setTimeout(() => loginError.textContent = "", 2000);
+                }
+            } else if (res.status === 401) {
+                loginError.style.color = "#a00";
+                loginError.style.color.textContent = "Error: Not allowed";
+            } else {
+                loginError.style.color = "#a00";
+                loginError.style.color.textContent = `Error: ${await res.text()}`;
+            }
+        });
+    </script>
+</body>
+
+</html>

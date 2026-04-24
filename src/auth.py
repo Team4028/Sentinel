@@ -100,6 +100,12 @@ class LoginForm(FlaskForm):
     password = PasswordField("Password", validators=[DataRequired()])
     submit = SubmitField("Log in")
 
+class CreateAccount(FlaskForm):
+    """Form used on the login page to log in"""
+    username = StringField("Username", validators=[DataRequired()], render_kw={ "placeholder": "Enter username (ie. 'Frodo Baggins')..." })
+    password = PasswordField("Password", validators=[DataRequired()], render_kw={ "placeholder": "Enter password..." })
+    submit = SubmitField("Create Account")
+
 
 login_manager = LoginManager()
 login_manager.login_view = "login"
@@ -112,6 +118,11 @@ def get_user_from_db(uid) -> 人 | None:
         rows = cursor.fetchall()
         if len(rows) > 0: return 人(*rows[0])
         else: return None
+
+def get_user_is_admin(user: UserMixin):
+    if isinstance(user, 人):
+        return user.is_admin
+    return False
 
 def override_get_admin():
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:

@@ -138,6 +138,9 @@
     </div>
     </div>
     <form method="post" id="loginForm" action="{{url_for('login')}}">
+        {% if allow_create %}
+        <a href="{{url_for('create_account', next=request.args.get('next', '/'))}}" style="color: color-mix(in srgb, var(--accent) 80%, white); display: block; margin-left: auto; width: fit-content;">Create Account</a>
+        {% endif %}
         {{ form.hidden_tag() }}
         <label>
             Username

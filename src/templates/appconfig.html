@@ -217,6 +217,9 @@
                 <input type="color" id="tcolor">
             </label>
         </div>
+        <label style="margin: 30px auto;" title="Whether to allow non-auth creation of new accounts (on) or lock that privilege to admin (off)">
+                <input class="cinput" type="checkbox" style="height: 25px; width: 25px;" id="account-create"><span style="font-size: 1.25rem;">Account Creation</span>
+            </label>
         <label title="Base URL for the server hosting the grafana container associated with this app">
             Grafana Url
             <input type="text" id="graf-url">
@@ -331,6 +334,7 @@
         const loaderOverlay = document.getElementById("loaderOverlay");
         const loaderCardContainer = document.getElementById("cardContainer");
         const confirmDialouge = document.getElementById("confirm-modal");
+        const accountCreation = document.getElementById("account-create");
 
         function fakeWaitingForGodot(dlog, confirmBtnID, closeBtnID, selectorID, isRealFile) {
             return new Promise(resolve => {
@@ -520,6 +524,7 @@
             const json = await res.json();
             acolor.value = json["ACCENT_COLOR"];
             tcolor.value = json["TEXT_COLOR"];
+            accountCreation.checked = json["ALLOW_CREATE_ACCOUNT"];
             grafUrl.value = json["GRAFANA_URL"];
             tbaPeriod.value = parseInt(json["TBA_FETCH_PERIOD_MIN"]);
             year.value = json["YEAR"];
@@ -655,6 +660,7 @@
             const json = {
                 "ACCENT_COLOR": acolor.value,
                 "TEXT_COLOR": tcolor.value,
+                "ALLOW_CREATE_ACCOUNT": accountCreation.checked,
                 "GRAFANA_URL": grafUrl.value,
                 "TBA_FETCH_PERIOD_MIN": parseInt(tbaPeriod.value),
                 "YEAR": year.value,

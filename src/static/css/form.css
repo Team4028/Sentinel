@@ -88,6 +88,15 @@
     top: 10rem;
 }
 
+.panel label:has(> .cinput[type="checkbox"]) {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    align-items: center;
+    cursor: pointer;
+    width: fit-content;
+}
+
 .cinput[type="checkbox"] {
     width: 18px;
     height: 18px;
@@ -108,11 +117,10 @@
 .cinput[type="checkbox"]:checked::after {
     content: '';
     position: absolute;
-    top: 0%;
+    top: 25%;
     left: 25%;
-    width: 5px;
-    height: 10px;
-    border: solid white;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
+    width: 50%;
+    height: 50%;
+    background: var(--text);
+    border-radius: 10%;
 }

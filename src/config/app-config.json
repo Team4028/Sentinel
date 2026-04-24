@@ -1,5 +1,6 @@
 {
     "ACCENT_COLOR": "#8307b0",
+    "ALLOW_CREATE_ACCOUNT": false,
     "TEXT_COLOR": "#ffffff",
     "GRAFANA_URL": "http://localhost:3000",
     "YEAR": "2026_subjective",

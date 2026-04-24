@@ -588,14 +588,35 @@ def create_app(
         """Sends login page and validates login un/pw"""
         form = auth.LoginForm()
         if form.validate_on_submit():
-            username = form.username.data
+            username = form.username.data.strip()
             password = form.password.data.strip()
             if user := auth.get_user_from_db_unpw(username, password):
                 login_user(user)
                 return "Login Successful", 200
             else:
                 return "Invalid Credentials", 401
-        return render_template_style("login.html", form=form)
+        return render_template_style("login.html", form=form, allow_create=app.config["ALLOW_CREATE_ACCOUNT"])
+
+    @app.route('/create-account', methods=["GET", "POST"])
+    def create_account():
+        if app.config["ALLOW_CREATE_ACCOUNT"] or auth.get_user_is_admin(current_user):
+            form = auth.CreateAccount()
+            if form.validate_on_submit():
+                username, password = form.username.data.strip(), form.password.data.strip()
+                auth.add_user_to_db(username, password)
+                if isinstance(current_user, AnonymousUserMixin):
+                    login_user(auth.get_user_from_db_unpw(username, password))
+                return "Account created", 200
+            return render_template_style("create-account.html", form=form, already_logged_in=(0 if isinstance(current_user, AnonymousUserMixin) else 1))
+        else:
+            if request.method == "GET":
+                return render_template_style(
+                    "error.html",
+                    head="403: Restricted",
+                    msg=f"Error: LOC is restricted for user '{"anonymous" if isinstance(current_user, AnonymousUserMixin) else current_user.un}'",
+                )
+            else:
+                return "Error: restricted", 403
 
     @app.post("/create-login")
     def create_login():

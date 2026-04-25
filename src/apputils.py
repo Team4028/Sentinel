@@ -563,7 +563,6 @@ def data_in_exists() -> bool:
         os.path.join("datain", "data_in.csv")
     )
 
-
 def change_un_pwd_admin(current_secret_key: str, newun: str, newpwd: str) -> None:
     """updates the username and password"""
     os.makedirs("secrets", exist_ok=True)

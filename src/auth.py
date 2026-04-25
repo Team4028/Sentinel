@@ -9,6 +9,9 @@ from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired
 from functools import wraps
 import sqlite3
+import logging
+
+logger = logging.getLogger(__name__)
 
 def text_slug(text: str):
     text = text.lower()
@@ -17,6 +20,15 @@ def text_slug(text: str):
     return text.strip('-')
 
 ADMIN_COLOR = "#b000f0"
+DELETED_COLOR = "#585858"
+
+LOGIN_TABLE_HEADERS = [
+    "id",
+    "un",
+    "pw",
+    "isadmin",
+    "color"
+]
 
 USER_PALATTE = [
     "#ff9500",
@@ -33,10 +45,11 @@ def display_user(id: str):
         cursor.execute("SELECT * FROM logins WHERE id=?", (id,))
         rows = cursor.fetchall()
         if len(rows) > 0: user = 人(*rows[0])
-        else: return f""
+        else: user = 人("deleted", "Deleted User", "", 0, DELETED_COLOR)
     return f"""
         <style>
             .user-pill {{
+                font-family: monospace;
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
@@ -124,6 +137,22 @@ def get_user_is_admin(user: UserMixin):
         return user.is_admin
     return False
 
+def get_can_delete_user(user_uid, uid_to_delete):
+    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM logins WHERE isadmin=1")
+        rows = cursor.fetchall()
+        if uid_to_delete not in [x[0] for x in rows]:
+            logger.info(f"Deletion of {uid_to_delete} authorized: not an admin")
+            return True
+        elif uid_to_delete == user_uid:
+            logger.info(f"Deletion of {uid_to_delete} {(
+                "authorized: admins can delete themselves" if len(rows) > 1
+                else "prohibited: user is last admin"
+            )}")
+            return len(rows) > 1
+        else: return False # else no
+
 def override_get_admin():
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
@@ -132,6 +161,12 @@ def override_get_admin():
         if len(rows) > 0: return 人(*rows[0])
         else: return None
 
+def get_users() -> list[tuple]:
+    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM logins")
+        return cursor.fetchall()
+
 def get_user_from_db_unpw(un, pwd) -> 人 | None:
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
@@ -139,6 +174,12 @@ def get_user_from_db_unpw(un, pwd) -> 人 | None:
         rows = cursor.fetchall()
         if len(rows) > 0: return 人(*rows[0])
         else: return None
+
+def delete_user(my_uid, uid) -> bool:
+    if not get_can_delete_user(my_uid, uid): return False
+    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+        conn.execute("DELETE FROM logins WHERE id=?", (uid,))
+    return True
 
 
 def init_loginm_app(app: Flask) -> None:

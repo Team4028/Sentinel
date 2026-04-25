@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="{{url_for('static', filename='css/button.css')}}" rel="stylesheet">
+    <link rel="stylesheet" href="{{url_for('static', filename='tabulator/tabulator.css')}}">
+    <script src="{{url_for('static', filename='tabulator/parser.js')}}"></script>
+    <script src="{{url_for('static', filename='tabulator/tabulator.js')}}"></script>
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Manage Account</title>
+
+    <style>
+
+        :root {
+            --text: {{text}};
+            --accent: {{accent}};
+        }
+
+        body {
+            background-color: #222;
+            color: var(--text);
+        }
+
+        #table {
+            user-select: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="text-align: center;">Accounts</h1>
+    <div>
+        <div id="table" style="width: 100%;" title="Double click to delete an account."></div>
+    </div>
+    <script>
+        const headers = JSON.parse(`{{headers|safe}}`);
+        const data_init = JSON.parse(`{{inp_data|safe}}`);
+        let data = []
+        for (const data_init_row of data_init) {
+            if (data_init_row != "")
+                data.push(Object.assign({}, ...Papa.parse(data_init_row, { delimiter: ",", quotes: true, skipEmptyLines: true, }).data[0].map((d, i) => ({ [headers[i].toLowerCase()]: d }))));
+        }
+        const table = new Tabulator('#table', {
+            data: data,
+            columns: headers.map(s => ({ title: s, field: s.toLowerCase() })),
+            layout: 'fitColumns'
+        });
+
+        function tableRowDCHandler(_, row) {
+            fetch("{{url_for('delete_account')}}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({uid: row.getCell("id").getValue()})
+            }).then(res => {
+                if (res.status === 200) {
+                    let idx = row.getPosition();
+                    row.delete();
+                    data.splice(idx - 1, 1);
+                    if ("{{uid}}" === row.getCell("id").getValue()) {
+                        window.location.href = "{{url_for('login')}}";
+                    }
+                }
+            });
+        }
+
+        table.on("rowDblClick", tableRowDCHandler);
+    </script>
+</body>
+
+</html>

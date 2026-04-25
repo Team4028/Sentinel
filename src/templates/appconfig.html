@@ -224,11 +224,6 @@
             Grafana Url
             <input type="text" id="graf-url">
         </label>
-        <label
-            title="The period in minutes that specifies how often the app fetches new TBA information. It is still only fetched on a data process.">
-            TBA Data fetch period (min)
-            <input type="number" id="tba-period">
-        </label>
         <label title="Which game to process data for">
             Scouting Year
             <select id="game-year">
@@ -327,7 +322,6 @@
         const newPWD = document.getElementById("new-pwd");
         const teamNum = document.getElementById("teamNumber");
         const grafUrl = document.getElementById("graf-url");
-        const tbaPeriod = document.getElementById("tba-period");
         const setadmin = document.getElementById("setadmin");
         const setviewer = document.getElementById("setviewer");
         const setslider = document.getElementById("setslider");
@@ -526,7 +520,6 @@
             tcolor.value = json["TEXT_COLOR"];
             accountCreation.checked = json["ALLOW_CREATE_ACCOUNT"];
             grafUrl.value = json["GRAFANA_URL"];
-            tbaPeriod.value = parseInt(json["TBA_FETCH_PERIOD_MIN"]);
             year.value = json["YEAR"];
             teamNum.value = parseInt(json["TEAM"]);
             restrictLevel.value = json["RESTRICT_APPEND_LEVEL"];
@@ -662,7 +655,6 @@
                 "TEXT_COLOR": tcolor.value,
                 "ALLOW_CREATE_ACCOUNT": accountCreation.checked,
                 "GRAFANA_URL": grafUrl.value,
-                "TBA_FETCH_PERIOD_MIN": parseInt(tbaPeriod.value),
                 "YEAR": year.value,
                 "TEAM": teamNum.value.toString(),
                 "RESTRICT_APPEND_LEVEL": parseInt(restrictLevel.value),

@@ -6,16 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link href="{{url_for('static', filename='css/button.css')}}" rel="stylesheet">
     <style>
         :root {
             --bg: #111217;
             --panel: #161b22;
-            --text: #fff;
             --muted: #8b949e;
             --green: #2ea043;
             --green-bg: #033a16;
             --green-hover: #0f5323;
             --border: #30363d;
+            --accent: {{accent}};
+            --text: {{text}};
         }
 
         #ateam-cont:has(input:focus) select {
@@ -27,7 +29,7 @@
             display: block;
             pointer-events: auto;
             background: var(--panel);
-            color: var(--text);
+            color: #fff;
             width: 75%;
             height: 0px;
             transition: height 0.2s ease;
@@ -43,7 +45,7 @@
         body {
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
             background: var(--bg);
-            color: var(--text);
+            color: #fff;
         }
 
         a {
@@ -60,26 +62,12 @@
             padding: 8px;
             background: var(--panel);
             border: 1px solid var(--border);
-            color: var(--text);
+            color: #fff;
             border-radius: 6px;
         }
 
         input::placeholder {
             color: var(--muted);
-        }
-
-        button {
-            padding: 8px 12px;
-            margin-left: 8px;
-            background: var(--green);
-            border: none;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            filter: brightness(1.1);
         }
 
         ul {
@@ -158,10 +146,43 @@
             opacity: 1;
             transform: translateX(0px);
         }
+
+        #backBtn {
+            position: absolute;
+            top: 10px;
+            right: 80px;
+            z-index: 10;
+        }
+
+        #saveBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 50px;
+            right: 20px;
+            z-index: 1000;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: rgba(0,0,0,0.6);
+            font-size: large;
+        }
+
+        #status:empty {
+            display: none;
+        }
     </style>
 </head>
 
 <body style="display: flex; flex-direction: row;">
+    <script src="{{url_for('static', filename='js/navigate.js')}}"></script>
+    <button class="sbutton" id="backBtn" onclick="window.goBack();" title="Ctrl+Backspace">Back</button>
+    <button class="sbutton" id="saveBtn" title="Ctrl+S">Save</button>
+    <div id="status"></div>
     <div style="display: inline-block;">
         <div id="ateam-cont" style="position: relative;">
             <input type="text" id="ateam-search" placeholder="Search...">
@@ -202,8 +223,12 @@
         const select = document.getElementById("ateam");
         const listElement = document.getElementById("queuelist");
         const lists = [listElement, document.getElementById("pick1list"), document.getElementById("pick2list"), document.getElementById("pick3list")];
+        const saveButton = document.getElementById("saveBtn");
+        const statusDiv = document.getElementById("status");
         let draggingLI = null;
         let lastPicks = null;
+        let lastSavedState = null;
+        let dirty = false;
 
         Array.prototype.equals = function (array) {
             if (!array) return false;
@@ -223,6 +248,30 @@
             return true;
         }
 
+        function deepEqual(a, b) {
+            if (a === b) return true;
+
+            if (Array.isArray(a) && Array.isArray(b) && a.equals(b)) return true;
+
+            if (
+                typeof a !== "object" || a === null ||
+                typeof b !== "object" || b === null
+            ) return false;
+
+            const keysA = Object.keys(a);
+            const keysB = Object.keys(b);
+
+            if (keysA.length !== keysB.length) return false;
+
+            for (let key of keysA) {
+                if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         document.addEventListener("dragstart", (e) => {
             if (e.target.tagName !== "LI") return;
             draggingLI = e.target;
@@ -237,6 +286,8 @@
             draggingLI = null;
         });
 
+        saveButton.addEventListener("click", submitPicklist);
+
         document.querySelectorAll("ul").forEach(ul => ul.addEventListener("dragover", (e) => {
             e.preventDefault();
             if (!draggingLI) return;
@@ -246,7 +297,6 @@
             } else {
                 ul.insertBefore(draggingLI, afterElement);
             }
-            calculatePredictedScore();
             certainIndexList();
         }));
 
@@ -291,7 +341,6 @@
                     li_remains.querySelector("span").innerText = `${Array.from(ul.querySelectorAll("li")).indexOf(li_remains) + 1}: `;
                 }
             calculatePredictedScore();
-            serializeToLocalStorage();
         }
 
         [...select.children].forEach(c => c.addEventListener("mousedown", (e) => {
@@ -335,11 +384,28 @@
                 },
                 body: JSON.stringify(Object.fromEntries(lists.filter(l => l !== listElement).map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)])))
             });
+
+            if (res.ok) {
+                lastSavedState = getSerializedData();
+                updateDirty();
+                statusDiv.style.color = "#0a0";
+                statusDiv.innerText = "Saved";
+                setTimeout(() => statusDiv.innerText = "", 2000);
+            } else {
+                statusDiv.style.color = "#a00";
+                statusDiv.innerText = `Error: ${await res.text()}`;
+            }
         }
 
-        function serializeToLocalStorage() {
-            const teams = Object.fromEntries(lists.map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)]));
-            localStorage.setItem("Picklist", JSON.stringify(teams));
+        function updateDirty() {
+            if (lastSavedState !== null)
+                dirty = !deepEqual(getSerializedData(), lastSavedState);
+            else {
+                dirty = false;
+                lastSavedState = getSerializedData();
+            }
+
+            saveButton.innerHTML = dirty ? "Save &#9679" : "Save";
         }
 
         function calculatePredictedScore() {
@@ -364,49 +430,65 @@
             }).catch((err) => {
                 console.error(`Error calculating predicted score: ${err}`);
             });
+
+            updateDirty();
         }
 
-        function deserializeFromLocalStorage() {
-            const data = JSON.parse(localStorage.getItem("Picklist") ?? "{}");
-            for (const ul of lists) {
-                if (data[ul.id]) for (const team of data[ul.id]) {
-                    const rm = [...document.querySelectorAll("li")].find(li => li.querySelector(".line-text").innerText === team);
-                    if (rm) rm.remove();
-                    const li = document.createElement("li");
-                    li.innerHTML = `
-                        <span></span><span class='line-text'>${team}</span>
-                        <a class='delete-btn' title="Remove Team">✕</a>
-                    `;
-                    li.onclick = function (e) {
-                        if (e.target === this) {
-                            const ifr = document.createElement("iframe");
-                            ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=${team}&kiosk&refresh=30s`;
-                            ifr.width = "300px";
-                            ifr.height = "300px";
-                            ifr.frameBorder = "0";
-                            ifr.style.position = "fixed";
-                            ifr.style.top = e.clientY.toString() + "px";
-                            ifr.style.left = e.clientX.toString() + "px";
-                            ifr.addEventListener("mouseleave", () => ifr.remove());
-                            document.body.appendChild(ifr);
-                        }
-                    };
+        function getSerializedData() {
+            return Object.fromEntries(lists.filter(l => l.id.includes("pick")).map(l => [l.id, [...l.querySelectorAll("li")].map(li => li.querySelector(".line-text").innerText)]));
+        }
 
-                    [...select.options].find(opt => opt.textContent === team).style.display = "none";
+        async function loadPicklist() {
+            const res = await fetch('{{url_for("get_picklist")}}', {
+                method: "GET",
+                credentials: 'include'
+            });
 
-                    li.querySelector("a").addEventListener("click", () => {
-                        Array.from(select.options).find(opt => opt.textContent === team).style.display = 'block';
-                        li.remove();
-                        certainIndexList();
-                    });
-                    li.draggable = true;
-                    ul.appendChild(li);
-                    certainIndexList();
+
+            if (res.ok) {
+                const data = await res.json();
+                for (const ul of lists) {
+                    const teamData = data[ul.id]?.map(td => td["team"]) ?? null;
+                    if (teamData) for (const team of teamData) {
+                        const rm = [...document.querySelectorAll("li")].find(li => li.querySelector(".line-text").innerText === team);
+                        if (rm) rm.remove();
+                        const li = document.createElement("li");
+                        li.innerHTML = `
+                            <span></span><span class='line-text'>${team}</span>
+                            <a class='delete-btn' title="Remove Team">✕</a>
+                        `;
+                        li.onclick = function (e) {
+                            if (e.target === this) {
+                                const ifr = document.createElement("iframe");
+                                ifr.src = `{{grafana_base}}${dashes["Team View.json"]}/team-view?orgId=1&from=now-5m&to=now&timezone=browser&var-Team=${team}&kiosk&refresh=30s`;
+                                ifr.width = "300px";
+                                ifr.height = "300px";
+                                ifr.frameBorder = "0";
+                                ifr.style.position = "fixed";
+                                ifr.style.top = e.clientY.toString() + "px";
+                                ifr.style.left = e.clientX.toString() + "px";
+                                ifr.addEventListener("mouseleave", () => ifr.remove());
+                                document.body.appendChild(ifr);
+                            }
+                        };
+
+                        [...select.options].find(opt => opt.textContent === team).style.display = "none";
+
+                        li.querySelector("a").addEventListener("click", () => {
+                            Array.from(select.options).find(opt => opt.textContent === team).style.display = 'block';
+                            li.remove();
+                            certainIndexList();
+                        });
+                        li.draggable = true;
+                        ul.appendChild(li);
+                    }
                 }
+                lastSavedState = getSerializedData();
+                certainIndexList();
             }
         }
-        deserializeFromLocalStorage();
-        calculatePredictedScore();
+        loadPicklist()
+
     </script>
     <script src="{{url_for('static', filename='js/register-sw.js')}}"
         onload="registerServiceWorker('/service_worker.js')"></script>

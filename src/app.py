@@ -7,6 +7,7 @@ from flask import (
     Flask,
     request,
     render_template,
+    current_app,
     jsonify,
     Response,
     send_file,
@@ -517,9 +518,7 @@ def create_app(
     def handle_401(e):
         app.logger.warning(f"Tried to access page without login: {e.description}")
         if request.method == "GET":
-            return render_template_style(
-                "error.html", head="401: Unauthorized", msg="Error: LOC is unauthorized"
-            )
+            return current_app.login_manager.unauthorized()
         else:
             return "Error: unauthorized", 401
 
@@ -617,6 +616,17 @@ def create_app(
                 )
             else:
                 return "Error: restricted", 403
+            
+    @app.post("/delete-account")
+    def delete_account():
+        if auth.delete_user(current_user.id, request.json["uid"]):
+            return "Account deleted.", 200
+        else:
+            return "Deletion prohibited", 403
+            
+    @app.get("/manage-accounts")
+    def manage_accounts():
+        return render_template_style("manage-accounts.html", headers=json.dumps(auth.LOGIN_TABLE_HEADERS), inp_data=json.dumps([",".join(map(str, x)) for x in auth.get_users()]))
 
     @app.post("/create-login")
     def create_login():
@@ -732,7 +742,7 @@ def create_app(
             if os.path.isfile(filepath):
                 os.remove(filepath)
             elif os.path.isdir(filepath):
-                os.removedirs(filepath)
+                shutil.rmtree(filepath, ignore_errors=True)
             return "Success", 200
         else:
             return "Error, path does not exist", 400
@@ -1400,7 +1410,7 @@ def create_app(
 
     @app.get("/get-picklist")
     def get_picklist():
-        jsfiles = list(Path("picklists").glob(f"{request.headers["name"]}.json"))
+        jsfiles = list(Path("picklists").glob(f"{request.headers.get('name', current_user.id)}.json"))
         if len(jsfiles) > 0:
             jsfile = jsfiles[0]
             with open(jsfile, "r") as r:
@@ -1508,13 +1518,22 @@ def create_app(
         pickname = current_user.id
         pickpath = os.path.join("picklists", pickname + ".json")
         js = request.json
+        current_data = {}
+        if (os.path.exists(pickpath)):
+            with open(pickpath, 'r') as r:
+                current_data = json.load(r)
         for _list in js.keys():
             teams_new = []
             for team in js[_list]:
-                teams_new.append({"team": team, "like": [], "dlike": []})
+                likes, dlikes, cm = [], [], []
+                if _list in current_data:
+                    if (idx := next((i for i, x in enumerate(current_data[_list]) if x["team"] == team), None)) != None:
+                        tmdict = current_data[_list][idx]
+                        likes, dlikes, cm = tmdict["like"], tmdict["dlike"], tmdict["comments"]
+                teams_new.append({"team": team, "like": likes, "dlike": dlikes, "comments": cm})
             js[_list] = teams_new
         with open(pickpath, "w") as w:
-            json.dump(request.json, w, indent=4)
+            json.dump(js, w, indent=4)
         return "Success", 200
 
     # RESTRICTED (overwrites app config = bad)

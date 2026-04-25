@@ -68,6 +68,7 @@
 
         #table {
             height: 400px;
+            user-select: none;
         }
 
         #text-input {
@@ -362,7 +363,8 @@
         let lockTab = false;
         const table = new Tabulator('#table', {
             data: data,
-            columns: headers.map(s => ({ title: s, field: s.toLowerCase() }))
+            columns: headers.map(s => ({ title: s, field: s.toLowerCase() })),
+            layout: 'fitData'
         });
 
         async function tableRowDCHandler(_, row) {

@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import request
+from flask import request, current_app
 from flask_login import login_required
 from enum import Enum
 
@@ -66,6 +66,8 @@ class EndpointSchema:
                 return "Error: invalid json schema", 400
             if len(self.files) > 0 and not all([x in request.files for x in self.files]):
                 return "Error: missing files", 400
+            if callable(getattr(current_app, "ensure_sync", None)):
+                return current_app.ensure_sync(f)(*args, **kwargs)
             return f(*args, **kwargs)
         return "Error, invalid request", 400
     
@@ -76,6 +78,8 @@ ENDPOINT_HEADERS = {
     "main": EndpointSchema(access=EndpointAccess.LOGIN),
     "login": EndpointSchema(access=EndpointAccess.OPEN),
     "create_account": EndpointSchema(access=EndpointAccess.OPEN),
+    "delete_account": EndpointSchema(access=EndpointAccess.ADMIN, json=["uid"]),
+    "manage_accounts": EndpointSchema(access=EndpointAccess.ADMIN),
     "create_login": EndpointSchema(access=EndpointAccess.ADMIN, json=["un", "pwd", "isadmin"]),
     "get_user_display": EndpointSchema(access=EndpointAccess.LOGIN, headers=["id"]),
     "login_override": EndpointSchema(access=EndpointAccess.OPEN, json=["key"]),
@@ -138,7 +142,7 @@ ENDPOINT_HEADERS = {
     "calc_team_score": EndpointSchema(access=EndpointAccess.LOGIN),
     "multi_view": EndpointSchema(access=EndpointAccess.LOGIN),
     "view_picklist": EndpointSchema(access=EndpointAccess.LOGIN),
-    "get_picklist": EndpointSchema(access=EndpointAccess.LOGIN, headers=["name"]),
+    "get_picklist": EndpointSchema(access=EndpointAccess.LOGIN),
     "make_comment": EndpointSchema(access=EndpointAccess.LOGIN),
     "update_like": EndpointSchema(access=EndpointAccess.LOGIN, headers=["list", "pick", "team", "like"]),
     "picklist": EndpointSchema(access=EndpointAccess.LOGIN),

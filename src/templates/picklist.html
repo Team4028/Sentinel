@@ -408,6 +408,13 @@
             saveButton.innerHTML = dirty ? "Save &#9679" : "Save";
         }
 
+        window.addEventListener("beforeunload", (e) => {
+            if (dirty) {
+                e.preventDefault();
+                e.returnValue = "";
+            }
+        });
+
         function calculatePredictedScore() {
             let picks = [];
             for (const listi of lists.slice(1))

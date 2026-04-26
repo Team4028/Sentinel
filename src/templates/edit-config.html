@@ -113,6 +113,13 @@
             saveYAML();
         });
 
+        window.addEventListener("beforeunload", (e) => {
+            if (dirty) {
+                e.preventDefault();
+                e.returnValue = "";
+            }
+        });
+
         /**
          * Sends the current yaml file to the server to be saved
          */

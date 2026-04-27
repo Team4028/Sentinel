@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- load the favicon.ico beakhead favicon (the thing on the left of the tab) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+    <title>View Picklists</title>
+    <style>
+        :root {
+            --text: {{text}};
+            --accent: {{accent}};
+        }
+
+        body {
+            background-color: #222;
+            margin: 0;
+            color: #fff;
+        }
+
+        .lists {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, 180px);
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .list {
+            background: #1a1d24;
+            border-radius: 16px;
+            overflow: hidden;
+            width: 180px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .list:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+        }
+
+        .list-header {
+            padding: 12px 16px;
+            font-size: 16px;
+            font-weight: bold;
+            background: #232733;
+            border-bottom: 1px solid #2f3440;
+        }
+
+        .iframe-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+        }
+
+        .iframe-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .list-footer {
+            padding: 10px 16px;
+            font-size: 13px;
+            color: #aab0bb;
+            background: #232733;
+            border-top: 1px solid #2f3440;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: transparent;
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+
+        .overlay.active {
+            display: flex;
+        }
+
+        .overlay-content {
+            width: 95%;
+            height: 95%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .overlay-content iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            font-size: 20px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="padding: 10px; text-align: center;">Picklists</h1>
+    <hr width="80%">
+    <div class="lists" id="lists">
+    </div>
+    <div class="overlay" id="overlay">
+        <div class="overlay-content">
+            <div class="close-btn" id="closeBtn">✕</div>
+            <iframe id="overlayFrame" frameborder="0"></iframe>
+        </div>
+    </div>
+    <script src="{{url_for('static', filename='js/user-disp.js')}}"></script>
+    <script>
+        const lists = JSON.parse(`{{picklists | safe}}`);
+        const listsDiv = document.getElementById("lists");
+        const overlay = document.getElementById("overlay");
+        const overlayFrame = document.getElementById("overlayFrame");
+        for (const list of lists) {
+            const header = document.createElement("div");
+            header.classList.add("list-header");
+            header.innerHTML = `<user-disp id="${list}"></user-disp>`;
+            const wrapper = document.createElement("div");
+            wrapper.classList.add("iframe-wrapper");
+            const ifr = document.createElement("iframe");
+            ifr.allowFullscreen = true;
+            const srcLink = `{{url_for('view_picklist')}}?list=${list}`;
+            ifr.style.pointerEvents = "none";
+            ifr.src = srcLink;
+            wrapper.appendChild(ifr);
+            const listCard = document.createElement("div");
+            listCard.classList.add('list');
+            listCard.appendChild(header);
+            listCard.appendChild(wrapper);
+            listCard.addEventListener("click", () => {
+                overlayFrame.src = srcLink;
+                overlay.classList.add("active");
+                overlayFrame.addEventListener("load", () => {
+                    overlayFrame.contentWindow.addEventListener("keydown", e => {
+                        if (e.key === "Escape") closeOverlay();
+                    });
+                });
+            });
+            listsDiv.appendChild(listCard);
+        }
+
+        function closeOverlay() {
+            overlay.classList.remove("active");
+            overlayFrame.src = "";
+        }
+
+        document.getElementById("closeBtn").addEventListener("click", closeOverlay);
+
+        window.addEventListener("keydown", e => {
+            if (e.key === "Escape") closeOverlay();
+        });
+    </script>
+    <script src="{{url_for('static', filename='js/register-sw.js')}}"
+        onload="registerServiceWorker('/service_worker.js')"></script>
+</body>
+</html>

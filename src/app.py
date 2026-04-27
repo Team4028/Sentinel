@@ -1397,6 +1397,13 @@ def create_app(
             dashes=json.dumps(DASHBOARD_UIDS),
             grafana_base=app.config["GRAFANA_URL"] + "/d/",
         )
+    
+    @app.get("/view-all-picklists")
+    def view_picklists():
+        return render_template_style(
+            "view-all-picklists.html",
+            picklists=json.dumps(list(map(lambda x: x.stem, Path("picklists").glob("*"))))
+        )
 
     @app.get("/view-picklist")
     def view_picklist():

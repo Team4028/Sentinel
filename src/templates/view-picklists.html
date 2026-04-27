@@ -160,11 +160,8 @@
 </head>
 
 <body>
-    <h1 style="display: inline-block;">Picklist:</h1><select id="scouterName" class="picklist-sel">
-        {% for name in names %}
-        <option {% if loop.first %}selected{% endif %}>{{name}}</option>
-        {% endfor %}
-    </select>
+    <script src="{{url_for('static', filename='js/user-disp.js')}}"></script>
+    <h1 style="display: inline-block;">Picklist: <user-disp id="{{request.args.get('list')}}"></user-disp></h1>
     <h2 id="score"></h2>
     <li id="initTeam"><span class='line-text'>{{initTeam}}</span></li>
     <div id="pick1" style="background-color: #444; border-radius: 10px; padding: 5px; border: 1px solid #222;">
@@ -184,12 +181,10 @@
         <ul id="pick3list">
         </ul>
     </div>
-    <script src="{{url_for('static', filename='js/user-disp.js')}}"></script>
     <script>
         const lists = [document.getElementById("pick1list"), document.getElementById("pick2list"), document.getElementById("pick3list")];
         const h2 = document.getElementById("score");
         const dashes = JSON.parse(`{{dashes | safe}}`);
-        const select = document.getElementById("scouterName");
         let lastPicks = null;
         let ilike = "none";
 
@@ -254,8 +249,6 @@
                 console.error(`Error calculating predicted score: ${err}`);
             });
         }
-
-        select.addEventListener("change", async () => await loadPicklist(select.value));
 
         async function makeComment(name, li, cmt, addr) {
             const res = await fetch("{{url_for('make_comment')}}", {
@@ -441,7 +434,7 @@
             }
         }
 
-        loadPicklist(select.value);
+        loadPicklist("{{request.args.get('list')}}");
     </script>
     <script src="{{url_for('static', filename='js/register-sw.js')}}"
         onload="registerServiceWorker('/service_worker.js')"></script>

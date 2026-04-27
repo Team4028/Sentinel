@@ -17,6 +17,8 @@ navigator.serviceWorker.addEventListener("message", async (message) => {
 });
 
 function registerServiceWorker(serviceWorkerUrl) {
+    if (window.self !== window.top) return;
+    console.log("Window is top, registering SW");
     let swRegistration = null;
     if ('serviceWorker' in navigator && 'PushManager' in window) {
         console.log('Service Worker and Push is supported');

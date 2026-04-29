@@ -104,6 +104,7 @@ ENDPOINT_HEADERS = {
     "upload_auto": EndpointSchema(access=EndpointAccess.ADMIN, headers=["mkey"], files=["photo"]),
     "upload_photo": EndpointSchema(access=EndpointAccess.ADMIN, headers=["team"], files=["photo"]),
     "reprocess": EndpointSchema(access=EndpointAccess.ADMIN),
+    "run_process": EndpointSchema(access=EndpointAccess.ADMIN, json=["process"]),
     "restart": EndpointSchema(access=EndpointAccess.ADMIN),
     "consume_tba_webhook": EndpointSchema(access=EndpointAccess.OPEN, headers=["X-TBA-HMAC"], json=["message_type"]),
     "get_team_pics": EndpointSchema(access=EndpointAccess.OPEN, args=["team"]),

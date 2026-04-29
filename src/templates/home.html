@@ -305,14 +305,22 @@
         <button id="download-btn" class="sbutton" title="Ctrl+D">Download</button>
         <button class="sbutton" onclick="window.goTo('{{url_for('edit_yaml')}}');" title="Ctrl+E" id="edit-cfg-btn">Edit
             Config</button>
-        <button class="sbutton" onclick="window.goTo('{{url_for('read_log')}}');" title="Ctrl+N (notes idk)"
+        <button class="sbutton" onclick="window.goTo('{{url_for('read_log')}}');"
             id="view-logs-btn">View Logs</button>
         <button class="sbutton" onclick="window.goTo('{{url_for('explore')}}');" title="Ctrl+F"
             id="explore-files-btn">Explore Files</button>
         <button id="picklist-btn" class="sbutton" title="Ctrl+Q" style="width: 120px;"
             onclick="window.goTo('{{url_for('picklist')}}');">Picklist</button>
+        <button id="view-pl-button" class="sbutton" style="width: 120px;"
+            onclick="window.goTo('{{url_for('view_picklists')}}')">View Picklists</button>
+        <button id="tc-button" class="sbutton" style="width: 150px;"
+            onclick="window.goTo('{{url_for('multi_view')}}')">Team compare</button>
+        <button id="note-btn" class="sbutton" style="width: 120px;"
+            onclick="window.goTo('{{url_for('take_notes')}}')">Notes</button>
         <button id="pit-btn" class="sbutton" title="Ctrl+S" style="width: 120px;"
             onclick="window.goTo('{{url_for('pit_scout')}}')">Pit Scout</button>
+        <button id="auto-btn" class="sbutton" style="width: 120px;"
+            onclick="window.goTo('{{url_for('auto_scout_simple')}}')">Auton Scout</button>
         <button id="dash-btn" class="sbutton" title="Ctrl+V" style="width: 120px;"
             onclick="window.open('{{graf_url}}', '_blank').focus()">Dashboard</button>
         <div class="top-corner-div">
@@ -601,7 +609,7 @@
                 pictureButton.click();
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === 'n' && !isSending) {
                 ev.preventDefault();
-                window.goTo("{{url_for('read_log')}}");
+                window.goTo("{{url_for('take_notes')}}");
             } else if ((ev.ctrlKey || ev.metaKey) && ev.key === 'f' && !isSending) {
                 ev.preventDefault();
                 window.goTo("{{url_for('explore')}}");

@@ -915,6 +915,24 @@ def create_app(
         except Exception as e:
             return apputils.exception_format(e), 500
 
+    @app.post("/run-process")
+    def run_process():
+        try:
+            match(request.json["process"]):
+                case "load_event_data":
+                    run_async_task(processor.clear_database())
+                    run_async_task(processor.load_event_data())
+                    run_async_task(processor.proccess_data())
+                case "perform_periodic_calls":
+                    run_async_task(processor.perform_periodic_calls())
+                case "do_data_processing":
+                    run_async_task(do_data_processing())
+                case _:
+                    return "Error, invalid process requested", 400
+            return "Process requested", 200
+        except Exception as e:
+            return apputils.exception_format(e), 500
+
     @app.post("/tba-webhook")
     def consume_tba_webhook():
         if (

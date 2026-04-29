@@ -270,10 +270,11 @@
         </label>
         <button class="sbutton" onclick="setCred()" title="Ctrl+P">Add or Overwrite</button>
         <br><br>
+        <button class="sbutton" onclick="window.goTo('{{url_for('manage_accounts')}}')">Manage Accounts</button>
+        <br><br>
         <button class="sbutton" onclick="confirmDialouge.confirmModal('This will <i>PERMANENTLY</i> delete all Grafana formatting changed since app deployment.', resetDash)">Reset Dashboard</button>
         <button class="sbutton" id="delete-button">Delete File</button>
-        <!-- <button class="sbutton" onclick="confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete all input data from scouting. This is only meant to be used if data is corrupted. You should probably make a backup from the download button at the <a href='{{url_for('main')}}'>homepage</a>`, clearDatain)">Clear Data input</button>
-        <button class="sbutton" onclick="confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete all processor data. If you have no wifi this will delete all of the cacheed TBA data.`, clearDB)">Clear Database</button> -->
+        <button class="sbutton" id="event-button">▶ Run Event</button>
     </div>
     <div class="loader-overlay" id="loaderOverlay">
         <div class="loader">
@@ -297,6 +298,16 @@
             </select>
             <button id="send-it" class="sbutton">Delete</button>
             <button id="cancel" class="sbutton">Cancel</button>
+        </dialog>
+    <dialog id="run-event">
+            <h1>Run an event</h1>
+            <select id="event-select">
+                <option title="load_event_data" value="load_event_data">Load Event Data</option>
+                <option title="perform_periodic_calls" value="perform_periodic_calls">Periodic TBA Fetch</option>
+                <option title="do_data_processing" value="do_data_processing">Process Data</option>
+            </select>
+            <button id="event-run" class="sbutton">Run</button>
+            <button id="event-cancel" class="sbutton">Cancel</button>
         </dialog>
     <modal-confirm id="confirm-modal" buttonStyle="{{url_for('static', filename='css/button.css')}}"></modal-confirm>
     <div class="button-cont">
@@ -498,7 +509,7 @@
             const res = await fakeWaitingForGodot(document.getElementById("surprise"), "send-it", "cancel", "cake-select", false);
             if (!res.cancelled) {
                 confirmDialouge.confirmModal(`This will <i>PERMANENTLY</i> delete ${res.file}. This action can not be reversed.`, async () => {
-                    const r2 = fetch('{{url_for("delete_file")}}', {
+                    const r2 = await fetch('{{url_for("delete_file")}}', {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json"
@@ -506,6 +517,24 @@
                         body: JSON.stringify({
                             "filepath": res.file,
                             "resolve": null
+                        })
+                    });
+                });
+            }
+        });
+
+        document.getElementById("event-button").addEventListener("click", async () => {
+            const res = await fakeWaitingForGodot(document.getElementById("run-event"), "event-run", "event-cancel", "event-select", false);
+            if (!res.cancelled) {
+                const proc = res.file;
+                confirmDialouge.confirmModal(`Run process ${proc}?`, async () => {
+                    const r2 = await fetch("{{url_for('run_process')}}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            "process": proc
                         })
                     })
                 });

@@ -1,1286 +1,1407 @@
 {
-    "annotations": {
-        "list": [
-            {
-                "builtIn": 1,
-                "datasource": {
-                    "type": "grafana",
-                    "uid": "-- Grafana --"
-                },
-                "enable": true,
-                "hide": true,
-                "iconColor": "rgba(0, 211, 255, 1)",
-                "name": "Annotations & Alerts",
-                "type": "dashboard"
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "inlineEditing": false,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
             }
-        ]
-    },
-    "editable": true,
-    "fiscalYearStartMonth": 0,
-    "graphTooltip": 0,
-    "id": 13,
-    "links": [],
-    "panels": [
-        {
-            "datasource": {
-                "uid": "afh372g20yt4wd"
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "thresholds"
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "green",
-                                "value": 0
-                            }
-                        ]
-                    }
-                },
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 12,
-                "x": 0,
-                "y": 0
-            },
-            "id": 3,
-            "options": {
-                "inlineEditing": false,
-                "panZoom": false,
-                "root": {
-                    "background": {
-                        "color": {
-                            "fixed": "transparent"
-                        }
-                    },
-                    "border": {
-                        "color": {
-                            "fixed": "dark-green"
-                        }
-                    },
-                    "constraint": {
-                        "horizontal": "left",
-                        "vertical": "top"
-                    },
-                    "elements": [
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 40,
-                                "text": {
-                                    "field": "Team",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 1",
-                            "placement": {
-                                "height": 61.16666793823242,
-                                "left": 55,
-                                "top": 7,
-                                "width": 252.45834350585938
-                            },
-                            "type": "metric-value"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "rgb(204, 204, 220)"
-                                },
-                                "size": 40,
-                                "text": {
-                                    "fixed": "Team"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 2",
-                            "placement": {
-                                "height": 88,
-                                "left": -2,
-                                "rotation": 0,
-                                "top": -6,
-                                "width": 129
-                            },
-                            "type": "text"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "rgb(204, 204, 220)"
-                                },
-                                "size": 40,
-                                "text": {
-                                    "fixed": "--"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 3",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": 244,
-                                "top": 7,
-                                "width": 97.09375
-                            },
-                            "type": "text"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "left",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 40,
-                                "text": {
-                                    "field": "Name",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 4",
-                            "placement": {
-                                "height": 61.16666793823242,
-                                "left": 351,
-                                "top": 7,
-                                "width": 888.4896240234375
-                            },
-                            "type": "metric-value"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 20,
-                                "text": {
-                                    "field": "City",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 5",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": 207,
-                                "rotation": 0,
-                                "top": 140,
-                                "width": 252.45834350585938
-                            },
-                            "type": "metric-value"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 20,
-                                "text": {
-                                    "field": "State",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 6",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": 387,
-                                "rotation": 0,
-                                "top": 140,
-                                "width": 252.45834350585938
-                            },
-                            "type": "metric-value"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 20,
-                                "text": {
-                                    "field": "Country",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 7",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": 543,
-                                "rotation": 0,
-                                "top": 140,
-                                "width": 252.45834350585938
-                            },
-                            "type": "metric-value"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "left",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 20,
-                                "text": {
-                                    "field": "School",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 8",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": 387,
-                                "rotation": 0,
-                                "top": 68,
-                                "width": 5002
-                            },
-                            "type": "metric-value"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 20,
-                                "text": {
-                                    "field": "PostalCode",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 9",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": 400,
-                                "rotation": 0,
-                                "top": 106,
-                                "width": 252.45834350585938
-                            },
-                            "type": "metric-value"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "rgb(204, 204, 220)"
-                                },
-                                "size": 30,
-                                "text": {
-                                    "fixed": "Rookie Year"
-                                },
-                                "valign": "middle"
-                            },
-                            "connections": [],
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 10",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": 36,
-                                "rotation": 0,
-                                "top": 82,
-                                "width": 181.5729217529297
-                            },
-                            "type": "text"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "center",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 30,
-                                "text": {
-                                    "field": "RookieYear",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [],
-                            "name": "Element 11",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": -2,
-                                "rotation": 0,
-                                "top": 131,
-                                "width": 252.45834350585938
-                            },
-                            "type": "metric-value"
-                        },
-                        {
-                            "background": {
-                                "color": {
-                                    "fixed": "transparent"
-                                }
-                            },
-                            "border": {
-                                "color": {
-                                    "fixed": "dark-green"
-                                }
-                            },
-                            "config": {
-                                "align": "left",
-                                "color": {
-                                    "fixed": "text"
-                                },
-                                "size": 20,
-                                "text": {
-                                    "field": "Website",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "valign": "middle"
-                            },
-                            "constraint": {
-                                "horizontal": "left",
-                                "vertical": "top"
-                            },
-                            "links": [
-                                {
-                                    "oneClick": true,
-                                    "targetBlank": true,
-                                    "title": "Website",
-                                    "url": "${__data.fields.Website}"
-                                }
-                            ],
-                            "name": "Element 12",
-                            "placement": {
-                                "height": 48.54166793823242,
-                                "left": 9,
-                                "rotation": 0,
-                                "top": 212,
-                                "width": 555.4271240234375
-                            },
-                            "type": "metric-value"
-                        }
-                    ],
-                    "name": "Element 1774497862371",
-                    "placement": {
-                        "height": 100,
-                        "left": 0,
-                        "rotation": 0,
-                        "top": 0,
-                        "width": 100
-                    },
-                    "type": "frame"
-                },
-                "showAdvancedTypes": true,
-                "tooltip": {
-                    "disableForOneClick": false,
-                    "mode": "none"
-                },
-                "zoomToContent": false
-            },
-            "pluginVersion": "12.2.1",
-            "targets": [
-                {
-                    "queryText": "SELECT Team, Country, State, City, Name, School, RookieYear, PostalCode, Website\nFROM teams\nWHERE Team = '2641'",
-                    "queryType": "table",
-                    "rawQueryText": "SELECT Team, Country, State, City, Name, School, RookieYear, PostalCode, Website\nFROM teams\nWHERE Team = '$Team'",
-                    "refId": "A",
-                    "timeColumns": [
-                        "time",
-                        "ts"
-                    ]
+          },
+          "border": {
+            "color": {
+              "fixed": "dark-green"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
                 }
-            ],
-            "title": "",
-            "transparent": true,
-            "type": "canvas"
-        },
-        {
-            "datasource": {
-                "type": "frser-sqlite-datasource",
-                "uid": "afh372g20yt4wd"
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "thresholds"
-                    },
-                    "custom": {
-                        "hideFrom": {
-                            "legend": false,
-                            "tooltip": false,
-                            "viz": false
-                        }
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "green",
-                                "value": 0
-                            },
-                            {
-                                "color": "red",
-                                "value": 80
-                            }
-                        ]
-                    }
-                },
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 5,
-                "x": 12,
-                "y": 0
-            },
-            "id": 4,
-            "options": {
-                "basemap": {
-                    "config": {},
-                    "name": "Layer 0",
-                    "noRepeat": false,
-                    "opacity": 1,
-                    "type": "default"
-                },
-                "controls": {
-                    "mouseWheelZoom": false,
-                    "showAttribution": false,
-                    "showDebug": false,
-                    "showMeasure": false,
-                    "showScale": false,
-                    "showZoom": false
-                },
-                "layers": [
-                    {
-                        "config": {
-                            "showLegend": false,
-                            "style": {
-                                "color": {
-                                    "fixed": "red"
-                                },
-                                "opacity": 1,
-                                "rotation": {
-                                    "fixed": 0,
-                                    "max": 360,
-                                    "min": -360,
-                                    "mode": "mod"
-                                },
-                                "size": {
-                                    "fixed": 5,
-                                    "max": 15,
-                                    "min": 2
-                                },
-                                "symbol": {
-                                    "field": "",
-                                    "fixed": "img/icons/marker/circle.svg",
-                                    "mode": "fixed"
-                                },
-                                "symbolAlign": {
-                                    "horizontal": "center",
-                                    "vertical": "center"
-                                },
-                                "text": {
-                                    "field": "Team",
-                                    "fixed": "",
-                                    "mode": "field"
-                                },
-                                "textConfig": {
-                                    "fontSize": 12,
-                                    "offsetX": 0,
-                                    "offsetY": -10,
-                                    "textAlign": "center",
-                                    "textBaseline": "bottom"
-                                }
-                            }
-                        },
-                        "location": {
-                            "gazetteer": "public/gazetteer/usa-states.json",
-                            "lookup": "State",
-                            "mode": "lookup"
-                        },
-                        "name": "TeamWaypoint",
-                        "tooltip": true,
-                        "type": "markers"
-                    }
-                ],
-                "tooltip": {
-                    "mode": "details"
-                },
-                "view": {
-                    "allLayers": true,
-                    "id": "fit",
-                    "lat": 40,
-                    "lon": -100,
-                    "noRepeat": false,
-                    "shared": false,
-                    "zoom": 3.5
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
                 }
-            },
-            "pluginVersion": "12.2.1",
-            "targets": [
-                {
-                    "datasource": {
-                        "type": "frser-sqlite-datasource",
-                        "uid": "afh372g20yt4wd"
-                    },
-                    "queryText": "SELECT Team, State\nFROM teams\nWHERE Team = '2641'",
-                    "queryType": "table",
-                    "rawQueryText": "SELECT Team, State\nFROM teams\nWHERE Team = '$Team'",
-                    "refId": "A",
-                    "timeColumns": [
-                        "time",
-                        "ts"
-                    ]
-                }
-            ],
-            "title": "",
-            "transparent": true,
-            "type": "geomap"
-        },
-        {
-            "datasource": {
-                "type": "frser-sqlite-datasource",
-                "uid": "afh372g20yt4wd"
-            },
-            "fieldConfig": {
-                "defaults": {},
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 7,
-                "x": 17,
-                "y": 0
-            },
-            "id": 2,
-            "options": {
-                "alt_field": "",
-                "autofit": false,
-                "baseUrl": "{{ sentinel_url | replace("localhost", "sentinel") | replace("127.0.0.1", "sentinel") }}/team-photo?index=$PhotoIndex&team=",
-                "height": "75",
-                "icon_field": "",
-                "open_url": {
-                    "base_url": "",
-                    "enable": false,
-                    "metric_field": "",
-                    "open_in_tab": true,
-                    "suffix": ""
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "text"
                 },
-                "overlay": {
-                    "bindings": {
-                        "bindings": [],
-                        "has_text": true,
-                        "unbounded": "#66666620"
-                    },
-                    "field": "",
-                    "height": {
-                        "size": 5,
-                        "unit": "%"
-                    },
-                    "position": "Top right",
-                    "width": {
-                        "size": 5,
-                        "unit": "%"
-                    }
-                },
-                "shared_cross_hair": {
-                    "backgroundColor": "#FFFFFF10",
-                    "borderColor": "#FFFFFF20"
-                },
-                "singleFill": true,
-                "slideshow": {
-                    "duration": 5000,
-                    "enable": false,
-                    "infinite": true,
-                    "pauseOnHover": true,
-                    "transition": "Slide",
-                    "transition_duration": 1000
-                },
-                "tooltip": false,
-                "tooltip_date_elapsed": false,
-                "tooltip_field": "",
-                "tooltip_include_date": false,
-                "tooltip_include_field": true,
-                "underline": {
-                    "bindings": {
-                        "bindings": [],
-                        "has_text": true,
-                        "unbounded": "#CCCCDCFF"
-                    },
-                    "bindings_field": "",
-                    "field": "",
-                    "text_align": "left",
-                    "text_size": "14"
-                },
-                "width": "75"
-            },
-            "pluginVersion": "4.0.0",
-            "targets": [
-                {
-                    "datasource": {
-                        "type": "frser-sqlite-datasource",
-                        "uid": "afh372g20yt4wd"
-                    },
-                    "queryText": "SELECT '4028' AS Team",
-                    "queryType": "table",
-                    "rawQueryText": "SELECT '$Team' AS Team",
-                    "refId": "A",
-                    "timeColumns": []
-                }
-            ],
-            "title": "",
-            "transparent": true,
-            "type": "dalvany-image-panel"
-        },
-        {
-            "datasource": {
-                "type": "marcusolsson-csv-datasource",
-                "uid": "bfhumji7jrklcb"
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "thresholds"
-                    },
-                    "custom": {
-                        "align": "auto",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "footer": {
-                            "reducers": []
-                        },
-                        "inspect": false
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "green",
-                                "value": 0
-                            },
-                            {
-                                "color": "red",
-                                "value": 80
-                            }
-                        ]
-                    }
-                },
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 24,
-                "x": 0,
-                "y": 8
-            },
-            "id": 5,
-            "options": {
-                "cellHeight": "sm",
-                "showHeader": true
-            },
-            "pluginVersion": "12.2.1",
-            "targets": [
-                {
-                    "datasource": {
-                        "type": "marcusolsson-csv-datasource",
-                        "uid": "bfhumji7jrklcb"
-                    },
-                    "header": true,
-                    "refId": "A",
-                    "schema": [
-                        {
-                            "name": "",
-                            "type": "string"
-                        }
-                    ]
-                }
-            ],
-            "title": "Auton Scouting",
-            "transformations": [
-                {
-                    "id": "filterByValue",
-                    "options": {
-                        "filters": [
-                            {
-                                "config": {
-                                    "id": "regex",
-                                    "options": {
-                                        "value": "\\b${Team:regex}\\b"
-                                    }
-                                },
-                                "fieldName": "tn"
-                            }
-                        ],
-                        "match": "any",
-                        "type": "include"
-                    }
-                },
-                {
-                    "id": "filterFieldsByName",
-                    "options": {
-                        "include": {
-                            "names": [
-                                "Match",
-                                "autoData"
-                            ]
-                        }
-                    }
-                }
-            ],
-            "transparent": true,
-            "type": "table"
-        },
-        {
-            "datasource": {
-                "type": "frser-sqlite-datasource",
-                "uid": "afh372g20yt4wd"
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "palette-classic"
-                    },
-                    "custom": {
-                        "axisBorderShow": false,
-                        "axisCenteredZero": false,
-                        "axisColorMode": "text",
-                        "axisLabel": "",
-                        "axisPlacement": "auto",
-                        "fillOpacity": 40,
-                        "gradientMode": "none",
-                        "hideFrom": {
-                            "legend": false,
-                            "tooltip": false,
-                            "viz": false
-                        },
-                        "lineWidth": 1,
-                        "scaleDistribution": {
-                            "type": "linear"
-                        },
-                        "thresholdsStyle": {
-                            "mode": "off"
-                        }
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "green",
-                                "value": 0
-                            },
-                            {
-                                "color": "red",
-                                "value": 80
-                            }
-                        ]
-                    }
-                },
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 14,
-                "w": 24,
-                "x": 0,
-                "y": 16
-            },
-            "id": 1,
-            "options": {
-                "barRadius": 0.1,
-                "barWidth": 0.97,
-                "fullHighlight": false,
-                "groupWidth": 1,
-                "legend": {
-                    "calcs": [],
-                    "displayMode": "list",
-                    "placement": "bottom",
-                    "showLegend": true
-                },
-                "orientation": "auto",
-                "showValue": "auto",
-                "stacking": "none",
+                "size": 40,
                 "text": {
-                    "valueSize": 30
+                  "field": "Team",
+                  "fixed": "",
+                  "mode": "field"
                 },
-                "tooltip": {
-                    "hideZeros": false,
-                    "mode": "single",
-                    "sort": "none"
-                },
-                "xTickLabelRotation": 0,
-                "xTickLabelSpacing": 0
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 1",
+              "placement": {
+                "height": 61.16666793823242,
+                "left": 55,
+                "top": 7,
+                "width": 252.45834350585938
+              },
+              "type": "metric-value"
             },
-            "pluginVersion": "12.2.1",
-            "targets": [
-                {
-                    "datasource": {
-                        "type": "frser-sqlite-datasource",
-                        "uid": "afh372g20yt4wd"
-                    },
-                    "queryText": "SELECT *\nFROM teams\nWHERE Team = '$Team'",
-                    "queryType": "table",
-                    "rawQueryText": "SELECT *\nFROM teams\nWHERE Team = '$Team'",
-                    "refId": "A",
-                    "timeColumns": []
-                },
-                {
-                    "datasource": {
-                        "type": "frser-sqlite-datasource",
-                        "uid": "afh372g20yt4wd"
-                    },
-                    "hide": false,
-                    "queryText": "SELECT *\nFROM teams_fields\nWHERE team_key = '340'",
-                    "queryType": "table",
-                    "rawQueryText": "SELECT *\nFROM teams_fields\nWHERE team_key = '$Team'",
-                    "refId": "B",
-                    "timeColumns": []
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
                 }
-            ],
-            "title": "",
-            "transformations": [
-                {
-                    "filter": {
-                        "id": "byRefId",
-                        "options": "/^(?:B)$/"
-                    },
-                    "id": "groupingToMatrix",
-                    "options": {
-                        "columnField": "field_name",
-                        "rowField": "team_key",
-                        "valueField": "field_value"
-                    }
-                },
-                {
-                    "id": "renameByRegex",
-                    "options": {
-                        "regex": "^(team_key).*",
-                        "renamePattern": "Team"
-                    }
-                },
-                {
-                    "id": "joinByField",
-                    "options": {
-                        "byField": "Team",
-                        "mode": "inner"
-                    }
-                },
-                {
-                    "id": "convertFieldType",
-                    "options": {
-                        "conversions": [
-                            {
-                                "destinationType": "string",
-                                "targetField": "Team"
-                            },
-                            {% for header, type in team_headers %}{
-                                "destinationType": "{{type}}",
-                                "targetField": "{{header}}"
-                            }{% if not loop.last %},
-                            {% endif %}{% endfor %}
-                        ],
-                        "fields": {}
-                    }
-                },
-                {
-                    "id": "organize",
-                    "options": {
-                        "excludeByName": {
-                            "City": true,
-                            "Country": true,
-                            "Name": true,
-                            "PostalCode": true,
-                            "RookieYear": true,
-                            "School": true,
-                            "State": true,
-                            "Website": true
-                        },
-                        "includeByName": {},
-                        "indexByName": {
-                            "Accuracy": 13,
-                            "Accuracy Variance": 14,
-                            "Average Defensive Rating": 9,
-                            "Average Vibe Lemons": 6,
-                            "Average_RP": 2,
-                            "Drive Team Skill": 15,
-                            "Drive Team Skill Variance": 16,
-                            "EPA": 3,
-                            "Filtered Defensive Rating": 11,
-                            "Filtered Vibe Lemons": 8,
-                            "Hopper Capacity": 17,
-                            "Hopper Capacity Variance": 18,
-                            "Infeed Speed": 19,
-                            "Infeed Speed Variance": 20,
-                            "Last_OPR": 5,
-                            "Matches Playing Defense": 12,
-                            "Max Defensive Rating": 10,
-                            "Max Vibe Lemons": 7,
-                            "OPR": 4,
-                            "Rank": 1,
-                            "Shooter Speed": 21,
-                            "Shooter Speed Variance": 22,
-                            "Team": 0
-                        },
-                        "renameByName": {}
-                    }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
                 }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "rgb(204, 204, 220)"
+                },
+                "size": 40,
+                "text": {
+                  "fixed": "Team"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 2",
+              "placement": {
+                "height": 88,
+                "left": -2,
+                "rotation": 0,
+                "top": -6,
+                "width": 129
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "rgb(204, 204, 220)"
+                },
+                "size": 40,
+                "text": {
+                  "fixed": "--"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 3",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": 244,
+                "top": 7,
+                "width": 97.09375
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "left",
+                "color": {
+                  "fixed": "text"
+                },
+                "size": 40,
+                "text": {
+                  "field": "Name",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 4",
+              "placement": {
+                "height": 61.16666793823242,
+                "left": 351,
+                "top": 7,
+                "width": 888.4896240234375
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "text"
+                },
+                "size": 20,
+                "text": {
+                  "field": "City",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 5",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": 207,
+                "rotation": 0,
+                "top": 140,
+                "width": 252.45834350585938
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "text"
+                },
+                "size": 20,
+                "text": {
+                  "field": "State",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 6",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": 387,
+                "rotation": 0,
+                "top": 140,
+                "width": 252.45834350585938
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "text"
+                },
+                "size": 20,
+                "text": {
+                  "field": "Country",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 7",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": 543,
+                "rotation": 0,
+                "top": 140,
+                "width": 252.45834350585938
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "left",
+                "color": {
+                  "fixed": "text"
+                },
+                "size": 20,
+                "text": {
+                  "field": "School",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 8",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": 387,
+                "rotation": 0,
+                "top": 68,
+                "width": 5002
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "text"
+                },
+                "size": 20,
+                "text": {
+                  "field": "PostalCode",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 9",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": 400,
+                "rotation": 0,
+                "top": 106,
+                "width": 252.45834350585938
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "rgb(204, 204, 220)"
+                },
+                "size": 30,
+                "text": {
+                  "fixed": "Rookie Year"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 10",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": 36,
+                "rotation": 0,
+                "top": 82,
+                "width": 181.5729217529297
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "text"
+                },
+                "size": 30,
+                "text": {
+                  "field": "RookieYear",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [],
+              "name": "Element 11",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": -2,
+                "rotation": 0,
+                "top": 131,
+                "width": 252.45834350585938
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "dark-green"
+                }
+              },
+              "config": {
+                "align": "left",
+                "color": {
+                  "fixed": "text"
+                },
+                "size": 20,
+                "text": {
+                  "field": "Website",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "links": [
+                {
+                  "oneClick": true,
+                  "targetBlank": true,
+                  "title": "Website",
+                  "url": "${__data.fields.Website}"
+                }
+              ],
+              "name": "Element 12",
+              "placement": {
+                "height": 48.54166793823242,
+                "left": 9,
+                "rotation": 0,
+                "top": 212,
+                "width": 555.4271240234375
+              },
+              "type": "metric-value"
+            }
+          ],
+          "name": "Element 1774497862371",
+          "placement": {
+            "height": 100,
+            "left": 0,
+            "rotation": 0,
+            "top": 0,
+            "width": 100
+          },
+          "type": "frame"
+        },
+        "showAdvancedTypes": true,
+        "tooltip": {
+          "disableForOneClick": false,
+          "mode": "none"
+        },
+        "zoomToContent": false
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "queryText": "SELECT Team, Country, State, City, Name, School, RookieYear, PostalCode, Website\nFROM teams\nWHERE Team = '2641'",
+          "queryType": "table",
+          "rawQueryText": "SELECT Team, Country, State, City, Name, School, RookieYear, PostalCode, Website\nFROM teams\nWHERE Team = '$Team'",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "canvas"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 12,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "basemap": {
+          "config": {},
+          "name": "Layer 0",
+          "noRepeat": false,
+          "opacity": 1,
+          "type": "default"
+        },
+        "controls": {
+          "mouseWheelZoom": false,
+          "showAttribution": false,
+          "showDebug": false,
+          "showMeasure": false,
+          "showScale": false,
+          "showZoom": false
+        },
+        "layers": [
+          {
+            "config": {
+              "showLegend": false,
+              "style": {
+                "color": {
+                  "fixed": "red"
+                },
+                "opacity": 1,
+                "rotation": {
+                  "fixed": 0,
+                  "max": 360,
+                  "min": -360,
+                  "mode": "mod"
+                },
+                "size": {
+                  "fixed": 5,
+                  "max": 15,
+                  "min": 2
+                },
+                "symbol": {
+                  "field": "",
+                  "fixed": "img/icons/marker/circle.svg",
+                  "mode": "fixed"
+                },
+                "symbolAlign": {
+                  "horizontal": "center",
+                  "vertical": "center"
+                },
+                "text": {
+                  "field": "Team",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "textConfig": {
+                  "fontSize": 12,
+                  "offsetX": 0,
+                  "offsetY": -10,
+                  "textAlign": "center",
+                  "textBaseline": "bottom"
+                }
+              }
+            },
+            "location": {
+              "gazetteer": "public/gazetteer/usa-states.json",
+              "lookup": "State",
+              "mode": "lookup"
+            },
+            "name": "TeamWaypoint",
+            "tooltip": true,
+            "type": "markers"
+          }
+        ],
+        "tooltip": {
+          "mode": "details"
+        },
+        "view": {
+          "allLayers": true,
+          "id": "fit",
+          "lat": 40,
+          "lon": -100,
+          "noRepeat": false,
+          "shared": false,
+          "zoom": 3.5
+        }
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Team, State\nFROM teams\nWHERE Team = '2641'",
+          "queryType": "table",
+          "rawQueryText": "SELECT Team, State\nFROM teams\nWHERE Team = '$Team'",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "geomap"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 7,
+        "x": 17,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "alt_field": "",
+        "autofit": false,
+        "baseUrl": "{{ sentinel_url | replace("localhost", "sentinel") | replace("127.0.0.1", "sentinel") }}/team-photo?index=$PhotoIndex&team=",
+        "height": "75",
+        "icon_field": "",
+        "open_url": {
+          "base_url": "",
+          "enable": false,
+          "metric_field": "",
+          "open_in_tab": true,
+          "suffix": ""
+        },
+        "overlay": {
+          "bindings": {
+            "bindings": [],
+            "has_text": true,
+            "unbounded": "#66666620"
+          },
+          "field": "",
+          "height": {
+            "size": 5,
+            "unit": "%"
+          },
+          "position": "Top right",
+          "width": {
+            "size": 5,
+            "unit": "%"
+          }
+        },
+        "shared_cross_hair": {
+          "backgroundColor": "#FFFFFF10",
+          "borderColor": "#FFFFFF20"
+        },
+        "singleFill": true,
+        "slideshow": {
+          "duration": 5000,
+          "enable": false,
+          "infinite": true,
+          "pauseOnHover": true,
+          "transition": "Slide",
+          "transition_duration": 1000
+        },
+        "tooltip": false,
+        "tooltip_date_elapsed": false,
+        "tooltip_field": "",
+        "tooltip_include_date": false,
+        "tooltip_include_field": true,
+        "underline": {
+          "bindings": {
+            "bindings": [],
+            "has_text": true,
+            "unbounded": "#CCCCDCFF"
+          },
+          "bindings_field": "",
+          "field": "",
+          "text_align": "left",
+          "text_size": "14"
+        },
+        "width": "75"
+      },
+      "pluginVersion": "4.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT '4028' AS Team",
+          "queryType": "table",
+          "rawQueryText": "SELECT '$Team' AS Team",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transparent": true,
+      "type": "dalvany-image-panel"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-csv-datasource",
+        "uid": "bfhumji7jrklcb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "marcusolsson-csv-datasource",
+            "uid": "bfhumji7jrklcb"
+          },
+          "header": true,
+          "refId": "A",
+          "schema": [
+            {
+              "name": "",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "title": "Auton Scouting",
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": "\\b${Team:regex}\\b"
+                  }
+                },
+                "fieldName": "tn"
+              }
             ],
-            "transparent": true,
-            "type": "barchart"
+            "match": "any",
+            "type": "include"
+          }
         },
         {
-            "datasource": {
-                "type": "yesoreyeram-infinity-datasource",
-                "uid": "af4ihtuthnbpcb"
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "thresholds"
-                    },
-                    "custom": {
-                        "align": "auto",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "footer": {
-                            "reducers": []
-                        },
-                        "inspect": false,
-                        "minWidth": 50,
-                        "wrapHeaderText": false,
-                        "wrapText": true
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "green",
-                                "value": 0
-                            },
-                            {
-                                "color": "red",
-                                "value": 80
-                            }
-                        ]
-                    }
-                },
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 31,
-                "w": 24,
-                "x": 0,
-                "y": 30
-            },
-            "id": 6,
-            "options": {
-                "cellHeight": "sm",
-                "enablePagination": false,
-                "frozenColumns": {
-                    "left": 1
-                },
-                "maxRowHeight": 100,
-                "showHeader": true
-            },
-            "pluginVersion": "12.2.1",
-            "targets": [
-                {
-                    "columns": [],
-                    "datasource": {
-                        "type": "yesoreyeram-infinity-datasource",
-                        "uid": "af4ihtuthnbpcb"
-                    },
-                    "filters": [],
-                    "format": "table",
-                    "global_query_id": "",
-                    "parser": "backend",
-                    "refId": "A",
-                    "root_selector": "",
-                    "source": "url",
-                    "type": "json",
-                    "url": "{{ sentinel_url | replace("localhost", "sentinel") | replace("127.0.0.1", "sentinel") }}/note-tables?team=${Team}",
-                    "url_options": {
-                        "data": "",
-                        "method": "GET"
-                    }
-                }
-            ],
-            "title": "Specialty Notes",
-            "transformations": [
-                {
-                    "id": "organize",
-                    "options": {
-                        "excludeByName": {},
-                        "includeByName": {},
-                        "indexByName": {
-                            "Gabe Stuk": 1,
-                            "Match": 0
-                        },
-                        "renameByName": {
-                            "Match": ""
-                        }
-                    }
-                }
-            ],
-            "transparent": true,
-            "type": "table"
-        }
-    ],
-    "preload": false,
-    "schemaVersion": 42,
-    "tags": [],
-    "templating": {
-        "list": [
-            {
-                "allowCustomValue": false,
-                "current": {
-                    "text": "4028",
-                    "value": "4028"
-                },
-                "datasource": {
-                    "type": "frser-sqlite-datasource",
-                    "uid": "afh372g20yt4wd"
-                },
-                "definition": "SELECT Team\nFROM teams",
-                "name": "Team",
-                "options": [],
-                "query": "SELECT Team\nFROM teams",
-                "refresh": 1,
-                "regex": "",
-                "type": "query"
-            },
-            {
-                "allowCustomValue": false,
-                "current": {
-                    "text": "0",
-                    "value": "0"
-                },
-                "datasource": {
-                    "type": "yesoreyeram-infinity-datasource",
-                    "uid": "af4ihtuthnbpcb"
-                },
-                "definition": "",
-                "name": "PhotoIndex",
-                "options": [],
-                "query": {
-                    "infinityQuery": {
-                        "columns": [],
-                        "filters": [],
-                        "format": "table",
-                        "parser": "backend",
-                        "refId": "variable",
-                        "root_selector": "",
-                        "source": "url",
-                        "type": "json",
-                        "url": "{{ sentinel_url | replace("localhost", "sentinel") | replace("127.0.0.1", "sentinel") }}/team-photo-indicies",
-                        "url_options": {
-                            "data": "",
-                            "method": "GET",
-                            "params": [
-                                {
-                                    "key": "team",
-                                    "value": "$Team"
-                                }
-                            ]
-                        }
-                    },
-                    "query": "",
-                    "queryType": "infinity"
-                },
-                "refresh": 1,
-                "regex": "",
-                "type": "query"
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Match",
+                "autoData"
+              ]
             }
-        ]
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "table"
     },
-    "time": {
-        "from": "now-5m",
-        "to": "now"
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 1,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 1,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "text": {
+          "valueSize": 30
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT *\nFROM teams\nWHERE Team = '$Team'",
+          "queryType": "table",
+          "rawQueryText": "SELECT *\nFROM teams\nWHERE Team = '$Team'",
+          "refId": "A",
+          "timeColumns": []
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "hide": false,
+          "queryText": "SELECT *\nFROM teams_fields\nWHERE team_key = '340'",
+          "queryType": "table",
+          "rawQueryText": "SELECT *\nFROM teams_fields\nWHERE team_key = '$Team'",
+          "refId": "B",
+          "timeColumns": []
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "filter": {
+            "id": "byRefId",
+            "options": "/^(?:B)$/"
+          },
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "field_name",
+            "rowField": "team_key",
+            "valueField": "field_value"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^(team_key).*",
+            "renamePattern": "Team"
+          }
+        },
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "Team",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+                {
+                    "destinationType": "string",
+                    "targetField": "Team"
+                },
+                {% for header, type in team_headers %}{
+                    "destinationType": "{{type}}",
+                    "targetField": "{{header}}"
+                }{% if not loop.last %},
+                {% endif %}{% endfor %}
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "City": true,
+              "Country": true,
+              "Name": true,
+              "PostalCode": true,
+              "RookieYear": true,
+              "School": true,
+              "State": true,
+              "Website": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "Accuracy": 13,
+              "Accuracy Variance": 14,
+              "Average Defensive Rating": 9,
+              "Average Vibe Lemons": 6,
+              "Average_RP": 2,
+              "Drive Team Skill": 15,
+              "Drive Team Skill Variance": 16,
+              "EPA": 3,
+              "Filtered Defensive Rating": 11,
+              "Filtered Vibe Lemons": 8,
+              "Hopper Capacity": 17,
+              "Hopper Capacity Variance": 18,
+              "Infeed Speed": 19,
+              "Infeed Speed Variance": 20,
+              "Last_OPR": 5,
+              "Matches Playing Defense": 12,
+              "Max Defensive Rating": 10,
+              "Max Vibe Lemons": 7,
+              "OPR": 4,
+              "Rank": 1,
+              "Shooter Speed": 21,
+              "Shooter Speed Variance": 22,
+              "Team": 0
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
     },
-    "timepicker": {},
-    "timezone": "browser",
-    "title": "Team View",
-    "uid": "ad962jv",
-    "version": 31
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 7,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT * from matches_fields WHERE team_key=4028",
+          "queryType": "table",
+          "rawQueryText": "SELECT * from matches_fields WHERE team_key=$Team",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Match By Match",
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "field_name",
+            "rowField": "match_key",
+            "valueField": "field_value"
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+                {% for header, type in match_headers %}{
+                    "destinationType": "{{type}}",
+                    "targetField": "{{header}}"
+                }{% if not loop.last %},
+                {% endif %}{% endfor %}
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "af4ihtuthnbpcb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false,
+            "minWidth": 50,
+            "wrapHeaderText": false,
+            "wrapText": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 31,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "id": 6,
+      "options": {
+        "cellHeight": "sm",
+        "enablePagination": false,
+        "frozenColumns": {
+          "left": 1
+        },
+        "maxRowHeight": 100,
+        "showHeader": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "af4ihtuthnbpcb"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "{{ sentinel_url | replace("localhost", "sentinel") | replace("127.0.0.1", "sentinel") }}/note-tables?team=${Team}",
+          "url_options": {
+            "data": "",
+            "method": "GET"
+          }
+        }
+      ],
+      "title": "Specialty Notes",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "Gabe Stuk": 1,
+              "Match": 0
+            },
+            "renameByName": {
+              "Match": ""
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "4028",
+          "value": "4028"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "afh372g20yt4wd"
+        },
+        "definition": "SELECT Team\nFROM teams",
+        "name": "Team",
+        "options": [],
+        "query": "SELECT Team\nFROM teams",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "0",
+          "value": "0"
+        },
+        "datasource": {
+          "type": "yesoreyeram-infinity-datasource",
+          "uid": "af4ihtuthnbpcb"
+        },
+        "definition": "",
+        "name": "PhotoIndex",
+        "options": [],
+        "query": {
+          "infinityQuery": {
+            "columns": [],
+            "filters": [],
+            "format": "table",
+            "parser": "backend",
+            "refId": "variable",
+            "root_selector": "",
+            "source": "url",
+            "type": "json",
+            "url": "{{ sentinel_url | replace("localhost", "sentinel") | replace("127.0.0.1", "sentinel") }}/team-photo-indicies",
+            "url_options": {
+              "data": "",
+              "method": "GET",
+              "params": [
+                {
+                  "key": "team",
+                  "value": "$Team"
+                }
+              ]
+            }
+          },
+          "query": "",
+          "queryType": "infinity"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Team View",
+  "uid": "ad962jv",
+  "version": 33
 }

@@ -859,9 +859,9 @@ class Processor:
         df = []
         for k, v in self.__matches.items():
             for matTeam in v.output_dict(self.config_data):
-                if int(k) <= len(self.tba_data_static.schedule):
+                # if int(k) <= len(self.tba_data_static.schedule): TODO: decide to delete or keep this if statement, delete for now :) (probably better to filter in graf. anyway so we have all the data ig.)
                     df.append(
-                        {"Match": self.tba_data_static.schedule[int(k) - 1]["k"]}
+                        {"Match": next((x['k'] for x in self.tba_data_static.schedule if str(int(k)) in x['k']), f"practice_{int(k)}")}
                         | matTeam
                     )
 

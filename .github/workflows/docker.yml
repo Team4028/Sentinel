@@ -95,4 +95,4 @@ jobs:
             - name: Write comment to summary
               run: |
                   echo "## COMMENT ##" >> $GITHUB_STEP_SUMMARY
-                  echo "${{inputs.comment}}" >> $GITHUB_STEP_SUMMARY
+                  printf '%s\n' "${{inputs.comment}}" >> $GITHUB_STEP_SUMMARY

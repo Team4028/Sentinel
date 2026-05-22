@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import request, current_app
 from flask_login import login_required
+import inspect
 from enum import Enum
 
 try:
@@ -8,37 +9,65 @@ try:
 except ModuleNotFoundError:
     from src.auth import require_admin
 
+
 class EndpointAccess(Enum):
     OPEN = 0
     LOGIN = 1
     ADMIN = 2
 
+    def __str__(self):
+        return self.name
+
+
 class EndpointSchema:
+    """Specifies the access mode and args/headers/body keys required for the endpoint, checking them via flask routing wrappers"""
 
     @staticmethod
     def __verify_schema(f):
+        """Wraps `f` to verify that the request conforms to the access restrictions and arg/header/body schema"""
+
         @wraps(f)
         def decorated(*args, **kwargs):
-            return ENDPOINT_HEADERS[f.__name__].__check_schema(request, f, *args, **kwargs)
+            return ENDPOINT_HEADERS[f.__name__].__check_schema(
+                request, f, *args, **kwargs
+            )
+
         return decorated
-    
+
     @staticmethod
     def wrap_flask_routing(flask_route_method):
+        """Wraps a flask routing wrappers (app.get/post/etc) to automatically apply the verify_schema wrapper to wrapped functions"""
+
         def new_route(*args, **kwargs):
             def decorator(f):
-
-                if getattr(f, '_schema_wrapped', False):
+                eph = ENDPOINT_HEADERS[f.__name__]
+                if getattr(f, "_schema_wrapped", False):
                     wrapped = f
                 else:
                     wrapped = EndpointSchema.__verify_schema(f)
                     wrapped._schema_wrapped = True
                     wraps(f)(wrapped)
+                    wrapped.__doc__ = f"""
+.. admonition:: Schema
 
+    Access: {eph.access}, UrlParams: {eph.args}, Headers: {eph.headers}, Body Keys: {eph.json}, Files: {eph.files}
+
+{f.__doc__}"""
                 return flask_route_method(*args, **kwargs)(wrapped)
+
             return decorator
+
         return new_route
 
-    def __init__(self, access: EndpointAccess, check_json: bool = False, headers: list[str] = [], args: list[str] = [], json: list[str] = [], files: list[str] = []):
+    def __init__(
+        self,
+        access: EndpointAccess,
+        check_json: bool = False,
+        headers: list[str] = [],
+        args: list[str] = [],
+        json: list[str] = [],
+        files: list[str] = [],
+    ):
         self.access = access
         self.check_json = check_json
         self.headers = headers
@@ -47,6 +76,7 @@ class EndpointSchema:
         self.files = files
 
     def __check_schema(self, request, f, *args, **kwargs):
+        """checks if the request satisfies this object's constraints"""
         match self.access:
             case EndpointAccess.ADMIN:
                 f = require_admin(login_required(f))
@@ -55,22 +85,30 @@ class EndpointSchema:
 
         if self.check_json or len(self.json) > 0:
             if not request.is_json or request.get_json(silent=True) == None:
-                return "Error, Content-Type must be application/json and JSON must be valid", 415
-                
+                return (
+                    "Error, Content-Type must be application/json and JSON must be valid",
+                    415,
+                )
+
         if request:
-            if len(self.headers) > 0 and not all([x in request.headers for x in self.headers]):
+            if len(self.headers) > 0 and not all(
+                [x in request.headers for x in self.headers]
+            ):
                 return "Error: invalid header configuration", 400
             if len(self.args) > 0 and not all([x in request.args for x in self.args]):
                 return "Error: invalid urlparam configuration", 400
             if len(self.json) > 0 and not all([x in request.json for x in self.json]):
                 return "Error: invalid json schema", 400
-            if len(self.files) > 0 and not all([x in request.files for x in self.files]):
+            if len(self.files) > 0 and not all(
+                [x in request.files for x in self.files]
+            ):
                 return "Error: missing files", 400
             if callable(getattr(current_app, "ensure_sync", None)):
                 return current_app.ensure_sync(f)(*args, **kwargs)
             return f(*args, **kwargs)
         return "Error, invalid request", 400
-    
+
+
 wrap_flask_routing = EndpointSchema.wrap_flask_routing
 
 ENDPOINT_HEADERS = {
@@ -80,7 +118,9 @@ ENDPOINT_HEADERS = {
     "create_account": EndpointSchema(access=EndpointAccess.OPEN),
     "delete_account": EndpointSchema(access=EndpointAccess.ADMIN, json=["uid"]),
     "manage_accounts": EndpointSchema(access=EndpointAccess.ADMIN),
-    "create_login": EndpointSchema(access=EndpointAccess.ADMIN, json=["un", "pwd", "isadmin"]),
+    "create_login": EndpointSchema(
+        access=EndpointAccess.ADMIN, json=["un", "pwd", "isadmin"]
+    ),
     "get_user_display": EndpointSchema(access=EndpointAccess.LOGIN, headers=["id"]),
     "login_override": EndpointSchema(access=EndpointAccess.OPEN, json=["key"]),
     "explore": EndpointSchema(access=EndpointAccess.ADMIN),
@@ -100,23 +140,35 @@ ENDPOINT_HEADERS = {
     "health": EndpointSchema(access=EndpointAccess.OPEN),
     "percent": EndpointSchema(access=EndpointAccess.OPEN),
     "upload_file": EndpointSchema(access=EndpointAccess.ADMIN, files=["data"]),
-    "upload_other_files": EndpointSchema(access=EndpointAccess.ADMIN, headers=["name"], files=["data"]),
-    "upload_auto": EndpointSchema(access=EndpointAccess.ADMIN, headers=["mkey"], files=["photo"]),
-    "upload_photo": EndpointSchema(access=EndpointAccess.ADMIN, headers=["team"], files=["photo"]),
+    "upload_other_files": EndpointSchema(
+        access=EndpointAccess.ADMIN, headers=["name"], files=["data"]
+    ),
+    "upload_auto": EndpointSchema(
+        access=EndpointAccess.ADMIN, headers=["mkey"], files=["photo"]
+    ),
+    "upload_photo": EndpointSchema(
+        access=EndpointAccess.ADMIN, headers=["team"], files=["photo"]
+    ),
     "reprocess": EndpointSchema(access=EndpointAccess.ADMIN),
     "run_process": EndpointSchema(access=EndpointAccess.ADMIN, json=["process"]),
     "restart": EndpointSchema(access=EndpointAccess.ADMIN),
-    "consume_tba_webhook": EndpointSchema(access=EndpointAccess.OPEN, headers=["X-TBA-HMAC"], json=["message_type"]),
+    "consume_tba_webhook": EndpointSchema(
+        access=EndpointAccess.OPEN, headers=["X-TBA-HMAC"], json=["message_type"]
+    ),
     "get_team_pics": EndpointSchema(access=EndpointAccess.OPEN, args=["team"]),
     "get_team_indicies": EndpointSchema(access=EndpointAccess.OPEN, args=["team"]),
     "take_notes": EndpointSchema(access=EndpointAccess.LOGIN),
-    "get_notes": EndpointSchema(access=EndpointAccess.LOGIN, headers=["match", "team", "pre"]),
+    "get_notes": EndpointSchema(
+        access=EndpointAccess.LOGIN, headers=["match", "team", "pre"]
+    ),
     "get_note_tables": EndpointSchema(access=EndpointAccess.OPEN, args=["team"]),
     "n3": EndpointSchema(access=EndpointAccess.OPEN, args=["mkey"]),
     "append_lines": EndpointSchema(access=EndpointAccess.ADMIN, files=["data"]),
     "apply_change": EndpointSchema(access=EndpointAccess.ADMIN),
     "delete_change": EndpointSchema(access=EndpointAccess.ADMIN),
-    "delete_lines": EndpointSchema(access=EndpointAccess.ADMIN, headers=["sending", "si", "mn"], json=["lines"]),
+    "delete_lines": EndpointSchema(
+        access=EndpointAccess.ADMIN, headers=["sending"], json=["lines", "si", "mn"]
+    ),
     "auton_scout": EndpointSchema(access=EndpointAccess.LOGIN),
     "teams_in_match": EndpointSchema(access=EndpointAccess.LOGIN, args=["mkey"]),
     "get_current_event": EndpointSchema(access=EndpointAccess.LOGIN),
@@ -128,7 +180,9 @@ ENDPOINT_HEADERS = {
     "clear_db": EndpointSchema(access=EndpointAccess.ADMIN),
     "edit_yaml": EndpointSchema(access=EndpointAccess.ADMIN),
     "save_file": EndpointSchema(access=EndpointAccess.ADMIN, json=["code", "path"]),
-    "save_notes": EndpointSchema(access=EndpointAccess.LOGIN, json=["team", "data", "match", "pre"]),
+    "save_notes": EndpointSchema(
+        access=EndpointAccess.LOGIN, json=["team", "data", "match", "pre"]
+    ),
     "save_yaml": EndpointSchema(access=EndpointAccess.ADMIN, json=["code"]),
     "edit_app_conf_page": EndpointSchema(access=EndpointAccess.ADMIN),
     "get_app_config": EndpointSchema(access=EndpointAccess.ADMIN),
@@ -139,19 +193,25 @@ ENDPOINT_HEADERS = {
     "test_tba_key": EndpointSchema(access=EndpointAccess.ADMIN, headers=["key"]),
     "set_tba_key": EndpointSchema(access=EndpointAccess.ADMIN, json=["key"]),
     "set_tba_whook_key": EndpointSchema(access=EndpointAccess.ADMIN, json=["key"]),
-    "set_creds": EndpointSchema(access=EndpointAccess.ADMIN, json=["un", "pwd", "isadmin"]),
+    "set_creds": EndpointSchema(
+        access=EndpointAccess.ADMIN, json=["un", "pwd", "isadmin"]
+    ),
     "calc_team_score": EndpointSchema(access=EndpointAccess.LOGIN),
     "multi_view": EndpointSchema(access=EndpointAccess.LOGIN),
     "view_picklist": EndpointSchema(access=EndpointAccess.LOGIN, args=["list"]),
     "view_picklists": EndpointSchema(access=EndpointAccess.LOGIN),
     "get_picklist": EndpointSchema(access=EndpointAccess.LOGIN),
     "make_comment": EndpointSchema(access=EndpointAccess.LOGIN),
-    "update_like": EndpointSchema(access=EndpointAccess.LOGIN, headers=["list", "pick", "team", "like"]),
+    "update_like": EndpointSchema(
+        access=EndpointAccess.LOGIN, headers=["list", "pick", "team", "like"]
+    ),
     "picklist": EndpointSchema(access=EndpointAccess.LOGIN),
     "save_picklist": EndpointSchema(access=EndpointAccess.LOGIN),
     "save_app_config": EndpointSchema(access=EndpointAccess.ADMIN, check_json=True),
     "dload": EndpointSchema(access=EndpointAccess.LOGIN, headers=["file"]),
     "download_folder": EndpointSchema(access=EndpointAccess.LOGIN, headers=["path"]),
-    "upload_folder": EndpointSchema(access=EndpointAccess.ADMIN, headers=["folderPath"], files=["data"]),
+    "upload_folder": EndpointSchema(
+        access=EndpointAccess.ADMIN, headers=["folderPath"], files=["data"]
+    ),
     "test_mesh": EndpointSchema(access=EndpointAccess.ADMIN, args=["m"]),
 }

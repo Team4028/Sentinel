@@ -10,10 +10,12 @@ import json
 import numpy as np
 
 try:
-    from lib.data_config import eval_beakscript, FANCY_FIL
+    from lib.bs import eval_beakscript
+    from lib.data_config import FANCY_FIL
     import apputils
 except ModuleNotFoundError:
-    from src.lib.data_config import eval_beakscript, FANCY_FIL
+    from src.lib.bs import eval_beakscript
+    from src.lib.data_config import FANCY_FIL
     import src.apputils as apputils
 from collections import defaultdict
 from collections.abc import Iterable
@@ -26,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class TeamStruct:
+    """ Represents a dictionary of lists of data for a team across matches """
     def __init__(self) -> None:
         self.data = {}
 
@@ -61,6 +64,7 @@ class TeamStruct:
 
 
 class DataField:
+    """ Represents a list of data for a field """
     def __init__(self, name, data, filters) -> None:
         self.name = name
         self.filters = filters
@@ -105,6 +109,7 @@ class DataField:
 
 
 class MatchStruct:
+    """ Represents a dictionary of data for teams in a match """
     def __init__(self) -> None:
         self.teams = {}
 
@@ -125,10 +130,12 @@ class MatchStruct:
         return data
 
 
+# Constrained type alias
 ET = TypeVar("ET", bound=Callable)
 
 
 class Event[ET]:
+    """ Represents a FIFO sequence of events to be run asynchrounously from the main thread (but sync with other events) that should be triggered upon an occurance """
     event_progress = {}
     current_event = ""
     current_event_len = 0
@@ -136,6 +143,7 @@ class Event[ET]:
     global_lock = asyncio.Lock()
 
     def get_event_progress():
+        """ Returns a dictionary of events and information about them """
         keys = list(Event.event_progress.keys())
         for event in keys:
             if (
@@ -165,6 +173,7 @@ class Event[ET]:
         self.name = name
 
     def __iadd__(self, f: ET | list[ET]):
+        """ Append a function or list of functions to the event queue """
         if apputils.is_iterable(f):
             self._handlers.extend(f)
         else:
@@ -172,6 +181,7 @@ class Event[ET]:
         return self
 
     def __isub__(self, f: ET | list[ET]):
+        """ remove a function or list of functions from the event queue """
         if apputils.is_iterable(f):
             for f2 in f:
                 self._handlers.remove(f2)
@@ -180,6 +190,7 @@ class Event[ET]:
         return self
 
     async def fire(self, logging_callback: Callable[[str], None], *args, **kwargs):
+        """ Fires the event logging to `logging_callback` with the inputted args, which should match the type specification of the Event type parameter """
         if self.task and not self.task.done():
             logging_callback(
                 f"Task {self.name} already running. Cancelling and restarting..."
@@ -236,7 +247,7 @@ class Event[ET]:
 
 
 class ObjectHolder[T]:
-    """Pass-by-reference for noobs"""
+    """Simple wrapper for pass-by-reference in functions"""
 
     def __init__(self, object: T):
         self.obj = object
@@ -248,11 +259,7 @@ class Processor:
     NUM_TABLES = 5
 
     def __init__(
-        self,
-        disable_last_opr,
-        tba_key,
-        year,
-        config_data,
+        self, disable_last_opr, tba_key, year, config_data, load_from_cache=True
     ) -> None:
         self.disable_last_opr = disable_last_opr
         self.tba_data_static = apputils.TBADataStatic()
@@ -264,6 +271,7 @@ class Processor:
         self.has_sched_data = False
         self.__sb_epas = {}
         self.__sb_matches = []
+        self.__sb_rank_points = []
         self.__matches = {}
         self.config_data = config_data
         self.__load_in_event_data = Event[Callable[[], None]]("Load in event data")
@@ -276,7 +284,8 @@ class Processor:
         )
 
         self.__load_in_event_data += [
-            self.__ensure_tables_exist,
+            self.__get_year_sb_rankpoint_keys,
+            self.__create_sql_tables,
             self.__load_remote_data_static,
             self.__write_match_schedule_file,
             self.__write_teams_file,
@@ -310,41 +319,30 @@ class Processor:
             self.__write_team_fields,
             self.__write_other_metrics,
         ]
+        self.sql_fields_match_base = [
+            "Red_1",
+            "Red_2",
+            "Red_3",
+            "Blue_1",
+            "Blue_2",
+            "Blue_3",
+            "Predict_R1_Score",
+            "Predict_R2_Score",
+            "Predict_R3_Score",
+            "Predict_B1_Score",
+            "Predict_B2_Score",
+            "Predict_B3_Score",
+            "Predict_Red_Score",
+            "Predict_Blue_Score",
+            "Predict_Winner",
+            "Statbotics_winner",
+            "Statbotics_red_win_prob",
+            "Statbotics_red_Score",
+            "Statbotics_blue_Score",
+        ]
 
         self.sql_fields = {
-            "matches": [
-                "Red_1",
-                "Red_2",
-                "Red_3",
-                "Blue_1",
-                "Blue_2",
-                "Blue_3",
-                "Predict_R1_Score",
-                "Predict_R2_Score",
-                "Predict_R3_Score",
-                "Predict_B1_Score",
-                "Predict_B2_Score",
-                "Predict_B3_Score",
-                "Predict_Red_Score",
-                "Predict_Blue_Score",
-                "Predict_Winner",
-                "Statbotics_winner",
-                "Statbotics_red_win_prob",
-                "Statbotics_red_Score",
-                "Statbotics_blue_Score",
-                "Statbotics_red_energized_rp",
-                "Statbotics_blue_energized_rp",
-                "Statbotics_red_supercharged_rp",
-                "Statbotics_blue_supercharged_rp",
-                "Statbotics_red_traversal_rp",
-                "Statbotics_blue_traversal_rp",
-                "Statbotics_red_rp_1",
-                "Statbotics_blue_rp_1",
-                "Statbotics_red_rp_2",
-                "Statbotics_blue_rp_2",
-                "Statbotics_red_rp_3",
-                "Statbotics_blue_rp_3",
-            ],
+            "matches": self.sql_fields_match_base,
             "matches_depth_predictions": [
                 "attr_name",
                 "attr_value",
@@ -386,15 +384,18 @@ class Processor:
                 "Warning: tables do not exist. Until an event is loaded there will be no data"
             )
 
-        self.__check_load_event_key_cache(tables_exist)
+        if load_from_cache:
+            self.__check_load_event_key_cache(tables_exist)
 
     def __check_tables_exist(self) -> bool:
+        """ Check whether the correct number of tables exists in the db """
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             return len(cursor.fetchall()) == Processor.NUM_TABLES
 
     def __check_load_event_key_cache(self, tables_exist: bool):
+        """ Checks for and loads a cached event key and loads in table data if there is any """
         if os.path.exists("last_loaded_event_key.txt"):
             with open("last_loaded_event_key.txt", "r") as r:
                 self.event_key = r.read().strip()
@@ -406,12 +407,30 @@ class Processor:
                     len(cursor.fetchall()) > 0
                 )  # if teams are loaded in there's at least scouted data
 
-    def __ensure_tables_exist(self):
+    def __get_year_sb_rankpoint_keys(self):
+        """ Gets the statbotics names for the rankpoints of a current year """
+        def make_table_headers(rp):
+            return [f"Statbotics_red_{rp}", f"Statbotics_blue_{rp}"]
+        self.__sb_rank_points = [
+            x
+            for x in self.__sb.get_year(int(self.year))["percentiles"].keys()
+            if "rp" in x
+        ]
+
+        self.sql_fields["matches"] = self.sql_fields_match_base + [
+            th for rp in self.__sb_rank_points for th in make_table_headers(rp)
+        ]
+
+    def __create_sql_tables(self):
+        """ Creates sql tables for matches, matches_depth_predictions, matches_fields teams, and teams_fields """
+        def make_table_headers(rp):
+            return [f"Statbotics_red_{rp}", f"Statbotics_blue_{rp}"]
+
         # Create Tables
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
-            conn.executescript(
-                f"""
-                CREATE TABLE IF NOT EXISTS matches (
+            conn.executescript(f"""
+                DROP TABLE IF EXISTS matches;
+                CREATE TABLE matches (
                     MatchIdx Int PRIMARY KEY,
                     Match TEXT,
                     Red_1 INT,
@@ -433,21 +452,11 @@ class Processor:
                     Statbotics_red_win_prob REAL,
                     Statbotics_red_Score REAL,
                     Statbotics_blue_Score REAL,
-                    Statbotics_red_energized_rp REAL,
-                    Statbotics_blue_energized_rp REAL,
-                    Statbotics_red_supercharged_rp REAL,
-                    Statbotics_blue_supercharged_rp REAL,
-                    Statbotics_red_traversal_rp REAL,
-                    Statbotics_blue_traversal_rp REAL,
-                    Statbotics_red_rp_1 REAL,
-                    Statbotics_blue_rp_1 REAL,
-                    Statbotics_red_rp_2 REAL,
-                    Statbotics_blue_rp_2 REAL,
-                    Statbotics_red_rp_3 REAL,
-                    Statbotics_blue_rp_3 REAL
+                    {",\n".join([f"{th} REAL" for rp in self.__sb_rank_points for th in make_table_headers(rp)])}
                 );
 
-                CREATE TABLE IF NOT EXISTS matches_depth_predictions (
+                DROP TABLE IF EXISTS matches_depth_predictions;
+                CREATE TABLE matches_depth_predictions (
                     match_key TEXT NOT NULL REFERENCES matches(Match),
                     team_key INT,
                     attr_name TEXT,
@@ -455,7 +464,8 @@ class Processor:
                     PRIMARY KEY (match_key, team_key, attr_name)
                 );
 
-                CREATE TABLE IF NOT EXISTS matches_fields (
+                DROP TABLE IF EXISTS matches_fields;
+                CREATE TABLE matches_fields (
                     match_key TEXT NOT NULL REFERENCES matches(Match),
                     team_key INT,
                     field_name TEXT,
@@ -463,7 +473,8 @@ class Processor:
                     PRIMARY KEY (match_key, team_key, field_name)
                 );
 
-                CREATE TABLE IF NOT EXISTS teams (
+                DROP TABLE IF EXISTS teams;
+                CREATE TABLE teams (
                     Team INT PRIMARY KEY,
                     EPA REAL,
                     Rank REAL,
@@ -480,17 +491,18 @@ class Processor:
                     Website TEXT
                 );
 
-                CREATE TABLE IF NOT EXISTS teams_fields (
+                DROP TABLE IF EXISTS teams_fields;
+                CREATE TABLE teams_fields (
                     team_key INT NOT NULL REFERENCES teams(Team),
                     field_name TEXT,
                     field_value TEXT,
                     PRIMARY KEY (team_key, field_name)
                 );
-            """
-            )
+            """)
             conn.commit()
 
     def __read_static_tba_info(self):
+        """ Reads team info, event schedule """
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             # LOAD TEAMS + Last_OPR
             cursor = conn.execute(f"SELECT * FROM teams")
@@ -523,7 +535,7 @@ class Processor:
                 self.tba_data_static.team_info,
                 self.tba_data_static.oprs,
                 self.tba_data_dyn.oprs,
-                self.__sb_epas
+                self.__sb_epas,
             ) = (teams, team_info, last_oprs, oprs, epas)
 
             # LOAD SCHEDULE
@@ -548,6 +560,7 @@ class Processor:
                 self.has_sched_data = True
 
     def __load_remote_data_static(self):
+        """ Fetches :class:`src.apputils.TBADataStatic` data"""
         if self.event_key.strip() == "":
             logger.error(
                 "Error, cannot process. No event is currently loaded in. Please load one in from the settings page."
@@ -576,6 +589,7 @@ class Processor:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
     def __load_remote_data_dyn(self):
+        """ Fetches :class:`TBADataDynamic` data, loads statbotics epas, and loads statbotics match data """
         if self.event_key.strip() == "":
             logger.error(
                 "Error, cannot process. No event is currently loaded in. Please load one in from the settings page."
@@ -584,7 +598,10 @@ class Processor:
         try:
             logger.info("Loading TBA data...")
             self.tba_data_dyn = apputils.load_tba_data_dynamic(
-                self.event_key, self.tba_key, self.config_data, self.tba_data_static.teams
+                self.event_key,
+                self.tba_key,
+                self.config_data,
+                self.tba_data_static.teams,
             )
             Event.current_handle_index_progress = 0.33
             logger.info("Loading Statbotics EPAs...")
@@ -606,6 +623,7 @@ class Processor:
             logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
 
     def __write_match_schedule_file(self):
+        """ Writes match schedule to the matches table """
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             matches = []
             for i, match in enumerate(self.tba_data_static.schedule):
@@ -646,6 +664,7 @@ class Processor:
             Event.current_handle_index_progress = 1.0
 
     def __write_teams_file(self):
+        """ Write teams to the teams table """
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             all_fields = self.sql_fields["teams"]
             for i, team in enumerate(self.tba_data_static.teams):
@@ -667,6 +686,7 @@ class Processor:
             conn.commit()
 
     def __write_team_tba_data_file(self):
+        """ write tba statistics (rank/rp/opr/etc.) for each team into the teams table """
         df = []
         for team in self.tba_data_static.teams:
             rank, avg_rp = (
@@ -714,17 +734,19 @@ class Processor:
         Event.current_handle_index_progress = 1.0
 
     def __write_team_fields(self):
+        """ write the teams_fields table """
         df = []
-        
+
         def get_coprs_safe(team: int) -> dict:
             if team in self.tba_data_dyn.copr:
                 return self.tba_data_dyn.copr[team]
             else:
-                return {
-                    c: 0.0
-                    for c in self.config_data["copr"]
-                } if "copr" in self.config_data else {}
-        
+                return (
+                    {c: 0.0 for c in self.config_data["copr"]}
+                    if "copr" in self.config_data
+                    else {}
+                )
+
         for (
             k,
             v,
@@ -732,7 +754,9 @@ class Processor:
             self.__teams.items()
         ):  # _teams is a dict with team: TeamStruct (ex. {422: TeamData()})
             # bind each team to the dict serialization of its cooresponding struct
-            df.append({"Team": k} | v.output_dict(self.config_data) | get_coprs_safe(int(k)))
+            df.append(
+                {"Team": k} | v.output_dict(self.config_data) | get_coprs_safe(int(k))
+            )
 
         if len(df) <= 0:
             logger.warning("No team fields")
@@ -759,6 +783,7 @@ class Processor:
         Event.current_handle_index_progress = 1.0
 
     def __write_match_predictions_file(self):
+        """ add score predictions to matches table """
         df = []
         for match in self.tba_data_static.schedule:
             score = [
@@ -809,6 +834,7 @@ class Processor:
             Event.current_handle_index_progress = 1.0
 
     def __write_statbotics_analytics(self):
+        """ Write statbotics stats for each match to the matches table """
         df = []
         for match in self.__sb_matches:
             df.append(
@@ -837,6 +863,7 @@ class Processor:
             Event.current_handle_index_progress = 1.0
 
     def __write_statbotics_epa(self):
+        """ Write epas to the teams table """
         with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
             for i, team in enumerate(self.tba_data_static.teams):
                 Event.current_handle_index_progress = i / len(
@@ -856,14 +883,24 @@ class Processor:
             conn.commit()
 
     def __write_match_fields(self):
+        """ write the matches_fieids table """
         df = []
         for k, v in self.__matches.items():
             for matTeam in v.output_dict(self.config_data):
                 # if int(k) <= len(self.tba_data_static.schedule): TODO: decide to delete or keep this if statement, delete for now :) (probably better to filter in graf. anyway so we have all the data ig.)
-                    df.append(
-                        {"Match": next((x['k'] for x in self.tba_data_static.schedule if str(int(k)) in x['k']), f"practice_{int(k)}")}
-                        | matTeam
-                    )
+                df.append(
+                    {
+                        "Match": next(
+                            (
+                                x["k"]
+                                for x in self.tba_data_static.schedule
+                                if str(int(k)) in x["k"]
+                            ),
+                            f"practice_{int(k)}",
+                        )
+                    }
+                    | matTeam
+                )
 
         if len(df) <= 0:
             logger.warning("No statbotics analytics fields.")
@@ -887,6 +924,7 @@ class Processor:
             Event.current_handle_index_progress = 1.0
 
     def __write_match_depth_predictions(self):
+        """ write matches_depth_predictions table """
         df = []
         for match in self.tba_data_static.schedule:
             for color in ["b", "r"]:
@@ -896,13 +934,25 @@ class Processor:
                         "Match": match["k"],
                         "Color": color,
                         "Team": team,
-                        "OPR": self.tba_data_dyn.oprs[int(team)] if len(self.tba_data_dyn.oprs) > 0 and int(team) in self.tba_data_dyn.oprs else 0.0,
-                        "EPA": self.__sb_epas[int(team)] if len(self.__sb_epas) > 0 and int(team) in self.__sb_epas else 0.0,
+                        "OPR": (
+                            self.tba_data_dyn.oprs[int(team)]
+                            if len(self.tba_data_dyn.oprs) > 0
+                            and int(team) in self.tba_data_dyn.oprs
+                            else 0.0
+                        ),
+                        "EPA": (
+                            self.__sb_epas[int(team)]
+                            if len(self.__sb_epas) > 0 and int(team) in self.__sb_epas
+                            else 0.0
+                        ),
                     }
                     for copr in self.config_data["copr"]:
                         val = 0.0
-                        if (len(self.tba_data_dyn.copr) > 0 and int(team) in self.tba_data_dyn.copr
-                            and copr in self.tba_data_dyn.copr[int(team)]):
+                        if (
+                            len(self.tba_data_dyn.copr) > 0
+                            and int(team) in self.tba_data_dyn.copr
+                            and copr in self.tba_data_dyn.copr[int(team)]
+                        ):
                             val = self.tba_data_dyn.copr[int(team)][copr]
                         dat |= {copr: val}
                     if int(team) in self.__teams:
@@ -950,6 +1000,7 @@ class Processor:
 
     @staticmethod
     def round_sigfigs(x, sig=3):
+        """ Rounds the number x to `sig` sigfigs """
         if np.isscalar(x):
             if x == 0.0 or np.isnan(np.log10(x)) or np.isinf(x):
                 return x
@@ -1002,6 +1053,7 @@ class Processor:
         )
 
     def get_team_pred_score(self, team):
+        """ Gets the predicted score of a team based on the p-metric in the config """
         score = 0
         source_string = self.config_data["p-metric"]["source"]
         if source_string == "OPR":
@@ -1034,12 +1086,14 @@ class Processor:
             )
 
     def delete_match_scouter(data_filepath: str, mn: str, si: str) -> None:
+        """ Deletes a match from a scouter """
         df = pd.read_csv(data_filepath)
         df[~((df["MN"] == int(mn)) & (df["SI"] == si))].to_csv(
             data_filepath, index=False
         )
 
     def __pre_filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        """ Performs preprocess filtering based on configured metrics """
         df.obj["Pre-filter-keep"] = True
         for i in range(len(self.config_data["pre-tests"])):
             Event.current_handle_index_progress = i / len(self.config_data["pre-tests"])
@@ -1059,7 +1113,7 @@ class Processor:
         df.obj.drop(columns=["Pre-filter-keep"], inplace=True)
 
     def __pre_process_chunk(self, df: ObjectHolder[pd.DataFrame]):
-
+        """ applies preprocessing functions such as data restructure """
         if len(self.config_data["preproc"]) > 0:
 
             def apply_preproc_row(row: pd.Series, prep) -> list[pd.Series]:
@@ -1105,6 +1159,7 @@ class Processor:
                     df.obj.columns = last_cols
 
     def __drop_duplicates_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        """ Filters out duplicates """
         if len(self.config_data["uniques"]) > 0:
             dupes = df.obj.duplicated(subset=self.config_data["uniques"], keep=False)
             if dupes.any():
@@ -1122,6 +1177,7 @@ class Processor:
             )  # remove the duplicates
 
     def __filter_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        """ Applies configured filters to dataset """
         df.obj["filter-keep"] = True
         for i in range(len(self.config_data["tests"])):
             Event.current_handle_index_progress = i / len(self.config_data["tests"])
@@ -1141,6 +1197,7 @@ class Processor:
         df.obj.drop(columns=["filter-keep"], inplace=True)
 
     def __compute_fields_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        """ Evaluates intermediate 'computed' fields for each match """
         for i, comp in enumerate(self.config_data["compute"]):
             Event.current_handle_index_progress = i / len(self.config_data["compute"])
             # compute the beakscript formula with the current chunk (for each line), and output it into a new field named comp["name"]
@@ -1150,10 +1207,12 @@ class Processor:
             )
 
     def __build_teams_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        """ builds the dictionary for teams from the data """
         for team in df.obj[self.config_data["tn"]].unique():
             self.__teams |= {int(team): TeamStruct()}
 
     def __svd_data_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        """ Evalutes SVD-derived metrics based on comparisons specified in the config """
         tn = self.config_data["tn"]
         for i, subj in enumerate(self.config_data["svd"]):
             Event.current_handle_index_progress = i / len(self.config_data["svd"])
@@ -1198,6 +1257,9 @@ class Processor:
                 )
 
     def __reduce_df(self, df: ObjectHolder[pd.DataFrame]):
+        """ Reduces the dataframe based on different unique header specifications to remove post-SVD artifacts """
+        if "uniques-post" not in self.config_data:
+            return
         df.obj.drop_duplicates(
             subset=self.config_data["uniques-post"], inplace=True
         )  # remove CT dupe, everything same from here
@@ -1211,9 +1273,17 @@ class Processor:
                 agg_dict[col] = "mean"
             else:
                 agg_dict[col] = "first"
-        df.obj = df.obj.groupby([x for x in self.config_data['uniques-post'] if x != self.config_data['si']], as_index=False).agg(agg_dict)
+        df.obj = df.obj.groupby(
+            [
+                x
+                for x in self.config_data["uniques-post"]
+                if x != self.config_data["si"]
+            ],
+            as_index=False,
+        ).agg(agg_dict)
 
     def __team_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        """ Writes team fields """
         for i, team in enumerate(
             df.obj[self.config_data["tn"]].unique()
         ):  # teams will be in the chunk multiple times, but we just want to loop through all of the DIFFERENT teams there are
@@ -1230,14 +1300,15 @@ class Processor:
                 )
 
                 if isinstance(val, pd.Series):
-                        val = val.tolist()
-                        
+                    val = val.tolist()
+
                 team_data[field["name"]] = val  # write the field to the csv
             self.__teams[int(team)].extend_data(
                 team_data
             )  # add the data to the appropriate team struct
 
     def __match_proc_chunk(self, df: ObjectHolder[pd.DataFrame]):
+        """ Writes match fields """
         tn, mn = self.config_data["tn"], self.config_data["mn"]
         for m, match in enumerate(df.obj[mn].unique()):  # same thing as teams
             Event.current_handle_index_progress = m / len(df.obj[mn].unique())
@@ -1286,6 +1357,7 @@ class Processor:
                 )
 
     def __write_output_file(self, df: ObjectHolder[pd.DataFrame]):
+        """ writes the output.csv file """
         logger.info("Writing chunk...")
         df.obj.to_csv(os.path.join("dataout", "output.csv"), index=False, header=True)
 
@@ -1295,9 +1367,7 @@ class Processor:
         if not self.has_sched_data:
             return asyncio.sleep(0)
 
-        if (
-            self.tba_data_static.teams == None or self.tba_data_static.schedule == None
-        ):
+        if self.tba_data_static.teams == None or self.tba_data_static.schedule == None:
             await self.__periodic_calls.fire(logger.info)
 
         if self.tba_data_static.teams == None or self.tba_data_static.schedule == None:
@@ -1314,12 +1384,15 @@ class Processor:
         await self.__post_process_routine.fire(logger.info)
 
     async def perform_periodic_calls(self):
+        """ Fires the periodic fetch event """
         await self.__periodic_calls.fire(logger.info)
 
     async def load_event_data(self):
+        """ Fires the load event data event """
         await self.__load_in_event_data.fire(logger.info)
 
     async def clear_database(self) -> None:
+        """ Deletes the database """
         if os.path.exists(os.path.join("dataout", "sentinel.db")):
             os.remove(os.path.join("dataout", "sentinel.db"))
         self.has_sched_data = False

@@ -111,6 +111,6 @@
 
 * Admin control for changing charts to prevent users/viewers from changing layouts
 
-# Whiteboard
+## Whiteboard
 
-![Obelisk.jpg](https://github.com/Team4028/Sentinel/blob/main/Obelisk.jpg)
+![Obelisk.jpg](https://github.com/Team4028/Sentinel/blob/main/Obelisk.jpg?raw=true)

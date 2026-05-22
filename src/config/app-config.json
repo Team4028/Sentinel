@@ -3,7 +3,7 @@
     "TEXT_COLOR": "#ffffff",
     "ALLOW_CREATE_ACCOUNT": false,
     "GRAFANA_URL": "http://localhost:3000",
-    "YEAR": "2026_subjective",
+    "YEAR": "2025",
     "TEAM": "4028",
     "RESTRICT_APPEND_LEVEL": 1,
     "NEXT_N_MATCHES_NUMBER": 3

@@ -59,7 +59,8 @@ def send_command(cmd, pw_sha):
 
 def main(f):
     global local  # ahh yes
-
+    global is_meshing
+    
     def on_receive_wrapper(packet, interface):
         on_receive(packet, f)
 

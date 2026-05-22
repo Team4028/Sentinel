@@ -1,6 +1,7 @@
 import os
 import random
 import re
+from typing import Any
 
 from flask import Flask, abort, request
 from flask_login import LoginManager, UserMixin, current_user
@@ -13,7 +14,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def text_slug(text: str):
+def text_slug(text: str) -> str:
     text = text.lower()
     text = re.sub(r'[^a-z0-9\s-]', '', text)
     text = re.sub(r'[\s-]+', '-', text)
@@ -39,7 +40,7 @@ USER_PALATTE = [
     "#f0d000"
 ]
 
-def display_user(id: str):
+def display_user(id: str) -> str:
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins WHERE id=?", (id,))
@@ -79,7 +80,7 @@ def display_user(id: str):
         </div>
     """
 
-def generate_random_color(isadmin) -> str:
+def generate_random_color(isadmin: bool) -> str:
     return  ADMIN_COLOR if isadmin else USER_PALATTE[random.randint(0, len(USER_PALATTE) - 1)]
 
 
@@ -137,7 +138,7 @@ def get_user_is_admin(user: UserMixin):
         return user.is_admin
     return False
 
-def get_can_delete_user(user_uid, uid_to_delete):
+def get_can_delete_user(user_uid, uid_to_delete) -> bool:
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins WHERE isadmin=1")
@@ -153,7 +154,7 @@ def get_can_delete_user(user_uid, uid_to_delete):
             return len(rows) > 1
         else: return False # else no
 
-def override_get_admin():
+def override_get_admin() -> 人 | None:
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins WHERE isadmin=1")
@@ -187,7 +188,7 @@ def init_loginm_app(app: Flask) -> None:
     login_manager.init_app(app)
 
 
-def add_user_to_db(username, password, is_admin=False):
+def add_user_to_db(username, password, is_admin=False) -> None:
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         conn.execute("INSERT OR REPLACE INTO logins (id, un, pw, isadmin, color) VALUES (?, ?, ?, ?, ?)", (
             text_slug(username),
@@ -197,7 +198,7 @@ def add_user_to_db(username, password, is_admin=False):
             generate_random_color(is_admin)
         ))
 
-def get_password_is_admin(password):
+def get_password_is_admin(password) -> Any | bool:
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT isadmin FROM logins WHERE pw=?", (password,))
@@ -205,7 +206,7 @@ def get_password_is_admin(password):
         if len(rows) > 0: return rows[0] == 1
         else: return False
 
-def get_table_exists():
+def get_table_exists() -> bool:
     if not os.path.exists(os.path.join("secrets", "logins.db")): return False
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         cursor = conn.cursor()
@@ -215,7 +216,7 @@ def get_table_exists():
         cursor.execute("SELECT isadmin FROM logins")
         return any([x == 1 for x in cursor.fetchall()]) # make sure there's an admin
 
-def generate_login_db(un, pwd):
+def generate_login_db(un, pwd) -> None:
     if get_table_exists(): return
     with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
         conn.executescript(f"""

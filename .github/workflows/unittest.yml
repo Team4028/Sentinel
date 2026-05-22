@@ -1,4 +1,4 @@
-name: Test
+name: Test And Document
 
 on:
     push:
@@ -6,8 +6,22 @@ on:
     workflow_dispatch:
     workflow_call:
 
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: "pages"
+    cancel-in-progress: false
+
 jobs:
-    test:
+    test-and-doc:
+
+        environment:
+            name: github-pages
+            url: ${{steps.deployment.outputs.page_url}}
+
         runs-on: ubuntu-latest
 
         steps:
@@ -21,4 +35,16 @@ jobs:
               run: |
                   pip install -r requirements.txt
             - name: Run unit tests
-              run: python -m unittest discover -s ./src/tests -p "*test.py" -v
+              run: python -m unittest discover -s ./src/tests -p "libtest.py" -v # Change libtest to *test when finished with other tests
+            - name: Build docs
+              run: |
+                docs/make html
+            - name: Setup pages
+              uses: actions/configure-pages@v5
+            - name: Upload artifact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                path: "./docs/build"
+            - name: Deploy to Github pages
+              id: deployment
+              uses: actions/deploy-pages@v4

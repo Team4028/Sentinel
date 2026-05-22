@@ -6,13 +6,13 @@ from jsonschema import Draft7Validator
 from pandas.testing import assert_series_equal
 import yaml
 try:
-    from lib.data_config import eval_beakscript, UnpackList
+    from lib.bs import eval_beakscript, UnpackList
 except ModuleNotFoundError:
-    from src.lib.data_config import eval_beakscript, UnpackList
+    from src.lib.bs import eval_beakscript, UnpackList
 
 
 class TestBeakscript(unittest.TestCase):
-    """One must imagine `OK`"""
+    """Unit tests for configuration language"""
 
     def test_regex_header(self):
         """Test for wildcard-based headers"""

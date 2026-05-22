@@ -1,7 +1,7 @@
 function stimulateSW(worker) {
     worker.postMessage({
         type: "Stimulation",
-        name: "lonely wizard"
+        name: "lonely wizard" // inscryption
     });
 }
 

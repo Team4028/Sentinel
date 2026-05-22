@@ -30,7 +30,7 @@ def can_cast(x: Any, _type: type) -> bool:
     except:
         return False
 
-def generate_ssl_sign():
+def generate_ssl_sign() -> None:
     """useless, just use reverse-proxy with nginx for https"""
     domains = ["sentinel.beaksquad.dev", "localhost"]
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -100,7 +100,7 @@ def tba_health() -> bool:
     return res.ok
 
 
-def yaml_check_schema_raise_errors(yamldata):
+def yaml_check_schema_raise_errors(yamldata) -> None:
     with open(os.path.join("config", "schema.json"), "r") as f:
         schema = json.load(f)
     validator = Draft7Validator(schema)
@@ -134,7 +134,7 @@ def test_tba_key(key: str) -> bool:
         f"Error testing tba key: unexpected reseponse {response.status_code}: {response.text}"
     )
 
-def get_tasks_snapshot(loop=None):
+def get_tasks_snapshot(loop=None) -> dict:
     """
     Returns a snapshot of all asyncio tasks without blocking.
     Can be called from synchronous code.
@@ -182,7 +182,7 @@ def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
         return {}
 
 
-def invert_jeson(jeson):
+def invert_jeson(jeson: dict) -> dict:
     result = {}
     for k, k2 in jeson.items():
         for k21, k22 in k2.items():
@@ -190,7 +190,7 @@ def invert_jeson(jeson):
     return result
 
 
-def get_tba_coprs(event_key, api_key, config_data):
+def get_tba_coprs(event_key, api_key, config_data) -> dict:
     coprs = {}
     try:
         if tba_health() and not (api_key == None or api_key.strip() == ""):
@@ -220,7 +220,7 @@ def get_tba_coprs(event_key, api_key, config_data):
         return {}
 
 
-def get_tba_opr(event_key, api_key, year, teams):
+def get_tba_opr(event_key, api_key, year, teams) -> dict:
     """returns a dictionary of each team to their cooresponding opr at their last competition"""
     oprs = {}
     try:
@@ -274,7 +274,7 @@ def get_tba_opr(event_key, api_key, year, teams):
         logger.error(exception_format(e))
         return {}
     
-def get_tba_images(api_key, year, photo_dir, teams):
+def get_tba_images(api_key, year, photo_dir, teams) -> None:
     for team in teams:
         logger.info(
             f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/media/{year}"
@@ -335,7 +335,7 @@ def get_tba_images(api_key, year, photo_dir, teams):
                     w.write(img_data)
                 logger.info(f"Saved image {output_image_name} from b64 {img_src}")
 
-def get_num_team_pics(team, photo_dir):
+def get_num_team_pics(team, photo_dir) -> int:
     return len(list(
         Path(photo_dir).glob(
             f"{team}*.*"
@@ -343,7 +343,7 @@ def get_num_team_pics(team, photo_dir):
     ))
 
 
-def get_tba_ranks(event_key, api_key, teams):
+def get_tba_ranks(event_key, api_key, teams) -> dict:
     """returns a dictionary mapping each team to a tuple of their rank and rps"""
     try:
         if tba_health() and not (
@@ -378,7 +378,7 @@ def get_tba_ranks(event_key, api_key, teams):
         logger.error(exception_format(e))
         return {}
     
-def get_tba_events(key, year, team):
+def get_tba_events(key, year, team) -> list[dict]:
     logger.info(f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}")
     json = requests.get(f"https://www.thebluealliance.com/api/v3/team/frc{team}/events/{year}", timeout=20, headers={
         "X-TBA-Auth-Key": key
@@ -508,7 +508,7 @@ def load_tba_data_dynamic(event_key, api_key, config_data, teams_list) -> TBADat
         get_event_team_oprs(event_key, api_key),
     )
 
-def is_iterable(x):
+def is_iterable(x: Any) -> bool:
         try:
             iter(x)
             return True
@@ -516,7 +516,7 @@ def is_iterable(x):
             return False
 
 
-def read_secrets():
+def read_secrets() -> tuple[str, str, str]:
     """Reads the different secrets of the repo: admin creds, flask secret key, and tba auth key in that order"""
 
     if os.path.exists(os.path.join("secrets", "admin.txt")):

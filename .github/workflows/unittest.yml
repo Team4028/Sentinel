@@ -38,7 +38,7 @@ jobs:
               run: python -m unittest discover -s ./src/tests -p "libtest.py" -v # Change libtest to *test when finished with other tests
             - name: Build docs
               run: |
-                docs/make html
+                make -C docs html
             - name: Setup pages
               uses: actions/configure-pages@v5
             - name: Upload artifact

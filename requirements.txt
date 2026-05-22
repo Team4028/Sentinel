@@ -68,13 +68,4 @@ typing_extensions==4.15.0
 tzdata==2025.3
 urllib3==2.6.3
 Werkzeug==3.1.5
-winrt-runtime==3.2.1
-winrt-Windows.Devices.Bluetooth==3.2.1
-winrt-Windows.Devices.Bluetooth.Advertisement==3.2.1
-winrt-Windows.Devices.Bluetooth.GenericAttributeProfile==3.2.1
-winrt-Windows.Devices.Enumeration==3.2.1
-winrt-Windows.Devices.Radios==3.2.1
-winrt-Windows.Foundation==3.2.1
-winrt-Windows.Foundation.Collections==3.2.1
-winrt-Windows.Storage.Streams==3.2.1
 WTForms==3.2.1

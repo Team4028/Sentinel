@@ -45,4 +45,4 @@ pygments_style = "sphinx"
 pygments_dark_style = "monokai"
 html_static_path = ['_static']
 
-sys.path.insert(0, os.path.abspath("../../src"))
+sys.path.insert(0, os.path.abspath("../.."))

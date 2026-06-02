@@ -1,21 +1,21 @@
-tests package
-=============
+src.tests package
+=================
 
 Submodules
 ----------
 
-tests.apptest module
---------------------
+src.tests.apptest module
+------------------------
 
-.. automodule:: tests.apptest
+.. automodule:: src.tests.apptest
    :members:
    :show-inheritance:
    :undoc-members:
 
-tests.libtest module
---------------------
+src.tests.libtest module
+------------------------
 
-.. automodule:: tests.libtest
+.. automodule:: src.tests.libtest
    :members:
    :show-inheritance:
    :undoc-members:
@@ -23,7 +23,7 @@ tests.libtest module
 Module contents
 ---------------
 
-.. automodule:: tests
+.. automodule:: src.tests
    :members:
    :show-inheritance:
    :undoc-members:

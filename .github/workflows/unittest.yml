@@ -43,7 +43,7 @@ jobs:
             
             - name: "Update docs"
               run: |
-                rsync -av --delete ./docs/build/html ${{github.ref == 'stable' && '/docs-stable' || '/docs-dev'}}
+                rsync -av --delete ./docs/build/html ${{github.ref == 'stable' && 'docs-stable' || 'docs-dev'}}
             
             - name: "Commit and push"
               run: |

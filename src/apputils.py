@@ -46,7 +46,7 @@ class PathUtils:
             self.config_file = Path(origin_path, "src", "config", "app-config.json")
 
             # Secrets and cache
-            self.login_db = Path(origin_path, 'secrets', 'logins.db')
+            self.login_db = Path(origin_path, "secrets", "logins.db")
             self.admin_file = Path(origin_path, "secrets", "admin.txt")
             self.viewer_file = Path(origin_path, "secrets", "viewer.txt")
             self.tba_file = Path(origin_path, "secrets", "tba.txt")

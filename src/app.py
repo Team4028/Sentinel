@@ -73,11 +73,14 @@ skip_last_opr_fetching_for_testing = False
 
 loop = asyncio.new_event_loop()
 
-SUPERUSER_CODE = os.getenv("SU_CODE")
+try:
+    SUPERUSER_CODE = os.getenv("SU_CODE")
+except Exception:
+    SUPERUSER_CODE = ""
 
 if not SUPERUSER_CODE or SUPERUSER_CODE == "":
     print("Error, su code not specified.")
-    sys.exit(1)
+    
 
 
 app = Flask(__name__)

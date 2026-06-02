@@ -1,10 +1,11 @@
+from enum import Enum
 import os
 import hashlib
 from pathlib import Path
 import secrets
 import shutil
 import traceback
-from typing import Any, Generator
+from typing import Any, Generator, Iterator
 import base64
 import requests
 from datetime import date
@@ -23,6 +24,54 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
+### TODO: make namespaces (classes) to organize these
+
+class PathUtils:
+    grafana_dashboard_posix_root = "/var/lib/grafana/dashboards"
+
+    class FileSet:
+        def __init__(self, origin_path: Path):
+
+            # data processing
+            self.origin_path = origin_path
+            self.data_in_file = Path(origin_path, "datain", "data_in.csv")
+            self.data_out_file = Path(origin_path, 'dataout', "output.csv")
+            self.data_db = Path(origin_path, 'dataout', 'sentinel.db')
+            self.other_metrics = Path(origin_path, 'dataout', 'other-metrics.json')
+            self.pit_scouting_data = Path(origin_path, "dataout", "output.csv-pit-scouting.csv")
+            self.auton_scouting_data = Path(origin_path, "dataout", "output.csv-auton-scouting.csv")
+
+            # config
+            self.config_schema = Path(origin_path, "config", "schema.json")
+            self.config_file = Path(origin_path, "src", "config", "app-config.json")
+
+            # Secrets and cache
+            self.login_db = Path(origin_path, 'secrets', 'logins.db')
+            self.admin_file = Path(origin_path, "secrets", "admin.txt")
+            self.viewer_file = Path(origin_path, "secrets", "viewer.txt")
+            self.tba_file = Path(origin_path, "secrets", "tba.txt")
+            self.last_event_cache = Path(origin_path, "last_loaded_event_key.txt")
+            self.https_key = Path(origin_path, "secrets", "sentinel-key.pem")
+            self.cert = Path(origin_path, "secrets", "certinel.pem")
+        
+        def relative_to_origin(self, *paths: str | Path):
+            if len(paths) == 1 and isinstance(paths[0], Path): return self.origin_path / paths[0]
+            return self.origin_path / Path(*paths)
+        
+        def search(self, search_pattern: str, *subpath) -> Iterator[Path]:
+            if not subpath or len(subpath) == 0:
+                return Path(self.origin_path).glob(search_pattern)
+            return (self.origin_path / Path(*subpath)).glob(search_pattern)
+
+        def set_origin(self, origin_path: Path):
+            self.__init__(origin_path)
+
+    file_set = FileSet(".")
+
+    search = file_set.search
+    relative_to_origin = file_set.relative_to_origin
+
+
 def can_cast(x: Any, _type: type) -> bool:
     try:
         _type(x)
@@ -31,7 +80,7 @@ def can_cast(x: Any, _type: type) -> bool:
         return False
 
 def generate_ssl_sign() -> None:
-    """useless, just use reverse-proxy with nginx for https"""
+    """ useless? """
     domains = ["sentinel.beaksquad.dev", "localhost"]
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = issuer = x509.Name(
@@ -59,7 +108,7 @@ def generate_ssl_sign() -> None:
         .sign(key, hashes.SHA256())
     )
 
-    with open(os.path.join("secrets", "sentinel-key.pem"), "wb") as w:
+    with open(PathUtils.file_set.https_key, "wb") as w:
         w.write(
             key.private_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -68,7 +117,7 @@ def generate_ssl_sign() -> None:
             )
         )
 
-    with open(os.path.join("secrets", "certinel.pem"), "wb") as w:
+    with open(PathUtils.file_set.cert, "wb") as w:
         w.write(cert.public_bytes(serialization.Encoding.PEM))
 
 
@@ -101,7 +150,7 @@ def tba_health() -> bool:
 
 
 def yaml_check_schema_raise_errors(yamldata) -> None:
-    with open(os.path.join("config", "schema.json"), "r") as f:
+    with open(PathUtils.file_set.config_schema, "r") as f:
         schema = json.load(f)
     validator = Draft7Validator(schema)
     errors = sorted(validator.iter_errors(yamldata), key=lambda e: e.path)
@@ -274,7 +323,7 @@ def get_tba_opr(event_key, api_key, year, teams) -> dict:
         logger.error(exception_format(e))
         return {}
     
-def get_tba_images(api_key, year, photo_dir, teams) -> None:
+def get_tba_images(api_key, year, teams) -> None:
     for team in teams:
         logger.info(
             f"Fetch: https://www.thebluealliance.com/api/v3/team/frc{team}/media/{year}"
@@ -285,7 +334,7 @@ def get_tba_images(api_key, year, photo_dir, teams) -> None:
             headers={"X-TBA-Auth-Key": api_key},
         ).json()
         for i, pic in enumerate(pics):
-            output_image_name = os.path.join(photo_dir, f"{team}-tba-{i}")
+            output_image_name = PathUtils.relative_to_origin("photos", f"{team}-tba-{i}")
             if pic["type"] in ["avatar", "instagram-image"] or os.path.exists(f"{output_image_name}.png") or os.path.exists(f"{output_image_name}.jpeg"): continue
             if "details" in pic and "image_url" in pic["details"]:
                 img_src = pic["details"]["image_url"]
@@ -519,14 +568,14 @@ def is_iterable(x: Any) -> bool:
 def read_secrets() -> tuple[str, str, str]:
     """Reads the different secrets of the repo: admin creds, flask secret key, and tba auth key in that order"""
 
-    if os.path.exists(os.path.join("secrets", "admin.txt")):
-        with open(os.path.join("secrets", "admin.txt"), "r") as r:
+    if os.path.exists(PathUtils.file_set.admin_file):
+        with open(PathUtils.file_set.admin_file, "r") as r:
             key = r.readline().strip()
     else:
         key = secrets.token_hex(32)
 
-    if os.path.exists(os.path.join("secrets", "tba.txt")):
-        with open(os.path.join("secrets", "tba.txt"), "r") as f:
+    if os.path.exists(PathUtils.file_set.tba_file):
+        with open(PathUtils.file_set.tba_file, "r") as f:
             auth_key = f.readline().strip()
             tba_hmac = f.readline().strip()
     else:
@@ -538,42 +587,42 @@ def read_secrets() -> tuple[str, str, str]:
 def set_auth_key(key: str) -> None:
     """sets the tba key to `key`"""
     hmac_old = ""
-    if os.path.exists(os.path.join("secrets", "tba.txt")):
-        with open(os.path.join("secrets", "tba.txt"), 'r') as r:
+    if os.path.exists(PathUtils.file_set.tba_file):
+        with open(PathUtils.file_set.tba_file, 'r') as r:
             lines = r.readlines()
             if len(lines) > 1:
                 hmac_old = lines[1].strip()
-    with open(os.path.join("secrets", "tba.txt"), "w") as w:
+    with open(PathUtils.file_set.tba_file, "w") as w:
         w.write(f"{key}\n{hmac_old}")
 
 def set_tba_whook_key(hmac: str) -> None:
     key_old = ""
-    if os.path.exists(os.path.join("secrets", "tba.txt")):
-        with open(os.path.join("secrets", "tba.txt"), 'r') as r:
+    if os.path.exists(PathUtils.file_set.tba_file):
+        with open(PathUtils.file_set.tba_file, 'r') as r:
             lines = r.readlines()
             if len(lines) > 0:
                 key_old = lines[0].strip()
-    with open(os.path.join("secrets", "tba.txt"), 'w') as w:
+    with open(PathUtils.file_set.tba_file, 'w') as w:
         w.write(f"{key_old}\n{hmac}")
 
 
 def data_in_exists() -> bool:
     """checks whether the data_in file exists for `app` based on its config"""
     return os.path.exists(
-        os.path.join("datain", "data_in.csv")
+        PathUtils.file_set.data_in_file
     )
 
 def change_un_pwd_admin(current_secret_key: str, newun: str, newpwd: str) -> None:
     """updates the username and password"""
     os.makedirs("secrets", exist_ok=True)
-    with open(os.path.join("secrets", "admin.txt"), "w") as f:
+    with open(PathUtils.file_set.admin_file, "w") as f:
         f.write("\n".join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
 
 
 def change_un_pwd_viewer(current_secret_key: str, newun: str, newpwd: str) -> None:
     """updates the username and password"""
     os.makedirs("secrets", exist_ok=True)
-    with open(os.path.join("secrets", "viewer.txt"), "w") as f:
+    with open(PathUtils.file_set.viewer_file, "w") as f:
         f.write("\n".join([newun.strip(), newpwd.strip(), current_secret_key.strip()]))
 
 

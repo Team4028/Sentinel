@@ -1,12 +1,11 @@
 import json
 import os
+from pathlib import Path
 import unittest
 import requests
 import sqlite3
-try:
-    import app
-except ModuleNotFoundError:
-    import src.app as app
+from src import app
+from src.apputils import PathUtils
 
 def get_tables(conn):
     cursor = conn.execute("""
@@ -73,11 +72,11 @@ class TestApp(unittest.TestCase):
 
     def __init__(self, methodName = "runTest"):
         super().__init__(methodName)
-        app.create_app(False, False, testing_init_info=app.TestingInfo("2025", "2025iri", os.path.join("test-data", "2025-iri-rawdata.csv"))).run(port=5001, use_reloader=False)
+        app.create_app(False, False, testing_init_info=app.TestingInfo("2025", "2025iri", Path("test-data", "2025-iri-rawdata.csv"))).run(port=5001, use_reloader=False)
         requests.post("http://localhost:5001/reproc")
 
     def test_processing(self):
-        assert_sqlite_equal(os.path.join("dataout", "sentinel.db"), os.path.join("test-data", "data-out-ex.db"))
+        assert_sqlite_equal(PathUtils.file_set.data_db, os.path.join("test-data", "data-out-ex.db"))
     
     def test_main(self):
         assert_url_active(self.BASE_URL)
@@ -124,10 +123,10 @@ class TestApp(unittest.TestCase):
         assert_url_active(self.BASE_URL + "explore")
     
     def test_edit_file(self):
-        assert_url_active(self.BASE_URL + f"edit-file?filepath={os.path.join("dataout", "sentinel.db")}")
+        assert_url_active(self.BASE_URL + f"edit-file?filepath={PathUtils.file_set.data_db}")
 
     def test_view_file(self):
-        assert_url_active(self.BASE_URL + f"view-file?filepath={os.path.join("dataout", "sentinel.db")}")
+        assert_url_active(self.BASE_URL + f"view-file?filepath={PathUtils.file_set.data_db}")
 
     def test_jobs(self):
         assert_url_active(self.BASE_URL + "jobs")
@@ -165,7 +164,7 @@ class TestApp(unittest.TestCase):
 
     def test_get_config(self):
         res = assert_url_active(self.BASE_URL + "get-config")
-        with open(os.path.join("src", "config", "app-config.json"), 'r') as r:
+        with open(PathUtils.file_set.config_file, 'r') as r:
             js = json.load(r)
 
         self.assertDictEqual(res.json(), js)

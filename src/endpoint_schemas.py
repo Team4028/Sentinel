@@ -1,13 +1,9 @@
 from functools import wraps
 from flask import request, current_app
 from flask_login import login_required
-import inspect
 from enum import Enum
 
-try:
-    from auth import require_admin
-except ModuleNotFoundError:
-    from src.auth import require_admin
+from src.auth import require_admin
 
 
 class EndpointAccess(Enum):

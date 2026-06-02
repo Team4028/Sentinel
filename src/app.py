@@ -24,21 +24,13 @@ from flask_login import (
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 from werkzeug.wrappers.response import Response
-
-try:  # janky import stuff: running src/app.py and running scouting_app.py via gunicorn lead to different import paths
-    from lib.data_main import Processor, Event
-    import lib.mesh as mesh
-    from lib.data_config import lex_config
-    import apputils
-    from endpoint_schemas import wrap_flask_routing
-    import auth
-except ModuleNotFoundError:
-    from src.lib.data_main import Processor, Event
-    import src.lib.mesh as mesh
-    from src.lib.data_config import lex_config
-    import src.apputils as apputils
-    from src.endpoint_schemas import wrap_flask_routing
-    import src.auth as auth
+from src.lib.data_main import Processor, Event
+from src.lib import mesh
+from src.lib.data_config import lex_config
+from src import apputils
+from src.apputils import PathUtils
+from src.endpoint_schemas import wrap_flask_routing
+from src import auth
 import csv
 import os
 import json
@@ -65,7 +57,7 @@ class Notification:
 
 
 class TestingInfo:
-    def __init__(self, year: str, event_key: str, infile: str):
+    def __init__(self, year: str, event_key: str, infile: Path):
         self.year = year
         self.event_key = event_key
         self.infile = infile
@@ -90,6 +82,12 @@ if not SUPERUSER_CODE or SUPERUSER_CODE == "":
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# set file root
+
+PathUtils.file_set.set_origin(Path(os.path.dirname(__file__)).joinpath('..').resolve().__str__()) # navigate back one folder to get to root
+
+
 # setup logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -100,7 +98,7 @@ CORS(
     origins=["https://team4028.github.io", "http://localhost:5173"],  # testing
 )
 # load app configs from json file
-app.config.from_file(os.path.join("config", "app-config.json"), load=json.load)
+app.config.from_file(PathUtils.file_set.config_file, load=json.load)
 
 # load testing information for testing
 if testing_init_info != None:
@@ -113,9 +111,9 @@ if testing_init_info == None:  # prevent authentication when unit testing
 # match the x in field-config-x.yaml to get the different configs
 POSS_YEARS = [
     f.stem.split("-", 2)[-1]
-    for f in Path("config").relative_to(".").glob("field-config-*.yaml")
+    for f in PathUtils.search("field-config-*.yaml", "config")
 ]
-config_file = os.path.join("config", f"field-config-{app.config["YEAR"]}.yaml")
+config_file = PathUtils.relative_to_origin("config", f"field-config-{app.config["YEAR"]}.yaml")
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = False
 
@@ -234,7 +232,7 @@ if testing_init_info != None:
 infile = (
     testing_init_info.infile
     if testing_init_info != None
-    else os.path.join("datain", "data_in.csv")
+    else PathUtils.file_set.data_in_file
 )
 js = None  # load the json file into mem so we don't have to read it every time its requested
 
@@ -255,9 +253,9 @@ def compile_scouting_dashboard(url: str) -> None:
     """Uses jinja templating to create dashboard jsons for provisioning that cast all of the number fields to numbers"""
     app.logger.info("Compiling dashboards...")
     env = Environment(loader=FileSystemLoader("."))
-    for path in Path("src/templates").relative_to(".").glob("*.ji"):
+    for path in PathUtils.relative_to_origin("src", "templates").glob("*.ji"):
         app.logger.info(f"Compiling {path}...")
-        tmpl = env.get_template(path.relative_to(".").as_posix())
+        tmpl = env.get_template(path.as_posix())
         # make acronym from title
         template_vars = {
             "sentinel_url": url,
@@ -267,9 +265,9 @@ def compile_scouting_dashboard(url: str) -> None:
         for k, v in processor.config_data["dash-panel"].items():
             template_vars |= {k.lower() + "_headers": v}
         os.makedirs("grafana-dashboard", exist_ok=True)
-        out_path = os.path.join(
+        out_path = PathUtils.relative_to_origin(
             "grafana-dashboard",
-            path.relative_to(".").as_posix().rsplit(".", 2)[0].rsplit("/")[-1]
+            path.as_posix().rsplit(".", 2)[0].rsplit("/")[-1]
             + ".json",
         )
         Path(out_path).write_text(tmpl.render(template_vars))
@@ -318,19 +316,19 @@ if initial_process:
 
 DASHBOARD_UIDS = {}
 for dash in list(
-    map(lambda p: p.stem, Path("src/templates").relative_to(".").glob("*.ji"))
+    map(lambda p: p.stem, PathUtils.search("*.ji", "src", "templates"))
 ):
     if not os.path.exists(
-        f"/var/lib/grafana/dashboards/{dash}"
+        f"{PathUtils.grafana_dashboard_posix_root}/{dash}"
         if is_docker
-        else os.path.join("grafana-dashboard", f"{dash}")
+        else PathUtils.relative_to_origin("grafana-dashboard", f"{dash}")
     ):
         compile_scouting_dashboard("http://localhost:5000")
     with open(
         (
             f"/var/lib/grafana/dashboards/{dash}"
             if is_docker
-            else os.path.join("grafana-dashboard", f"{dash}")
+            else PathUtils.relative_to_origin("grafana-dashboard", f"{dash}")
         ),
         "r",
     ) as r:
@@ -340,18 +338,14 @@ for dash in list(
 def reload_js() -> None:
     """Updates the copy of the ``other-metrics.json`` file in memory (used for :func:`percent` endpoint) to use the newest file"""
     global js
-    if not os.path.exists(os.path.join("dataout", "other-metrics.json")):
+    if not os.path.exists(PathUtils.file_set.other_metrics):
         js = None
         return
     with open(
-        os.path.join("dataout", "other-metrics.json"),
+        PathUtils.file_set.other_metrics,
         "r",
     ) as r:
-        js = (
-            json.load(r)
-            if os.path.exists(os.path.join("dataout", "other-metrics.json"))
-            else None
-        )
+        js = json.load(r)
 
 
 reload_js()
@@ -515,14 +509,14 @@ def save_photo(filestorage, team: str) -> None:
     for path in Path("photos").glob("*"):
         if path.is_file() and pattern.match(path.name):
             files_there.append(path)
-    file_save = os.path.join("photos", f"{team}-{len(files_there)}{ext}")
+    file_save = PathUtils.relative_to_origin("photos", f"{team}-{len(files_there)}{ext}")
     filestorage.save(file_save)
 
 
 def save_auto(filestorage, match: str) -> None:
     """saves a picture generated from auton scouting"""
     ext = os.path.splitext(filestorage.filename)[1].lower()
-    file_save = os.path.join("autos", f"match-{match}{ext}")
+    file_save = PathUtils.relative_to_origin("autos", f"match-{match}{ext}")
     filestorage.save(file_save)
 
 
@@ -874,9 +868,9 @@ def delete_file() -> (
     if "resolve" in request.json:
         match (filepath):
             case "data_in.csv":
-                filepath = os.path.join("datain", filepath)
+                filepath = PathUtils.relative_to_origin("datain", filepath)
             case _:
-                filepath = os.path.join("dataout", filepath)
+                filepath = PathUtils.relative_to_origin("dataout", filepath)
     if not is_docker:
         app.logger.warning(
             f"Tried to delete file {filepath}, only allowed in virtual container."
@@ -946,10 +940,10 @@ def auto_scout_simple() -> str:
 def save_pit() -> tuple[Literal["Success"], Literal[200]] | tuple[str, Literal[500]]:
     """Handles the submission of the pit scouting form"""
     try:
-        csv_file = os.path.join("dataout", "output.csv" + "-pit-scouting.csv")
+        csv_file = PathUtils.file_set.pit_scouting_data
         need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
         with open(
-            os.path.join("dataout", "output.csv" + "-pit-scouting.csv"),
+            PathUtils.file_set.pit_scouting_data,
             mode="a",
             newline="",
         ) as f:
@@ -968,7 +962,7 @@ def save_auto_simple() -> (
 ):
     """Handles the submission of the simple auton scouting form"""
     try:
-        csv_file = os.path.join("dataout", "output.csv" + "-auton-scouting.csv")
+        csv_file = PathUtils.file_set.auton_scouting_data
         need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
         js: dict = request.json
         was_pre = js.pop("wasPre") if "wasPre" in js else False
@@ -1050,7 +1044,7 @@ def upload_other_files() -> tuple[Literal[""], Literal[200]] | tuple[str, Litera
     try:
         d_file = request.files["data"]
         if d_file.filename != "" and request.headers.get("name", "").strip() != "":
-            d_file.save(os.path.join("dataout", request.headers.get("name")))
+            d_file.save(PathUtils.relative_to_origin("dataout", request.headers.get("name")))
         return "", 200
     except Exception as e:
         return apputils.exception_format(e), 500
@@ -1213,7 +1207,7 @@ def take_notes() -> str:
 @app.get("/get-notes")
 def get_notes() -> str | tuple[Literal["File not found"], Literal[400]]:
     """returns the text content of the specified note"""
-    path = os.path.join(
+    path = PathUtils.relative_to_origin(
         "notes",
         html.unescape(request.headers["team"]),
         html.unescape(request.headers["pre"] + request.headers["match"]),
@@ -1230,9 +1224,9 @@ def get_notes() -> str | tuple[Literal["File not found"], Literal[400]]:
 def get_note_tables() -> Response:
     """returns a tabulated dictionary of each scouters' notes for a team"""
     team = request.args["team"]
-    tn_path = os.path.join("notes", team)
+    tn_path = PathUtils.relative_to_origin("notes", team)
     if not os.path.isdir(tn_path):
-        return {}
+        return jsonify({})
 
     table = []
     for mn in os.listdir(tn_path):
@@ -1479,7 +1473,7 @@ def edit_yaml() -> str:
     """Renders the editing template for web editing the field-config.yaml file"""
     with open(config_file, "r") as r:  # load CONFIG_FILE into mem to pass into jinja2
         content = r.read()
-    with open(os.path.join("config", "schema.json"), "r") as r:
+    with open(PathUtils.file_set.config_schema, "r") as r:
         schema = r.read()
     return render_template_style(
         "edit-config.html", yaml_content=content, schema=schema
@@ -1514,8 +1508,8 @@ def save_notes() -> Response:
     pre = html.unescape(request.json.get("pre", ""))
     match = pre + html.unescape(request.json.get("match", ""))
     app.logger.info(f"Saving notes for {team} match {match} from scouter {name}")
-    path = os.path.join("notes", team, match, name + ".txt")
-    os.makedirs(os.path.join("notes", team, match), exist_ok=True)
+    path = PathUtils.relative_to_origin("notes", team, match, name + ".txt")
+    os.makedirs(PathUtils.relative_to_origin("notes", team, match), exist_ok=True)
     try:
         with open(path, "w") as f:
             f.write(data)
@@ -1554,21 +1548,21 @@ def edit_app_conf_page() -> str:
 @app.get("/get-config")
 def get_app_config() -> Response:
     """Returns the app configuration for the editor at /edit-app-conf to read"""
-    with open(os.path.join(app.root_path, "config", "app-config.json"), "r") as r:
+    with open(PathUtils.file_set.config_file, "r") as r:
         return jsonify(json.load(r))
 
 
 @app.post("/get-log")
 def get_log() -> tuple[str, Literal[200]] | tuple[str, Literal[400]]:
-    """Returns the contents of teh specified log"""
+    """Returns the contents of the specified log"""
     logfile = request.headers.get("log", "")
-    if os.path.exists(os.path.join("log", "gunicorn", os.path.basename(logfile))):
-        with open(os.path.join("log", "gunicorn", os.path.basename(logfile)), "r") as r:
+    if os.path.exists(PathUtils.relative_to_origin("log", "gunicorn", os.path.basename(logfile))):
+        with open(PathUtils.relative_to_origin("log", "gunicorn", os.path.basename(logfile)), "r") as r:
             # TODO: more secure transfer
             return r.read(), 200
     else:
         return (
-            f"File {os.path.join("log", "gunicorn", os.path.basename(logfile))} does not exist",
+            f"File {PathUtils.relative_to_origin("log", "gunicorn", os.path.basename(logfile))} does not exist",
             400,
         )
 
@@ -1739,8 +1733,8 @@ def make_comment() -> (
     tuple[Literal[""], Literal[200]] | tuple[Literal["File not found"], Literal[404]]
 ):
     """Handles making a comment on a picklist team"""
-    if os.path.exists(os.path.join("picklists", f"{request.json["list"]}.json")):
-        with open(os.path.join("picklists", f"{request.json["list"]}.json"), "r") as r:
+    if os.path.exists(PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json")):
+        with open(PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json"), "r") as r:
             js = json.load(r)
             if request.json["pick"] in js and any(
                 x["team"] == request.json["team"] for x in js[request.json["pick"]]
@@ -1753,7 +1747,7 @@ def make_comment() -> (
                 jsteam["comments"].append(
                     {"name": current_user.id, "body": request.json["msg"]}
                 )
-        with open(os.path.join("picklists", f"{request.json["list"]}.json"), "w") as w:
+        with open(PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json"), "w") as w:
             json.dump(js, w, indent=4)
         return "", 200
     else:
@@ -1765,9 +1759,9 @@ def update_like() -> (
     tuple[Literal[""], Literal[200]] | tuple[Literal["File not found"], Literal[400]]
 ):
     """Handles liking/disliking a picklist team"""
-    if os.path.exists(os.path.join("picklists", f"{request.headers["list"]}.json")):
+    if os.path.exists(PathUtils.relative_to_origin("picklists", f"{request.headers["list"]}.json")):
         with open(
-            os.path.join("picklists", f"{request.headers["list"]}.json"), "r"
+            PathUtils.relative_to_origin("picklists", f"{request.headers["list"]}.json"), "r"
         ) as r:
             js = json.load(r)
             if request.headers["pick"] in js and any(
@@ -1808,7 +1802,7 @@ def update_like() -> (
                             x for x in jsteam["dlike"] if x != current_user.id
                         ]
         with open(
-            os.path.join("picklists", f"{request.headers["list"]}.json"), "w"
+            PathUtils.relative_to_origin("picklists", f"{request.headers["list"]}.json"), "w"
         ) as w:
             json.dump(js, w, indent=4)
         return "", 200
@@ -1839,7 +1833,7 @@ def picklist() -> str:
 def save_picklist() -> tuple[Literal["Success"], Literal[200]]:
     """Handles saving a picklist"""
     pickname = current_user.id
-    pickpath = os.path.join("picklists", pickname + ".json")
+    pickpath = PathUtils.relative_to_origin("picklists", pickname + ".json")
     js = request.json
     current_data = {}
     if os.path.exists(pickpath):
@@ -1880,12 +1874,12 @@ def save_picklist() -> tuple[Literal["Success"], Literal[200]]:
 def save_app_config() -> tuple[Literal[""], Literal[200]] | tuple[str, Literal[500]]:
     """Consumes an app configuration json, saves it, and applies it"""
     try:
-        with open(os.path.join(app.root_path, "config", "app-config.json"), "w") as w:
+        with open(PathUtils.file_set.config_file, "w") as w:
             json.dump(
                 request.json, w, indent=4
             )  # indent=4 auto-formats the json with \t = 4 spaces
         app.config.from_file(
-            os.path.join(app.root_path, "config", "app-config.json"),
+            PathUtils.file_set.config_file,
             load=json.load,
         )
         processor.year = (
@@ -1912,7 +1906,7 @@ def dload() -> tuple[Literal["File not found."], Literal[404]] | Response:
     """Sends a stream using the `stream` helper for the requested file to download it"""
     file = request.headers["file"]
     file = os.path.basename(file)  # no .. touchy
-    file = os.path.join(
+    file = PathUtils.relative_to_origin(
         (
             "dataout"
             if ("output.csv" in file or file in ["other-metrics.json", "sentinel.db"])

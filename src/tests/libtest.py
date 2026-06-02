@@ -5,10 +5,8 @@ import json
 from jsonschema import Draft7Validator
 from pandas.testing import assert_series_equal
 import yaml
-try:
-    from lib.bs import eval_beakscript, UnpackList
-except ModuleNotFoundError:
-    from src.lib.bs import eval_beakscript, UnpackList
+
+from src.lib.bs import eval_beakscript, UnpackList
 
 
 class TestBeakscript(unittest.TestCase):

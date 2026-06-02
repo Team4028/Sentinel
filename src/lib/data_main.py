@@ -9,14 +9,10 @@ import os
 import json
 import numpy as np
 
-try:
-    from lib.bs import eval_beakscript
-    from lib.data_config import FANCY_FIL
-    import apputils
-except ModuleNotFoundError:
-    from src.lib.bs import eval_beakscript
-    from src.lib.data_config import FANCY_FIL
-    import src.apputils as apputils
+from src.lib.bs import eval_beakscript
+from src.lib.data_config import FANCY_FIL
+from src import apputils
+from src.apputils import PathUtils
 from collections import defaultdict
 from collections.abc import Iterable
 import logging
@@ -389,18 +385,18 @@ class Processor:
 
     def __check_tables_exist(self) -> bool:
         """ Check whether the correct number of tables exists in the db """
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             return len(cursor.fetchall()) == Processor.NUM_TABLES
 
     def __check_load_event_key_cache(self, tables_exist: bool):
         """ Checks for and loads a cached event key and loads in table data if there is any """
-        if os.path.exists("last_loaded_event_key.txt"):
-            with open("last_loaded_event_key.txt", "r") as r:
+        if os.path.exists(PathUtils.file_set.last_event_cache):
+            with open(PathUtils.file_set.last_event_cache, "r") as r:
                 self.event_key = r.read().strip()
         if not self.has_sched_data and tables_exist:
-            with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+            with sqlite3.connect(PathUtils.file_set.data_db) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT Team FROM teams")
                 self.has_sched_data = (
@@ -427,7 +423,7 @@ class Processor:
             return [f"Statbotics_red_{rp}", f"Statbotics_blue_{rp}"]
 
         # Create Tables
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             conn.executescript(f"""
                 DROP TABLE IF EXISTS matches;
                 CREATE TABLE matches (
@@ -503,7 +499,7 @@ class Processor:
 
     def __read_static_tba_info(self):
         """ Reads team info, event schedule """
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             # LOAD TEAMS + Last_OPR
             cursor = conn.execute(f"SELECT * FROM teams")
             rows = cursor.fetchall()
@@ -576,7 +572,7 @@ class Processor:
             logger.info("Loading TBA images...")
             try:
                 apputils.get_tba_images(
-                    self.tba_key, self.year, "photos", self.tba_data_static.teams
+                    self.tba_key, self.year, self.tba_data_static.teams
                 )
                 Event.current_handle_index_progress = 1.0
             except Exception as e:
@@ -624,7 +620,7 @@ class Processor:
 
     def __write_match_schedule_file(self):
         """ Writes match schedule to the matches table """
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             matches = []
             for i, match in enumerate(self.tba_data_static.schedule):
                 matches.append(
@@ -665,7 +661,7 @@ class Processor:
 
     def __write_teams_file(self):
         """ Write teams to the teams table """
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             all_fields = self.sql_fields["teams"]
             for i, team in enumerate(self.tba_data_static.teams):
                 Event.current_handle_index_progress = i / len(
@@ -714,7 +710,7 @@ class Processor:
 
         Event.current_handle_index_progress = 0.5
 
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             for team in df:
                 conn.execute(
                     f"""
@@ -764,7 +760,7 @@ class Processor:
 
         Event.current_handle_index_progress = 0.5
 
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Team")
             for team in df:
@@ -818,7 +814,7 @@ class Processor:
 
         Event.current_handle_index_progress = 0.5
 
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
             for match in df:
@@ -847,7 +843,7 @@ class Processor:
             logger.warning("No matches, skipping statbotics analysis")
             return
         Event.current_handle_index_progress = 0.5
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
             for match in df:
@@ -864,7 +860,7 @@ class Processor:
 
     def __write_statbotics_epa(self):
         """ Write epas to the teams table """
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             for i, team in enumerate(self.tba_data_static.teams):
                 Event.current_handle_index_progress = i / len(
                     self.tba_data_static.teams
@@ -908,7 +904,7 @@ class Processor:
 
         Event.current_handle_index_progress = 0.5
 
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
             fields_to_write.remove("Team")
@@ -973,7 +969,7 @@ class Processor:
 
         Event.current_handle_index_progress = 0.5
 
-        with sqlite3.connect(os.path.join("dataout", "sentinel.db")) as conn:
+        with sqlite3.connect(PathUtils.file_set.data_db) as conn:
             fields_to_write = list(df[0].keys())
             fields_to_write.remove("Match")
             fields_to_write.remove("Team")
@@ -1079,8 +1075,7 @@ class Processor:
 
     def __write_other_metrics(self) -> None:
         """writes the json other metrics (right now only percent teams scouted) to the outfile"""
-        outfile = os.path.join("dataout", "other-metrics.json")
-        with open(outfile, "w") as w:
+        with open(PathUtils.file_set.other_metrics, "w") as w:
             json.dump(
                 {"Percent Teams Scouted": self.__get_percent_scouted()}, w, indent=4
             )
@@ -1359,7 +1354,7 @@ class Processor:
     def __write_output_file(self, df: ObjectHolder[pd.DataFrame]):
         """ writes the output.csv file """
         logger.info("Writing chunk...")
-        df.obj.to_csv(os.path.join("dataout", "output.csv"), index=False, header=True)
+        df.obj.to_csv(PathUtils.file_set.data_out_file, index=False, header=True)
 
     async def proccess_data(self, data_filepath: str) -> None:
         """Reads the input data, performs the calculations specified in field-config.yaml, and outputs all of the output files"""
@@ -1393,6 +1388,6 @@ class Processor:
 
     async def clear_database(self) -> None:
         """ Deletes the database """
-        if os.path.exists(os.path.join("dataout", "sentinel.db")):
-            os.remove(os.path.join("dataout", "sentinel.db"))
+        if os.path.exists(PathUtils.file_set.data_db):
+            os.remove(PathUtils.file_set.data_db)
         self.has_sched_data = False

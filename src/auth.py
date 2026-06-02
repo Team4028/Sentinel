@@ -3,7 +3,9 @@ import random
 import re
 from typing import Any
 
-from flask import Flask, abort, request
+from src.apputils import PathUtils
+
+from flask import Flask, abort
 from flask_login import LoginManager, UserMixin, current_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
@@ -41,7 +43,7 @@ USER_PALATTE = [
 ]
 
 def display_user(id: str) -> str:
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins WHERE id=?", (id,))
         rows = cursor.fetchall()
@@ -81,7 +83,7 @@ def display_user(id: str) -> str:
     """
 
 def generate_random_color(isadmin: bool) -> str:
-    return  ADMIN_COLOR if isadmin else USER_PALATTE[random.randint(0, len(USER_PALATTE) - 1)]
+    return ADMIN_COLOR if isadmin else USER_PALATTE[random.randint(0, len(USER_PALATTE) - 1)]
 
 
 def require_admin(f):
@@ -126,7 +128,7 @@ login_manager.login_view = "login"
 
 @login_manager.user_loader
 def get_user_from_db(uid) -> 人 | None:
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins WHERE id=?", (uid,))
         rows = cursor.fetchall()
@@ -139,7 +141,7 @@ def get_user_is_admin(user: UserMixin):
     return False
 
 def get_can_delete_user(user_uid, uid_to_delete) -> bool:
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins WHERE isadmin=1")
         rows = cursor.fetchall()
@@ -155,7 +157,7 @@ def get_can_delete_user(user_uid, uid_to_delete) -> bool:
         else: return False # else no
 
 def override_get_admin() -> 人 | None:
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins WHERE isadmin=1")
         rows = cursor.fetchall()
@@ -163,13 +165,13 @@ def override_get_admin() -> 人 | None:
         else: return None
 
 def get_users() -> list[tuple]:
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins")
         return cursor.fetchall()
 
 def get_user_from_db_unpw(un, pwd) -> 人 | None:
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logins WHERE un=? AND pw=?", (un, pwd))
         rows = cursor.fetchall()
@@ -178,7 +180,7 @@ def get_user_from_db_unpw(un, pwd) -> 人 | None:
 
 def delete_user(my_uid, uid) -> bool:
     if not get_can_delete_user(my_uid, uid): return False
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         conn.execute("DELETE FROM logins WHERE id=?", (uid,))
     return True
 
@@ -189,7 +191,7 @@ def init_loginm_app(app: Flask) -> None:
 
 
 def add_user_to_db(username, password, is_admin=False) -> None:
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         conn.execute("INSERT OR REPLACE INTO logins (id, un, pw, isadmin, color) VALUES (?, ?, ?, ?, ?)", (
             text_slug(username),
             username,
@@ -199,7 +201,7 @@ def add_user_to_db(username, password, is_admin=False) -> None:
         ))
 
 def get_password_is_admin(password) -> Any | bool:
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT isadmin FROM logins WHERE pw=?", (password,))
         rows = cursor.fetchall()
@@ -207,8 +209,8 @@ def get_password_is_admin(password) -> Any | bool:
         else: return False
 
 def get_table_exists() -> bool:
-    if not os.path.exists(os.path.join("secrets", "logins.db")): return False
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    if not os.path.exists(PathUtils.file_set.login_db): return False
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tablenames = cursor.fetchall()
@@ -218,7 +220,7 @@ def get_table_exists() -> bool:
 
 def generate_login_db(un, pwd) -> None:
     if get_table_exists(): return
-    with sqlite3.connect(os.path.join("secrets", "logins.db")) as conn:
+    with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         conn.executescript(f"""
             CREATE TABLE IF NOT EXISTS logins (
                 id TEXT PRIMARY KEY,

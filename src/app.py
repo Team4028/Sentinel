@@ -80,7 +80,6 @@ except Exception:
 
 if not SUPERUSER_CODE or SUPERUSER_CODE == "":
     print("Error, su code not specified.")
-    
 
 
 app = Flask(__name__)
@@ -88,7 +87,9 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # set file root
 
-PathUtils.file_set.set_origin(Path(os.path.dirname(__file__)).joinpath('..').resolve().__str__()) # navigate back one folder to get to root
+PathUtils.file_set.set_origin(
+    Path(os.path.dirname(__file__)).joinpath("..").resolve().__str__()
+)  # navigate back one folder to get to root
 
 
 # setup logging
@@ -113,10 +114,11 @@ if testing_init_info == None:  # prevent authentication when unit testing
     app.route = wrap_flask_routing(app.route)
 # match the x in field-config-x.yaml to get the different configs
 POSS_YEARS = [
-    f.stem.split("-", 2)[-1]
-    for f in PathUtils.search("field-config-*.yaml", "config")
+    f.stem.split("-", 2)[-1] for f in PathUtils.search("field-config-*.yaml", "config")
 ]
-config_file = PathUtils.relative_to_origin("config", f"field-config-{app.config["YEAR"]}.yaml")
+config_file = PathUtils.relative_to_origin(
+    "config", f"field-config-{app.config["YEAR"]}.yaml"
+)
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = False
 
@@ -186,17 +188,17 @@ async def do_data_processing() -> None:
 # =======================================================
 def ensure_untracked_dirs() -> None:
     """Ensures that the upload and output directories exist.
-    
+
     It is wrapped in a function because these directories can change at runtime.
     """
-    os.makedirs("datain", exist_ok=True)
-    os.makedirs("dataout", exist_ok=True)
-    os.makedirs("photos", exist_ok=True)
-    os.makedirs("notes", exist_ok=True)
-    os.makedirs("autos", exist_ok=True)
-    os.makedirs("picklists", exist_ok=True)
+    os.makedirs(PathUtils.relative_to_origin("datain"), exist_ok=True)
+    os.makedirs(PathUtils.relative_to_origin("dataout"), exist_ok=True)
+    os.makedirs(PathUtils.relative_to_origin("photos"), exist_ok=True)
+    os.makedirs(PathUtils.relative_to_origin("notes"), exist_ok=True)
+    os.makedirs(PathUtils.relative_to_origin("autos"), exist_ok=True)
+    os.makedirs(PathUtils.relative_to_origin("picklists"), exist_ok=True)
     os.makedirs(
-        "secrets", exist_ok=True
+        PathUtils.relative_to_origin("secrets"), exist_ok=True
     )  # make sure secrets exists because we will soon open some files
 
 
@@ -270,8 +272,7 @@ def compile_scouting_dashboard(url: str) -> None:
         os.makedirs("grafana-dashboard", exist_ok=True)
         out_path = PathUtils.relative_to_origin(
             "grafana-dashboard",
-            path.as_posix().rsplit(".", 2)[0].rsplit("/")[-1]
-            + ".json",
+            path.as_posix().rsplit(".", 2)[0].rsplit("/")[-1] + ".json",
         )
         Path(out_path).write_text(tmpl.render(template_vars))
         if os.name == "posix":
@@ -318,9 +319,7 @@ if initial_process:
         app.logger.warning(f"initial processing failed: {apputils.exception_format(e)}")
 
 DASHBOARD_UIDS = {}
-for dash in list(
-    map(lambda p: p.stem, PathUtils.search("*.ji", "src", "templates"))
-):
+for dash in list(map(lambda p: p.stem, PathUtils.search("*.ji", "src", "templates"))):
     if not os.path.exists(
         f"{PathUtils.grafana_dashboard_posix_root}/{dash}"
         if is_docker
@@ -483,7 +482,7 @@ def rm_row_hash(hashes: list[str]) -> None:
 
 def append_lines_nofile(lines_to_write: list[str], sending: bool = False) -> None:
     """Appends `lines_to_write` to the input csv and reprocesses the data.
-    
+
     This will emit a notification if restrict append level is 1"""
     exists = os.path.exists(infile)
     with open(infile, "a" if exists else "w", encoding="utf-8") as append:
@@ -512,7 +511,9 @@ def save_photo(filestorage, team: str) -> None:
     for path in Path("photos").glob("*"):
         if path.is_file() and pattern.match(path.name):
             files_there.append(path)
-    file_save = PathUtils.relative_to_origin("photos", f"{team}-{len(files_there)}{ext}")
+    file_save = PathUtils.relative_to_origin(
+        "photos", f"{team}-{len(files_there)}{ext}"
+    )
     filestorage.save(file_save)
 
 
@@ -1047,7 +1048,9 @@ def upload_other_files() -> tuple[Literal[""], Literal[200]] | tuple[str, Litera
     try:
         d_file = request.files["data"]
         if d_file.filename != "" and request.headers.get("name", "").strip() != "":
-            d_file.save(PathUtils.relative_to_origin("dataout", request.headers.get("name")))
+            d_file.save(
+                PathUtils.relative_to_origin("dataout", request.headers.get("name"))
+            )
         return "", 200
     except Exception as e:
         return apputils.exception_format(e), 500
@@ -1286,7 +1289,7 @@ def n3() -> Response:
 @app.post("/append")
 def append_lines() -> tuple[Literal[""], Literal[200]] | tuple[str, Literal[500]]:
     """Appends a series of csv lines to the input data based off of the file sent via request.files
-    
+
     Complies with the restrict append level."""
     try:
         if (
@@ -1559,8 +1562,13 @@ def get_app_config() -> Response:
 def get_log() -> tuple[str, Literal[200]] | tuple[str, Literal[400]]:
     """Returns the contents of the specified log"""
     logfile = request.headers.get("log", "")
-    if os.path.exists(PathUtils.relative_to_origin("log", "gunicorn", os.path.basename(logfile))):
-        with open(PathUtils.relative_to_origin("log", "gunicorn", os.path.basename(logfile)), "r") as r:
+    if os.path.exists(
+        PathUtils.relative_to_origin("log", "gunicorn", os.path.basename(logfile))
+    ):
+        with open(
+            PathUtils.relative_to_origin("log", "gunicorn", os.path.basename(logfile)),
+            "r",
+        ) as r:
             # TODO: more secure transfer
             return r.read(), 200
     else:
@@ -1736,8 +1744,13 @@ def make_comment() -> (
     tuple[Literal[""], Literal[200]] | tuple[Literal["File not found"], Literal[404]]
 ):
     """Handles making a comment on a picklist team"""
-    if os.path.exists(PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json")):
-        with open(PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json"), "r") as r:
+    if os.path.exists(
+        PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json")
+    ):
+        with open(
+            PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json"),
+            "r",
+        ) as r:
             js = json.load(r)
             if request.json["pick"] in js and any(
                 x["team"] == request.json["team"] for x in js[request.json["pick"]]
@@ -1750,7 +1763,10 @@ def make_comment() -> (
                 jsteam["comments"].append(
                     {"name": current_user.id, "body": request.json["msg"]}
                 )
-        with open(PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json"), "w") as w:
+        with open(
+            PathUtils.relative_to_origin("picklists", f"{request.json["list"]}.json"),
+            "w",
+        ) as w:
             json.dump(js, w, indent=4)
         return "", 200
     else:
@@ -1762,9 +1778,14 @@ def update_like() -> (
     tuple[Literal[""], Literal[200]] | tuple[Literal["File not found"], Literal[400]]
 ):
     """Handles liking/disliking a picklist team"""
-    if os.path.exists(PathUtils.relative_to_origin("picklists", f"{request.headers["list"]}.json")):
+    if os.path.exists(
+        PathUtils.relative_to_origin("picklists", f"{request.headers["list"]}.json")
+    ):
         with open(
-            PathUtils.relative_to_origin("picklists", f"{request.headers["list"]}.json"), "r"
+            PathUtils.relative_to_origin(
+                "picklists", f"{request.headers["list"]}.json"
+            ),
+            "r",
         ) as r:
             js = json.load(r)
             if request.headers["pick"] in js and any(
@@ -1805,7 +1826,10 @@ def update_like() -> (
                             x for x in jsteam["dlike"] if x != current_user.id
                         ]
         with open(
-            PathUtils.relative_to_origin("picklists", f"{request.headers["list"]}.json"), "w"
+            PathUtils.relative_to_origin(
+                "picklists", f"{request.headers["list"]}.json"
+            ),
+            "w",
         ) as w:
             json.dump(js, w, indent=4)
         return "", 200

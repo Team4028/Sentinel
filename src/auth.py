@@ -220,7 +220,6 @@ def get_table_exists() -> bool:
 
 def generate_login_db(un, pwd) -> None:
     if get_table_exists(): return
-    os.makedirs(PathUtils.relative_to_origin("secrets"), exist_ok=True)
     with sqlite3.connect(PathUtils.file_set.login_db) as conn:
         conn.executescript(f"""
             CREATE TABLE IF NOT EXISTS logins (

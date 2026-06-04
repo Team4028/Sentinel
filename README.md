@@ -2,6 +2,8 @@
 
 Fully custom scouting data processing, analytics, and display backend written in [flask](https://flask.palletsprojects.com/en/stable/) and packaged with [grafana](https://grafana.com) in [docker](https://www.docker.com).
 
+[Full Sentinel Documentation](https://team4028.github.io/Sentinel/)
+
 <details>
 <summary>Diagram</summary>
   
@@ -9,8 +11,6 @@ Fully custom scouting data processing, analytics, and display backend written in
 </details>
 <details>
   <summary>Doc Links</summary>
-  
-  - [Full Sentinel Documentation (work in progress)](https://team4028.github.io/Sentinel/)
   - [Requirements/Spec sheet](https://github.com/Team4028/Sentinel/blob/main/Beak%20Squad%20Scouting%202026%20-%20Project%20Watchtower.md)
   - [Config Docs](https://github.com/Team4028/Sentinel/blob/main/config/config-scripting-docs.md)
   - [Grafana local setup](https://github.com/Team4028/Sentinel/blob/main/grafana-dashboard/grafana-import.md)

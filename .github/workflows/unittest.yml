@@ -28,6 +28,16 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
+
+            - name: Check for fast-forward
+              run: |
+                git fetch origin main
+    
+                if git merge-base --is-ancestor HEAD origin/main; then
+                    echo "No new commits relative to main (likely fast-forward). Skipping CI."
+                    exit 0
+                fi
+
             - name: Set up python
               uses: actions/setup-python@v5
               with:

@@ -12,7 +12,7 @@ def move_dir(src, dst):
     subprocess.run("mv " + src + "* " + dst, shell=True)
 
 os.environ["build_all_docs"] = str(True)
-os.environ["pages_root"] = "https://team4028.github.io/"
+os.environ["pages_root"] = "https://team4028.github.io/Sentinel/"
 
 build_doc("latest", "main")
 move_dir("./build/html/", "../pages/")

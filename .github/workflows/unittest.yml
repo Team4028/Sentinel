@@ -17,6 +17,8 @@ concurrency:
 jobs:
     test-and-doc:
 
+        if: github.event.before != '0000000000000000000000000000000000000000'
+
         runs-on: ubuntu-latest
 
         environment:

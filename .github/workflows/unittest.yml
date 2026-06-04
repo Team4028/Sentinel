@@ -52,6 +52,7 @@ jobs:
                 git fetch --tags
                 cd docs
                 mkdir build
+                git checkout main -- build-docs.py
                 python3 build-docs.py
             - name: Set up pages
               uses: actions/configure-pages@v6

@@ -5,6 +5,7 @@ def build_doc(version, tag):
     os.environ["current_version"] = version
     subprocess.run('git checkout ' + tag, shell=True)
     subprocess.run('git checkout main -- ./source/conf.py', shell=True)
+    subprocess.run('git checkout main -- ./versions.json', shell=True)
     subprocess.run('make html', shell=True)
 
 def move_dir(src, dst):

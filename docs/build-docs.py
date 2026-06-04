@@ -15,5 +15,7 @@ os.environ["build_all_docs"] = str(True)
 os.environ["pages_root"] = "https://team4028.github.io/"
 
 build_doc("latest", "main")
-move_dir("./build/html/", f"../pages/")
+move_dir("./build/html/", "../pages/")
+build_doc("stable", "stable")
+move_dir("./build/html/", "../pages/stable/")
 ## more to come

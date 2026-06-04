@@ -7,7 +7,8 @@ on:
     workflow_call:
 
 permissions:
-    contents: write
+    id-token: write
+    pages: write
 
 concurrency:
     group: "pages"
@@ -17,6 +18,10 @@ jobs:
     test-and-doc:
 
         runs-on: ubuntu-latest
+
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
 
         steps:
             - name: Checkout repo
@@ -32,21 +37,33 @@ jobs:
               run: python -m unittest discover -s ./src/tests -p "libtest.py" -v # Change libtest to *test when finished with other tests
             - name: Build docs
               run: |
-                make -C docs html
-            - name: "Checkout pages"
-              uses: actions/checkout@v4
+                git fetch --tags
+                cd docs
+                mkdir build
+                python3 build-docs.py
+            - name: Set up pages
+              uses: actions/configure-pages@v3
+            - name: Upload artifact
+              uses: actions/upload-pages-artifact@v2
               with:
-                ref: gh-pages
-                clean: 'false'
+                path: './pages'
+            - name: Deploy pages
+              id: deployment
+              uses: actions/deploy-pages@v2
+            # - name: "Checkout pages"
+            #   uses: actions/checkout@v4
+            #   with:
+            #     ref: gh-pages
+            #     clean: 'false'
             
-            - name: "Update docs"
-              run: |
-                rsync -av --delete ./docs/build/html/ ${{github.workspace}}/${{github.ref == 'stable' && 'docs-stable' || 'docs-dev'}}
+            # - name: "Update docs"
+            #   run: |
+            #     rsync -av --delete ./docs/build/html/ ${{github.workspace}}/${{github.ref == 'stable' && 'docs-stable' || 'docs-dev'}}
             
-            - name: "Commit and push"
-              run: |
-                git config user.name "github-actions"
-                git config user.email "github-actions@github.com"
-                git add .
-                git commit -m "Update Sphinx docs" || echo "No changes"
-                git push
+            # - name: "Commit and push"
+            #   run: |
+            #     git config user.name "github-actions"
+            #     git config user.email "github-actions@github.com"
+            #     git add .
+            #     git commit -m "Update Sphinx docs" || echo "No changes"
+            #     git push

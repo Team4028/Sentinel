@@ -21,7 +21,7 @@ pages_root = os.environ.get("pages_root", "")
 if build_all_docs is not None:
     current_version = os.environ.get("current_version")
 
-    with open('versions.json', 'r') as r:
+    with open('../versions.json', 'r') as r:
         versions = json.load(r)
 
     html_context = {

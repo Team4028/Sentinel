@@ -63,20 +63,3 @@ jobs:
             - name: Deploy pages
               id: deployment
               uses: actions/deploy-pages@v5
-            # - name: "Checkout pages"
-            #   uses: actions/checkout@v4
-            #   with:
-            #     ref: gh-pages
-            #     clean: 'false'
-            
-            # - name: "Update docs"
-            #   run: |
-            #     rsync -av --delete ./docs/build/html/ ${{github.workspace}}/${{github.ref == 'stable' && 'docs-stable' || 'docs-dev'}}
-            
-            # - name: "Commit and push"
-            #   run: |
-            #     git config user.name "github-actions"
-            #     git config user.email "github-actions@github.com"
-            #     git add .
-            #     git commit -m "Update Sphinx docs" || echo "No changes"
-            #     git push

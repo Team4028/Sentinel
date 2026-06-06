@@ -72,4 +72,10 @@ html_theme = 'furo'
 pygments_style = "friendly"
 html_static_path = ['_static']
 
+html_theme_options = {
+    "announcement": """
+        This documentation is a <i>work in progress</i>. Better structuring and competent content are on the way.
+    """
+}
+
 sys.path.insert(0, os.path.abspath("../.."))

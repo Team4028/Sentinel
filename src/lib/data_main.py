@@ -353,6 +353,7 @@ class Processor:
                 "Average_RP",
                 "OPR",
                 "Last_OPR",
+                "Match_Videos",
                 "Country",
                 "State",
                 "City",
@@ -406,12 +407,15 @@ class Processor:
     def __get_year_sb_rankpoint_keys(self):
         """ Gets the statbotics names for the rankpoints of a current year """
         def make_table_headers(rp):
-            return [f"Statbotics_red_{rp}", f"Statbotics_blue_{rp}"]
-        self.__sb_rank_points = [
-            x
-            for x in self.__sb.get_year(int(self.year))["percentiles"].keys()
-            if "rp" in x
-        ]
+            return [f"Statbotics_red_{rp}", f"Statbotics_blue_{rp}"] 
+        try:
+            self.__sb_rank_points = [
+                x
+                for x in self.__sb.get_year(int(self.year))["percentiles"].keys()
+                if "rp" in x
+            ]
+        except:
+            self.__sb_rank_points = []
 
         self.sql_fields["matches"] = self.sql_fields_match_base + [
             th for rp in self.__sb_rank_points for th in make_table_headers(rp)
@@ -447,7 +451,7 @@ class Processor:
                     Statbotics_winner TEXT,
                     Statbotics_red_win_prob REAL,
                     Statbotics_red_Score REAL,
-                    Statbotics_blue_Score REAL,
+                    Statbotics_blue_Score REAL{',' if len(self.__sb_rank_points) > 0 else ''}
                     {",\n".join([f"{th} REAL" for rp in self.__sb_rank_points for th in make_table_headers(rp)])}
                 );
 
@@ -477,6 +481,7 @@ class Processor:
                     Average_RP REAL,
                     OPR REAL,
                     Last_OPR REAL,
+                    Match_Videos TEXT,
                     Country TEXT,
                     State TEXT,
                     City TEXT,
@@ -507,6 +512,7 @@ class Processor:
             teams = []
             team_info = {}
             last_oprs = {}
+            videos = {}
             oprs, epas = {}, {}
             fields = ["Team"] + self.sql_fields["teams"]
             for row in rows:
@@ -523,6 +529,8 @@ class Processor:
                     "Website": row_dict["Website"],
                 }
                 last_oprs[row_dict["Team"]] = row_dict["Last_OPR"]
+                vds = row_dict["Match_Videos"]
+                videos[vds.split('|')[0].split(':')[0]] = list(map(lambda x: x.split(':')[1], vds.split('|')))
                 oprs[row_dict["Team"]] = row_dict["OPR"]
                 epas[row_dict["Team"]] = row_dict["EPA"]
 
@@ -531,8 +539,9 @@ class Processor:
                 self.tba_data_static.team_info,
                 self.tba_data_static.oprs,
                 self.tba_data_dyn.oprs,
+                self.tba_data_dyn.videos,
                 self.__sb_epas,
-            ) = (teams, team_info, last_oprs, oprs, epas)
+            ) = (teams, team_info, last_oprs, oprs, videos, epas)
 
             # LOAD SCHEDULE
             fields = ["MatchIdx", "Match"] + self.sql_fields["matches"]
@@ -705,6 +714,9 @@ class Processor:
                         if team in self.tba_data_static.oprs
                         else None
                     ),
+                    "Match_Videos": (
+                        "|".join(map(lambda x: f"\"{x[0]}\":\"{x[1]['v']}\"", filter(lambda x: int(team) in x[1]['t'], self.tba_data_dyn.videos.items())))
+                    )
                 }
             )
 
@@ -715,7 +727,7 @@ class Processor:
                 conn.execute(
                     f"""
                     UPDATE teams
-                    SET Rank = ?, Average_RP = ?, OPR = ?, Last_OPR = ?
+                    SET Rank = ?, Average_RP = ?, OPR = ?, Last_OPR = ?, Match_Videos = ?
                     WHERE Team = ?
                 """,
                     (
@@ -723,6 +735,7 @@ class Processor:
                         team["Average_RP"],
                         team["OPR"],
                         team["Last_OPR"],
+                        team["Match_Videos"],
                         team["Team"],
                     ),
                 )
@@ -1377,6 +1390,35 @@ class Processor:
 
         # write all the other files
         await self.__post_process_routine.fire(logger.info)
+
+    def reload_match_videos(self):
+        self.tba_data_dyn.videos = apputils.get_event_videos(self.event_key, self.tba_key)
+        for team in self.tba_data_static.teams:
+            df = []
+            df.append(
+                {
+                    "Team": team,
+                    "Match_Videos": (
+                        "|".join(map(lambda x: f"\"{x[0]}\":\"{x[1]['v']}\"", filter(lambda x: int(team) in x[1]['t'], self.tba_data_dyn.videos.items())))
+                    )
+                }
+            )
+
+
+            with sqlite3.connect(PathUtils.file_set.data_db) as conn:
+                for team in df:
+                    conn.execute(
+                        f"""
+                        UPDATE teams
+                        SET Match_Videos = ?
+                        WHERE Team = ?
+                    """,
+                        (
+                            team["Match_Videos"],
+                            team["Team"],
+                        ),
+                    )
+                conn.commit()
 
     async def perform_periodic_calls(self):
         """ Fires the periodic fetch event """

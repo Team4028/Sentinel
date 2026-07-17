@@ -734,7 +734,7 @@
       "options": {
         "alt_field": "",
         "autofit": false,
-        "baseUrl": "{{ sentinel_url | replace("localhost", "sentinel") | replace("127.0.0.1", "sentinel") }}/team-photo?index=$PhotoIndex&team=",
+        "baseUrl": "{{ sentinel_url }}/team-photo?index=$PhotoIndex&team=",
         "height": "75",
         "icon_field": "",
         "open_url": {
@@ -812,6 +812,139 @@
     },
     {
       "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "afh372g20yt4wd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Video",
+              "url": "${__data.fields.Video}"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 8,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.2.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "afh372g20yt4wd"
+          },
+          "queryText": "SELECT Match_Videos\nFROM teams\nWHERE Team = '$Team'",
+          "queryType": "table",
+          "rawQueryText": "SELECT Match_Videos\nFROM teams\nWHERE Team = '$Team'",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Match Videos",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": "|",
+            "format": "delimiter",
+            "replace": true,
+            "source": "Match_Videos"
+          }
+        },
+        {
+          "id": "transpose",
+          "options": {}
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Field"
+              ]
+            }
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "format": "kvp",
+            "keepTime": false,
+            "regExp": "/(?<key>)=(?<endpoint>)/",
+            "replace": true,
+            "source": "Field"
+          }
+        },
+        {
+          "id": "reduce",
+          "options": {
+            "labelsToFields": false,
+            "reducers": [
+              "firstNotNull"
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Field": "Match",
+              "First *": "Video"
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": {
         "type": "marcusolsson-csv-datasource",
         "uid": "bfhumji7jrklcb"
       },
@@ -848,10 +981,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 4,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 18
       },
       "id": 5,
       "options": {
@@ -888,22 +1021,11 @@
                     "value": "\\b${Team:regex}\\b"
                   }
                 },
-                "fieldName": "tn"
+                "fieldName": "Team"
               }
             ],
             "match": "any",
             "type": "include"
-          }
-        },
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": [
-                "Match",
-                "autoData"
-              ]
-            }
           }
         }
       ],
@@ -962,7 +1084,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 22
       },
       "id": 1,
       "options": {
@@ -997,7 +1119,7 @@
             "type": "frser-sqlite-datasource",
             "uid": "afh372g20yt4wd"
           },
-          "queryText": "SELECT *\nFROM teams\nWHERE Team = '$Team'",
+          "queryText": "SELECT *\nFROM teams\nWHERE Team = '4028'",
           "queryType": "table",
           "rawQueryText": "SELECT *\nFROM teams\nWHERE Team = '$Team'",
           "refId": "A",
@@ -1009,7 +1131,7 @@
             "uid": "afh372g20yt4wd"
           },
           "hide": false,
-          "queryText": "SELECT *\nFROM teams_fields\nWHERE team_key = '340'",
+          "queryText": "SELECT *\nFROM teams_fields\nWHERE team_key = '4028'",
           "queryType": "table",
           "rawQueryText": "SELECT *\nFROM teams_fields\nWHERE team_key = '$Team'",
           "refId": "B",
@@ -1048,9 +1170,9 @@
           "id": "convertFieldType",
           "options": {
             "conversions": [
-                {
-                    "destinationType": "string",
-                    "targetField": "Team"
+              {
+                "destinationType": "string",
+                "targetField": "Team"
                 },
                 {% for header, type in team_headers %}{
                     "destinationType": "{{type}}",
@@ -1159,7 +1281,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 36
       },
       "id": 7,
       "options": {
@@ -1272,7 +1394,7 @@
         "h": 31,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 48
       },
       "id": 6,
       "options": {
@@ -1354,8 +1476,8 @@
       {
         "allowCustomValue": false,
         "current": {
-          "text": "0",
-          "value": "0"
+          "text": "",
+          "value": ""
         },
         "datasource": {
           "type": "yesoreyeram-infinity-datasource",
@@ -1403,5 +1525,5 @@
   "timezone": "browser",
   "title": "Team View",
   "uid": "ad962jv",
-  "version": 33
+  "version": 35
 }

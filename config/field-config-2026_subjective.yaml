@@ -121,6 +121,25 @@ subjective-svd-fields:
     variance-score:
     stability:
 
+pit-scouting-fields:
+  - name: Drive Team type
+    id: "drive-team-type"
+    description: Is the drive team a rookie team or the comp drive team?
+    type: select
+    options:
+      - display_name: 2026 Season
+        value: 2026-season
+      - display_name: Rookie
+        value: rookie
+  - name: Mechanical changes since last competition 
+    id: "mech-changes"
+    description: Were there any specific mechanical changes to their robot (ex. add a feature)
+    type: text
+  - name: Major controls changes
+    id: "code-changes"
+    description: Were there any big programming changes since their last comp? Especially with autons
+    type: text 
+
 compute-fields: []
 team-fields:
   - name: Vibe Lemons

@@ -53,59 +53,10 @@
             Team Number
             <input type="number" id="tn" step="1">
         </label>
-        <div title="Where they went in auton" class="label-div">
-            Auton Mobility
-            <div class="cbox-cont" style="display: grid; grid-template-columns: repeat(20px 1fr); align-items: center; justify-content: center; text-align: center; background-color: #181818;">
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="auto-mobility-az"/><span>AZ</span>
-                </label>
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="auto-mobility-nz1"/><span>NZ1</span>
-                </label>
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="auto-mobility-nz2"/><span>NZ2</span>
-                </label>
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="auto-mobility-dep"/><span>DEP</span>
-                </label>
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="auto-mobility-out"/><span>OUT</span>
-                </label>
-            </div>
-        </div>
-        <div title="Whether their auton goes to bump or trench or both" class="label-div">
-            Bump or Trech
-            <div class="cbox-cont" style="display: grid; grid-template-columns: repeat(20px 1fr); align-items: center; justify-content: center; text-align: center; background-color: #181818;">
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="bot-bump"/><span>BMP</span>
-                </label>
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="bot-trench"/><span>TRCH</span>
-                </label>
-            </div>
-        </div>
-        <label title="Which bracket does the number of lemons they scored best fit in">
-            Vibe Lemon Range
-            <select id="vl-range">
-                <option value="VLS">VLS (0-5)</option>
-                <option value="VLM">VLM (6-15)</option>
-                <option value="VLL">VLL 15+</option>
-            </select>
+        <label title="Time">
+            Time (ask how to calculate)
+            <input type="number" id="time">
         </label>
-        <div title="Whether they climbed in auton" class="label-div">
-            Other
-            <div class="cbox-cont" style="display: grid; grid-template-columns: repeat(20px 1fr); align-items: center; justify-content: center; text-align: center; background-color: #181818;">
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="climbed"><span>CLIMB</span>
-                </label>
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="a-stop"><span>ASTOP</span>
-                </label>
-                <label style="display: flex; justify-content: center; gap: 10px;">
-                    <input class="cinput" type="checkbox" id="was-pre"><span>Was pre-scouting?</span>
-                </label>
-            </div>
-        </div>
         <button class="sbutton" id="sub" disabled title="Enter a team number">Submit</button>
         <button class="sbutton" onclick="window.location.reload()">Reset</button>
     </div>
@@ -137,12 +88,7 @@
             statusDiv.innerText = "Saving data...";
             const json = {
                 "tn": parseInt(tn.value),
-                "autoData": Array.from(document.querySelectorAll("input[type=checkbox]"))
-                    .filter(cb => cb.id !== "was-pre")
-                    .map(v => v.checked ? v.parentElement.querySelector("span").innerText : "")
-                    .filter(s => s !== "")
-                    .concat(document.getElementById("vl-range").value),
-                "wasPre": document.getElementById("was-pre").checked
+                "time": parseFloat(document.getElementById("time").value)
             };
 
             const res = await fetch('{{url_for("save_auto_simple")}}', {

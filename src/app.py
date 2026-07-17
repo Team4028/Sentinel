@@ -1,5 +1,5 @@
-from enum import Enum
 import hashlib
+from logging.handlers import SMTPHandler
 import re
 import time
 from typing import Any, Literal, NoReturn
@@ -21,6 +21,7 @@ from flask_login import (
     current_user,
     AnonymousUserMixin,
 )
+import pandas as pd
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 from werkzeug.wrappers.response import Response
@@ -122,8 +123,31 @@ config_file = PathUtils.relative_to_origin(
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = False
 
-notification_queue: list[Notification] = []
+using_mail_for_errors = False
+try:
+    toaddrs = os.getenv("to").split(",")
+    if len(toaddrs) <= 0:
+        raise Exception()
+    mail_errors_to_bosu = SMTPHandler(
+        mailhost=os.getenv("mailhost"),
+        fromaddr=os.getenv("fromaddr"),
+        toaddrs=toaddrs,
+        subject="Application Error",
+        credentials=(os.getenv("username"), os.getenv("password")),
+    )
+    mail_errors_to_bosu.setLevel(logging.ERROR)
+    mail_errors_to_bosu.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s in %(name)s > %(funcName)s @ %(filename)s:%(lineno)s"
+        )
+    )
+    using_mail_for_errors = True # set to true if all config was successful
+except:
+    pass
 
+notification_queue: list[Notification] = []
+if using_mail_for_errors:
+    app.logger.addHandler(mail_errors_to_bosu)
 
 def start_loop(loop: asyncio.AbstractEventLoop) -> None:
     """This function starts the main thread for running events"""
@@ -260,7 +284,7 @@ def compile_scouting_dashboard(url: str) -> None:
     env = Environment(loader=FileSystemLoader("."))
     for path in PathUtils.relative_to_origin("src", "templates").glob("*.ji"):
         app.logger.info(f"Compiling {path}...")
-        tmpl = env.get_template(path.as_posix())
+        tmpl = env.get_template(path.relative_to(Path(".").resolve().as_posix()).as_posix())
         # make acronym from title
         template_vars = {
             "sentinel_url": url,
@@ -391,7 +415,6 @@ def send_change_notification(lines: str | None = None) -> None:
         Notification(data, time.time() + 300, [])
     )  # gone is the toilsome webpush shenanigens (ik i spelled that wrong)
 
-
 def handle_tba_webhook(notification_json: dict) -> None:
     """Consumes a tba webhook push request and performes actions based on message_type.
 
@@ -415,6 +438,8 @@ def handle_tba_webhook(notification_json: dict) -> None:
             ):
                 run_async_task(processor.perform_periodic_calls())
             return
+        case "match_video":
+            processor.reload_match_videos()
         case "schedule_updated":
             if (
                 processor.event_key
@@ -931,6 +956,8 @@ def send_sw() -> Response:
 @app.get("/pit")
 def pit_scout() -> str:
     """Returns the pit scouting html page"""
+    if "pit-scouting-fields" in processor.config_data and len(processor.config_data["pit-scouting-fields"]) > 0:
+        return render_template_style("pit-scouting-procedural.html", pit_scouting_data=processor.config_data["pit-scouting-fields"])
     return render_template_style("pit-scouting.html")
 
 
@@ -969,26 +996,14 @@ def save_auto_simple() -> (
         csv_file = PathUtils.file_set.auton_scouting_data
         need_write = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
         js: dict = request.json
-        was_pre = js.pop("wasPre") if "wasPre" in js else False
-        if os.path.exists(csv_file):
-            with open(csv_file, mode="r", newline="") as r:
-                matches_scouted = len(
-                    list(
-                        filter(
-                            lambda s: (f"{js["tn"]}" in s.strip())
-                            and ((not was_pre) ^ ("Pre" in s.strip())),
-                            r.readlines(),
-                        )
-                    )
-                )
-        else:
-            matches_scouted = 0
-        js = {"Match": f"{"Pre " if was_pre else ""}{matches_scouted + 1}"} | js
-        with open(csv_file, mode="a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=js.keys())
-            if need_write:
-                writer.writeheader()
-            writer.writerow(js)
+        time = js.pop("time") if "time" in js else -1
+        if time != -1:
+            df = pd.read_csv(PathUtils.file_set.auton_scouting_data)
+            row = df.loc[df["Team"] == js["tn"]]
+            row["Average"] = (row["Average"] * row["Num_Datapoints"] + time) / (row["Num_Datapoints"] + 1)
+            row["Num_Datapoints"] += 1
+            df.loc[df["Team"] == js["tn"]] = row
+            df.to_csv(PathUtils.file_set.auton_scouting_data, index=False)
         return "Success", 200
     except Exception as e:
         return apputils.exception_format(e), 500
@@ -1905,6 +1920,7 @@ def save_app_config() -> tuple[Literal[""], Literal[200]] | tuple[str, Literal[5
             json.dump(
                 request.json, w, indent=4
             )  # indent=4 auto-formats the json with \t = 4 spaces
+        old_year = app.config["YEAR"]
         app.config.from_file(
             PathUtils.file_set.config_file,
             load=json.load,
@@ -1914,6 +1930,11 @@ def save_app_config() -> tuple[Literal[""], Literal[200]] | tuple[str, Literal[5
             if "_" in app.config["YEAR"]
             else app.config["YEAR"]
         )
+        if app.config["YEAR"] != old_year:
+            processor.config_data = lex_config(app.config["YEAR"])
+            if (os.path.exists(PathUtils.file_set.pit_scouting_data)):
+                shutil.copy2(PathUtils.file_set.pit_scouting_data, str(PathUtils.file_set.pit_scouting_data.absolute()) + ".bkp")
+                os.remove(PathUtils.file_set.pit_scouting_data)
         if processor.has_sched_data and apputils.data_in_exists():
             try:
                 run_async_task(
@@ -2016,9 +2037,7 @@ Thread(target=start_loop, args=(loop,), daemon=True).start()
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        if sys.argv[1] == "pwd":
-            apputils.generate_admin()
-        elif sys.argv[1] == "sign":
+        if sys.argv[1] == "sign":
             apputils.generate_ssl_sign()
     else:
         app.run(port=5001, use_reloader=False)  # debug run python

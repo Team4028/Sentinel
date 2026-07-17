@@ -67,6 +67,74 @@
                 ]
             }
         },
+        "pit-scouting-fields": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name/title of the field"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "A unique identifier for the field cooresponding to the html identity"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "More information on the content of the field"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "number",
+                            "boolean",
+                            "select"
+                        ],
+                        "description": "The type of field"
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "display_name": {
+                                    "type": "string",
+                                    "description": "The name that will show up on the form"
+                                },
+                                "value": {
+                                    "type": "string",
+                                    "description": "The name that will be in the csv"
+                                }
+                            },
+                            "required": [
+                                "display_name",
+                                "value"
+                            ]
+                        },
+                        "description": "Options for the select type"
+                    },
+                    "min": {
+                        "type": "number",
+                        "description": "The minimum of a number type"
+                    },
+                    "max": {
+                        "type": "number",
+                        "description": "The maximum of a number type"
+                    },
+                    "step": {
+                        "type": "number",
+                        "description": "The step of a number type"
+                    }
+                },
+                "required": [
+                    "name",
+                    "description",
+                    "type"
+                ]
+            }
+        },
         "compute-fields": {
             "type": "array",
             "items": {

@@ -149,6 +149,22 @@ def tba_health() -> bool:
     return res.ok
 
 
+def sched_sorter(match, event_key):  # sorting function
+        key = match.removeprefix(event_key + "_")
+        order = {"qm": 0, "sf": 1, "f": 2}
+
+        if key.startswith("qm"):
+            x = int(key[2:])
+            return (order["qm"], x, 0)
+        else:
+            m = re.match(r"(sf|f)(\d+)m(\d+)", key)  # match (s)f<x>m<y>
+            if m:
+                prefix, round, idx = m.groups()
+                return (order[prefix], int(round), int(idx))
+            else:
+                return (99, 0, 0)
+
+
 def yaml_check_schema_raise_errors(yamldata) -> None:
     with open(PathUtils.file_set.config_schema, "r") as f:
         schema = json.load(f)
@@ -204,6 +220,23 @@ def get_tasks_snapshot(loop=None) -> dict:
 def clear_pictures() -> None:
     shutil.rmtree("photos")
     os.makedirs("photos", exist_ok=True)
+
+def get_event_videos(event_key, api_key):
+    match_videos = {}
+    logger.info(f"Fetch: https://thebluealliance.com/api/v3/event/{event_key}/matches")
+    response = requests.get(f"https://thebluealliance.com/api/v3/event/{event_key}/matches", headers={
+        "X-TBA-Auth-Key": api_key,
+    })
+
+    if response.ok and (js := response.json()):
+        for match in js:
+            match_videos[match["key"]] = {
+                "v": [f"https://youtube.com/watch?v={x["key"]}" for x in match["videos"] if x["type"] == "youtube"][0],
+                "t": list(map(lambda x: int(x.removeprefix("frc")), match["alliances"]["red"]["team_keys"] + match["alliances"]["blue"]["team_keys"]))
+            }
+    match_videos = dict(sorted(match_videos.items(), key=lambda mv: sched_sorter(mv[0], event_key)))
+    return match_videos
+
 
 
 def get_event_team_oprs(event_key, api_key) -> dict[Any, Any] | Any:
@@ -336,9 +369,9 @@ def get_tba_images(api_key, year, teams) -> None:
         for i, pic in enumerate(pics):
             output_image_name = PathUtils.relative_to_origin("photos", f"{team}-tba-{i}")
             if pic["type"] in ["avatar", "instagram-image"] or os.path.exists(f"{output_image_name}.png") or os.path.exists(f"{output_image_name}.jpeg"): continue
-            if "details" in pic and "image_url" in pic["details"]:
+            if "details" in pic and "image_url" in pic["details"] and pic["details"]["image_url"] is not None:
                 img_src = pic["details"]["image_url"]
-                output_image_name += os.path.splitext(img_src)[1]
+                output_image_name = output_image_name.with_suffix(os.path.splitext(img_src)[1])
                 try:
                     logger.info(f"Fetch: {img_src}")
                     response = requests.get(img_src, timeout=5, headers={
@@ -356,9 +389,9 @@ def get_tba_images(api_key, year, teams) -> None:
             elif pic["direct_url"].strip():
                 img_src = pic["direct_url"]
                 if pic["type"] == "onshape":
-                    output_image_name += ".png"
+                    output_image_name = output_image_name.with_suffix(".png")
                 else:
-                    output_image_name += os.path.splitext(img_src)[1]
+                    output_image_name = output_image_name.with_suffix(os.path.splitext(img_src)[1])
                 try:
                     logger.info(f"Fetch: {img_src}")
                     response = requests.get(img_src, timeout=5, headers={
@@ -377,9 +410,9 @@ def get_tba_images(api_key, year, teams) -> None:
                 img_src = pic["details"]["base64Image"]
                 img_data = base64.b64decode(img_src)
                 if "PNG" in img_data.decode(errors="replace"):
-                    output_image_name += ".png"
+                    output_image_name = output_image_name.with_suffix(".png")
                 else:
-                    output_image_name += ".jpeg"
+                    output_image_name = output_image_name.with_suffix(".jpeg")
                 with open(output_image_name, "wb") as w:
                     w.write(img_data)
                 logger.info(f"Saved image {output_image_name} from b64 {img_src}")
@@ -466,10 +499,12 @@ class TBADataDynamic:
         ranks={},
         copr={},
         curr_oprs={},
+        videos={},
     ):
         self.ranks = ranks
         self.oprs = curr_oprs
         self.copr = copr
+        self.videos = videos
 
 
 def load_tba_data_static(event_key, api_key, year, last_opr_disabled) -> TBADataStatic:
@@ -506,21 +541,6 @@ def load_tba_data_static(event_key, api_key, year, last_opr_disabled) -> TBAData
         headers={"X-TBA-Auth-Key": api_key},
     ).json()
 
-    def sched_sorter(match):  # sorting function
-        key = match["k"].removeprefix(event_key + "_")
-        order = {"qm": 0, "sf": 1, "f": 2}
-
-        if key.startswith("qm"):
-            x = int(key[2:])
-            return (order["qm"], x, 0)
-        else:
-            m = re.match(r"(sf|f)(\d+)m(\d+)", key)  # match (s)f<x>m<y>
-            if m:
-                prefix, round, idx = m.groups()
-                return (order[prefix], int(round), int(idx))
-            else:
-                return (99, 0, 0)
-
     schedule = sorted(
         [
             {
@@ -540,7 +560,7 @@ def load_tba_data_static(event_key, api_key, year, last_opr_disabled) -> TBAData
             }
             for x in schedJson
         ],
-        key=sched_sorter,
+        key=lambda m: sched_sorter(m['k'], event_key),
     )
 
     return TBADataStatic(
@@ -555,6 +575,7 @@ def load_tba_data_dynamic(event_key, api_key, config_data, teams_list) -> TBADat
         get_tba_ranks(event_key, api_key, teams_list),
         get_tba_coprs(event_key, api_key, config_data),
         get_event_team_oprs(event_key, api_key),
+        get_event_videos(event_key, api_key)
     )
 
 def is_iterable(x: Any) -> bool:

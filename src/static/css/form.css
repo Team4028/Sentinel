@@ -4,12 +4,20 @@
     font-family: 'Neuropolitical', sans-serif;
 }
 
+
 .panel {
     background: #1e1e1e;
-    padding: 1rem;
     border-radius: 8px;
     border: 1px solid #333;
-    width: 80%;
+    width: 100%;
+    padding: 0;
+}
+
+@media screen and (min-width: 1024px) {
+    .panel {
+        width: 80%;
+        padding: 1rem;
+    }
 }
 
 .panel label {

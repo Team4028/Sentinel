@@ -96,6 +96,7 @@ def lex_config(year: str):
         "compute": [],
         "headers": [],
         "svd": [],
+        "pit-scouting-fields": [],
         "teams": [],
         "matches": [],
         "predict-metric": "",
@@ -113,6 +114,7 @@ def lex_config(year: str):
         config["tn"] = data["team-header-name"]
         config["mn"] = data["match-header-name"]
         config["si"] = data["si-header-name"]
+        config["pit-scouting-fields"] = data["pit-scouting-fields"] if "pit-scouting-fields" in data else []
         for field in data["headers"]:
             config["headers"].append(field["name"])
         if "preproc-operations" in data:

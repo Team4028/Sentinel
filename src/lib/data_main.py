@@ -609,6 +609,13 @@ class Processor:
                 self.tba_data_static.teams,
             )
             Event.current_handle_index_progress = 0.33
+        except Warning as w:
+            logger.warning(
+                f"Warning fetching remote data: {apputils.exception_format(w)}"
+            )
+        except Exception as e:
+            logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
+        try:
             logger.info("Loading Statbotics EPAs...")
             self.__sb_epas = {
                 s["team"]: round(s["epa"]["total_points"]["mean"], 1)
@@ -617,15 +624,22 @@ class Processor:
                 )
             }
             Event.current_handle_index_progress = 0.66  # no
+        except Warning as w:
+            logger.warning(
+                f"Warning fetching EPA data: {apputils.exception_format(w)}"
+            )
+        except Exception as e:
+            logger.error(f"Error fetching EPA data: {apputils.exception_format(e)}")
+        try:
             logger.info("Loading Statbotics match data...")
             self.__sb_matches = self.__sb.get_matches(event=self.event_key)
             Event.current_handle_index_progress = 1.0
         except Warning as w:
             logger.warning(
-                f"Warning fetching remote data: {apputils.exception_format(w)}"
+                f"Warning fetching Statbotics match data: {apputils.exception_format(w)}"
             )
         except Exception as e:
-            logger.error(f"Error fetching remote data: {apputils.exception_format(e)}")
+            logger.error(f"Error fetching Statbotics match data: {apputils.exception_format(e)}")
 
     def __write_match_schedule_file(self):
         """ Writes match schedule to the matches table """

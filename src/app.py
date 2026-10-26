@@ -290,6 +290,7 @@ def compile_scouting_dashboard(url: str) -> None:
             "sentinel_url": url,
             "grafana_url": app.config["GRAFANA_URL"],
             "event_prefix": processor.event_key + "_",
+            "rp_query": (" + ".join(processor.__sb_rank_points) + " + ") if hasattr(processor, "__sb_rank_points") else ""
         }
         for k, v in processor.config_data["dash-panel"].items():
             template_vars |= {k.lower() + "_headers": v}
